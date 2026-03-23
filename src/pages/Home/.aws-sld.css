@@ -1,0 +1,19 @@
+.aws-sld__content {
+    position: relative;
+}
+
+.aws-sld__content p {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    transition: transform 0.45s cubic-bezier(0.15, 0.3, 0.15, 1), opacity 0.35s ease-out;
+}
+
+.aws-sld__content--moveLeft p {
+    transform: translate3d(-50px, 0, 0);
+    opacity: 0;
+}
+
+.aws-sld__content--moveRight p {
+    transform: translate3d(50px, 0, 0);
+    opacity: 0;
+}

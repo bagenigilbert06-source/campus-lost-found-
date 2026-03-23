@@ -1,0 +1,134 @@
+[
+    {
+        "itemType": "Lost",
+        "title": "Lost iPhone 13",
+        "description": "A black iPhone 13 with a cracked screen was lost near Central Park, Dhaka. The phone has a gold case and a broken front camera.",
+        "category": "gadgets",
+        "location": "Central Park, Dhaka",
+        "dateLost": "2024-12-22",
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "image": "https://i.ibb.co/87Ty3xN/iphone-13.jpg"
+    },
+    {
+        "itemType": "Found",
+        "title": "Found Wallet",
+        "description": "A black leather wallet containing ID cards and cash was found near the shopping mall in Gulshan. No contact information was in the wallet.",
+        "category": "documents",
+        "location": "Gulshan Mall, Dhaka",
+        "dateLost": "2024-12-20",
+        "name": "Alice Smith",
+        "email": "alice.smith@example.com",
+        "image": "https://i.ibb.co/FxTbgxv/found-wallet-near-south-salt-lake-v0-jmdrvinhzwyd1.webp"
+    },
+    {
+        "itemType": "Lost",
+        "title": "Lost Pet Dog",
+        "description": "A small brown terrier dog was lost near Dhanmondi. The dog is friendly and was wearing a red collar.",
+        "category": "pets",
+        "location": "Dhanmondi, Dhaka",
+        "dateLost": "2024-12-21",
+        "name": "Michael Johnson",
+        "email": "michael.johnson@example.com",
+        "image": "https://i.ibb.co/XkmPPPm/images.jpg"
+    },
+    {
+        "itemType": "Found",
+        "title": "Found Camera",
+        "description": "A Nikon DSLR camera was found in the parking lot of a restaurant in Banani. The camera is in working condition.",
+        "category": "gadgets",
+        "location": "Banani, Dhaka",
+        "dateLost": "2024-12-18",
+        "name": "Sarah Lee",
+        "email": "sarah.lee@example.com",
+        "image": "https://i.ibb.co/MMnDWXb/found-this-camera-in-my-local-charity-shop-for-20-its-my-v0-zomx8ab68ubc1.webp"
+    },
+    {
+        "itemType": "Lost",
+        "title": "Lost Gold Ring",
+        "description": "A gold ring was lost during a wedding at a venue in Mirpur. The ring has a small engraving on the inside.",
+        "category": "jewelry",
+        "location": "Mirpur, Dhaka",
+        "dateLost": "2024-12-15",
+        "name": "Rina Das",
+        "email": "rina.das@example.com",
+        "image": "https://i.ibb.co/c21ftz2/images-1.jpg"
+    },
+    {
+        "itemType": "Found",
+        "title": "Found Glasses",
+        "description": "A pair of prescription glasses were found on the street near the High Court. The glasses are in a black case.",
+        "category": "documents",
+        "location": "High Court, Dhaka",
+        "dateLost": "2024-12-14",
+        "name": "Fahim Khan",
+        "email": "fahim.khan@example.com",
+        "image": "https://i.ibb.co/RQkgrf6/images-2.jpg"
+    },
+    {
+        "itemType": "Lost",
+        "title": "Lost Watch",
+        "description": "A silver wristwatch with a black leather strap was lost at the airport. The watch has a small scratch on the face.",
+        "category": "gadgets",
+        "location": "Dhaka Airport",
+        "dateLost": "2024-12-16",
+        "name": "Nazmul Hossain",
+        "email": "nazmul.hossain@example.com",
+        "image": "https://i.ibb.co/mqbG6M1/5caf4e8b65fe291c722949a5.webp"
+    },
+    {
+        "itemType": "Found",
+        "title": "Found Necklace",
+        "description": "A gold necklace was found near a café in Uttara. It looks quite valuable and was found in a small velvet pouch.",
+        "category": "jewelry",
+        "location": "Uttara, Dhaka",
+        "dateLost": "2024-12-10",
+        "name": "Sana Ahmed",
+        "email": "sana.ahmed@example.com",
+        "image": "https://i.ibb.co/KryTvqS/images-3.jpg"
+    },
+    {
+        "itemType": "Lost",
+        "title": "Lost Bicycle",
+        "description": "A blue mountain bike was lost near the university campus. It has a white seat and black tires.",
+        "category": "gadgets",
+        "location": "University Campus, Dhaka",
+        "dateLost": "2024-12-17",
+        "name": "Shahidul Islam",
+        "email": "shahidul.islam@example.com",
+        "image": "https://i.ibb.co/tYVH6vw/images-4.jpg"
+    },
+    {
+        "itemType": "Found",
+        "title": "Found Earring",
+        "description": "A small diamond earring was found near the fountain in the park. It seems like part of a pair.",
+        "category": "jewelry",
+        "location": "Fountain Park, Dhaka",
+        "dateLost": "2024-12-12",
+        "name": "Nadia Begum",
+        "email": "nadia.begum@example.com",
+        "image": "https://i.ibb.co/JyKYqZz/images-5.jpg"
+    },
+    {
+        "itemType": "Lost",
+        "title": "Lost Laptop",
+        "description": "A Dell laptop was left behind at a café. It has a blue cover and is in a black case.",
+        "category": "gadgets",
+        "location": "Dhanmondi Café",
+        "dateLost": "2024-12-19",
+        "name": "Laila Rahman",
+        "email": "laila.rahman@example.com",
+        "image": "https://i.ibb.co/T4x3TzW/images-6.jpg"
+    },
+    {
+        "itemType": "Found",
+        "title": "Found ID Card",
+        "description": "An ID card with the name 'Rafael Ahmed' was found in the subway station. It looks like a work ID.",
+        "category": "documents",
+        "location": "Subway Station, Dhaka",
+        "dateLost": "2024-12-13",
+        "name": "Rashid Rahman",
+        "email": "rashid.rahman@example.com",
+        "image": "https://i.ibb.co/8PS86HL/images-7.jpg"
+    }
+]
