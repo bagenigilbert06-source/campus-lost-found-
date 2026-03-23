@@ -1,12 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { getFirebaseAuth } from '../config/firebase.js';
+import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
   user?: {
     uid: string;
     email?: string;
-    email_verified?: boolean;
-    // optional profile fields that may be present on decoded Firebase token
     displayName?: string;
     photoURL?: string;
   };
@@ -21,13 +19,14 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       return;
     }
 
-    const decodedToken = await getFirebaseAuth().verifyIdToken(token);
+    const secret = process.env.JWT_SECRET || 'your-secret-key';
+    const decodedToken = jwt.verify(token, secret) as any;
+    
     req.user = {
-      uid: decodedToken.uid,
+      uid: decodedToken.id,
       email: decodedToken.email,
-      email_verified: decodedToken.email_verified,
-      displayName: (decodedToken as any).name || (decodedToken as any).displayName,
-      photoURL: (decodedToken as any).picture || (decodedToken as any).photoURL,
+      displayName: decodedToken.displayName,
+      photoURL: decodedToken.photoURL,
     };
 
     next();
@@ -46,18 +45,17 @@ export function optionalAuthMiddleware(req: AuthRequest, res: Response, next: Ne
       return;
     }
 
-    getFirebaseAuth().verifyIdToken(token).then((decodedToken) => {
-      req.user = {
-        uid: decodedToken.uid,
-        email: decodedToken.email,
-        email_verified: decodedToken.email_verified,
-      };
-      next();
-    }).catch(() => {
-      // Token invalid but optional, continue
-      next();
-    });
+    const secret = process.env.JWT_SECRET || 'your-secret-key';
+    const decodedToken = jwt.verify(token, secret) as any;
+    req.user = {
+      uid: decodedToken.id,
+      email: decodedToken.email,
+      displayName: decodedToken.displayName,
+      photoURL: decodedToken.photoURL,
+    };
+    next();
   } catch (error) {
+    // Token invalid but optional, continue
     next();
   }
 }

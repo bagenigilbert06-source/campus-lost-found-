@@ -3,8 +3,120 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { userService } from '../services/UserService.js';
 import { body, validationResult } from 'express-validator';
 import { BadRequest } from '../middleware/errorHandler.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 const router: import('express').Router = Router();
+
+// Helper function to generate JWT token
+const generateToken = (userId: string, email: string, displayName: string, photoURL?: string): string => {
+  const secret = process.env.JWT_SECRET || 'your-secret-key';
+  return jwt.sign(
+    { id: userId, email, displayName, photoURL },
+    secret,
+    { expiresIn: '7d' }
+  );
+};
+
+// Local signup endpoint
+router.post('/signup', [
+  body('email').isEmail(),
+  body('password').isLength({ min: 6 }),
+  body('displayName').isString().trim(),
+], async (req: Response, res: Response, next: NextFunction) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw BadRequest('Invalid input fields');
+    }
+
+    const { email, password, displayName } = req.body;
+
+    // Check if user already exists
+    const existingUser = await userService.getUserByEmail(email);
+    if (existingUser) {
+      res.status(409).json({ success: false, message: 'User already exists' });
+      return;
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user with hashed password
+    const user = await userService.getOrCreateUser(
+      email, // Use email as ID
+      email,
+      displayName,
+      '',
+      hashedPassword
+    );
+
+    // Generate JWT token
+    const token = generateToken(user._id, user.email, user.displayName);
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        profileImage: user.profileImage,
+        location: user.location,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Local login endpoint
+router.post('/login', [
+  body('email').isEmail(),
+  body('password').isString(),
+], async (req: Response, res: Response, next: NextFunction) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw BadRequest('Invalid input fields');
+    }
+
+    const { email, password } = req.body;
+
+    // Find user by email
+    const user = await userService.getUserByEmail(email);
+    if (!user || !user.password) {
+      res.status(401).json({ success: false, message: 'Invalid email or password' });
+      return;
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      res.status(401).json({ success: false, message: 'Invalid email or password' });
+      return;
+    }
+
+    // Generate JWT token
+    const token = generateToken(user._id, user.email, user.displayName);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        profileImage: user.profileImage,
+        location: user.location,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Register or sync user (handles both Firebase and Google OAuth users)
 router.post('/register', authMiddleware, [
@@ -33,9 +145,9 @@ router.post('/register', authMiddleware, [
       photoURL || req.user.photoURL || ''
     );
 
-    res.status(user.isNew ? 201 : 200).json({
+    res.status(201).json({
       success: true,
-      message: user.isNew ? 'User registered successfully' : 'User synced successfully',
+      message: 'User registered successfully',
       user: {
         _id: user._id,
         email: user.email,

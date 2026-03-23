@@ -1,7 +1,9 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IUser extends Document {
+  _id: string;
   email: string;
+  password?: string;
   displayName: string;
   profileImage?: string;
   location?: string;
@@ -24,6 +26,7 @@ const UserSchema = new Schema<any>(
   {
     _id: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
+    password: { type: String }, // Optional - for local auth
     displayName: { type: String, required: true },
     profileImage: { type: String },
     location: { type: String },
