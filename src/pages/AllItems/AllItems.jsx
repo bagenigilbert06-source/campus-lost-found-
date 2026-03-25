@@ -11,9 +11,17 @@ const AllItems = () => {
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue, setDebouncedSearchValue] = useState(searchValue);
     const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedItemType, setSelectedItemType] = useState(''); // Filter by Lost/Found
+    const [selectedLocation, setSelectedLocation] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState(''); // Filter by Verified/Pending
+    const [dateRange, setDateRange] = useState({ start: '', end: '' }); // Date filter
     const [loading, setLoading] = useState(true);
+    const [showFilters, setShowFilters] = useState(false); // Toggle advanced filters
     
     const categories = [...new Set(items.map(item => item.category))];
+    const locations = [...new Set(items.map(item => item.location))];
+    const itemTypes = ['Lost', 'Found', 'Recovered'];
+    const statuses = ['Verified', 'Pending'];
     const suggestions = [...new Set(items.map(item => item.title))].slice(0, 8);
 
     useEffect(() => {
@@ -27,15 +35,36 @@ const AllItems = () => {
         return () => clearTimeout(timer);
     }, [searchValue]);
 
-    const filteredItems = items.filter(
-        (item) =>
-            (selectedCategory ? item.category === selectedCategory : true) &&
-            (
-                item.title?.toLowerCase().includes(debouncedSearchValue.toLowerCase()) || 
-                item.location?.toLowerCase().includes(debouncedSearchValue.toLowerCase()) ||
-                item.category?.toLowerCase().includes(debouncedSearchValue.toLowerCase())
-            )
-    );
+    const filteredItems = items.filter((item) => {
+        // Search filter
+        const matchesSearch = 
+            item.title?.toLowerCase().includes(debouncedSearchValue.toLowerCase()) || 
+            item.location?.toLowerCase().includes(debouncedSearchValue.toLowerCase()) ||
+            item.description?.toLowerCase().includes(debouncedSearchValue.toLowerCase()) ||
+            item.category?.toLowerCase().includes(debouncedSearchValue.toLowerCase());
+
+        // Category filter
+        const matchesCategory = !selectedCategory || item.category === selectedCategory;
+
+        // Item type filter
+        const matchesItemType = !selectedItemType || item.itemType === selectedItemType;
+
+        // Location filter
+        const matchesLocation = !selectedLocation || item.location === selectedLocation;
+
+        // Status filter (Verified/Pending)
+        const matchesStatus = !selectedStatus || 
+            (selectedStatus === 'Verified' ? item.verificationStatus === 'verified' : 
+             selectedStatus === 'Pending' ? item.verificationStatus !== 'verified' : true);
+
+        // Date range filter
+        const itemDate = item.dateLost ? new Date(item.dateLost) : new Date(item.createdAt);
+        const matchesDateRange = 
+            (!dateRange.start || itemDate >= new Date(dateRange.start)) &&
+            (!dateRange.end || itemDate <= new Date(dateRange.end));
+
+        return matchesSearch && matchesCategory && matchesItemType && matchesLocation && matchesStatus && matchesDateRange;
+    });
 
     return (
         <div className="container mx-auto px-4 py-8 min-h-screen">
@@ -76,12 +105,151 @@ const AllItems = () => {
                 </div>
             </motion.div>
 
-            {/* Horizontal Categories Bar */}
+            {/* Quick Filter Buttons - Item Type */}
+            <motion.div
+                className="mb-6 flex justify-center gap-2 flex-wrap"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 }}
+            >
+                {itemTypes.map((type) => (
+                    <motion.button
+                        key={type}
+                        onClick={() => setSelectedItemType(selectedItemType === type ? '' : type)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 whitespace-nowrap ${
+                            selectedItemType === type
+                                ? type === 'Lost' ? 'bg-red-500 text-white' : type === 'Found' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+                                : 'glass-button-secondary hover:scale-105'
+                        }`}
+                    >
+                        {type === 'Lost' ? '🔴' : type === 'Found' ? '🟢' : '✓'} {type}
+                    </motion.button>
+                ))}
+            </motion.div>
+
+            {/* Advanced Filters Toggle */}
+            <motion.div
+                className="mb-6 flex justify-center"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+            >
+                <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="px-4 py-2 rounded-full font-semibold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-all"
+                >
+                    {showFilters ? '▼ Hide Filters' : '▶ Advanced Filters'}
+                </button>
+            </motion.div>
+
+            {/* Advanced Filters Panel */}
+            {showFilters && (
+                <motion.div
+                    className="mb-8 p-6 rounded-xl glass-card-default"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Category Filter */}
+                        <div>
+                            <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
+                                Category
+                            </label>
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:ring-2 focus:ring-zetech-primary"
+                            >
+                                <option value="">All Categories</option>
+                                {categories.map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Location Filter */}
+                        <div>
+                            <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
+                                Location
+                            </label>
+                            <select
+                                value={selectedLocation}
+                                onChange={(e) => setSelectedLocation(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:ring-2 focus:ring-zetech-primary"
+                            >
+                                <option value="">All Locations</option>
+                                {locations.map((loc) => (
+                                    <option key={loc} value={loc}>{loc}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Status Filter */}
+                        <div>
+                            <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
+                                Verification Status
+                            </label>
+                            <select
+                                value={selectedStatus}
+                                onChange={(e) => setSelectedStatus(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:ring-2 focus:ring-zetech-primary"
+                            >
+                                <option value="">All Statuses</option>
+                                <option value="Verified">✓ Verified</option>
+                                <option value="Pending">⏳ Pending</option>
+                            </select>
+                        </div>
+
+                        {/* Date Range */}
+                        <div>
+                            <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
+                                Date Range
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="date"
+                                    value={dateRange.start}
+                                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                                    className="flex-1 px-2 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 text-sm"
+                                />
+                                <input
+                                    type="date"
+                                    value={dateRange.end}
+                                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                                    className="flex-1 px-2 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 text-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Reset Filters Button */}
+                    <div className="mt-4 flex justify-end">
+                        <button
+                            onClick={() => {
+                                setSelectedCategory('');
+                                setSelectedItemType('');
+                                setSelectedLocation('');
+                                setSelectedStatus('');
+                                setDateRange({ start: '', end: '' });
+                            }}
+                            className="px-4 py-2 rounded-lg bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500 transition-all font-semibold"
+                        >
+                            Reset Filters
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Category Pills Bar */}
             <motion.div
                 className="mb-8 overflow-x-auto pb-2"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.15 }}
+                transition={{ duration: 0.5, delay: 0.25 }}
             >
                 <div className="flex gap-3 min-w-min">
                     {/* All Categories Button */}

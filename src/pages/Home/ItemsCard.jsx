@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaCheckCircle, FaClock } from 'react-icons/fa';
 import { GlassCard, GlassButton } from '../../components/glass';
+import PlaceholderImage from '../../components/PlaceholderImage';
 
 const ItemsCard = ({ item, delay = 0 }) => {
-  const { itemType, title, description, image, verificationStatus, _id } = item;
+  const { itemType, title, description, image, images, verificationStatus, _id } = item;
   const navigate = useNavigate();
   
   const isVerified = verificationStatus === 'verified';
+  
+  // Get the first image from images array or use single image property
+  const imageUrl = images && images.length > 0 ? images[0] : image;
 
   return (
     <motion.div
@@ -28,17 +32,26 @@ const ItemsCard = ({ item, delay = 0 }) => {
       }}
     >
       {/* Image Section with Tags */}
-      <div className="relative h-32 overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex-shrink-0">
-        <motion.img
-          className="w-full h-full object-cover"
-          src={image || 'https://via.placeholder.com/300'}
-          alt={title}
-          onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/300';
-          }}
-          whileHover={{ scale: 1.08 }}
-          transition={{ duration: 0.3 }}
-        />
+      <div className="relative h-32 overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex-shrink-0 flex items-center justify-center">
+        {imageUrl ? (
+          <motion.img
+            className="w-full h-full object-cover"
+            src={imageUrl}
+            alt={title}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              if (e.target.parentElement?.querySelector('[data-placeholder]')) {
+                e.target.parentElement.querySelector('[data-placeholder]').style.display = 'flex';
+              }
+            }}
+            whileHover={{ scale: 1.08 }}
+            transition={{ duration: 0.3 }}
+          />
+        ) : (
+          <div data-placeholder className="w-full h-full flex items-center justify-center">
+            <PlaceholderImage className="w-full h-full" />
+          </div>
+        )}
         
         {/* Item Type Badge */}
         <motion.div
