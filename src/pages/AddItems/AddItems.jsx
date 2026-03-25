@@ -14,17 +14,40 @@ const AddItems = () => {
     const handleAddItems = (e) => {
         e.preventDefault();
 
+        // Validate required fields
+        if (!imageUrl) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please provide an image URL',
+            });
+            return;
+        }
+
+        if (!user?.email) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Authentication Error',
+                text: 'Please log in to add an item',
+            });
+            return;
+        }
+
         const formData = new FormData(e.target);
         const initialData = Object.fromEntries(formData.entries());
         initialData.email = user?.email;
         initialData.name = user?.displayName;
         initialData.image = imageUrl; // Add the image URL to the data
+        
+        console.log("[v0] Submitting form with data:", initialData);
 
         axios.post('http://localhost:3001/api/items', initialData, {
             headers: { 'Content-Type': 'application/json' },
         })
             .then((response) => {
-                if (response.data.insertedId) {
+                console.log("[v0] Add items response:", response.data);
+                // Check for various success indicators from the API
+                if (response.status === 201 || response.data.insertedId || response.data._id || response.data.success) {
                     Swal.fire({
                         position: 'top-end',
                         icon: 'success',
@@ -33,14 +56,16 @@ const AddItems = () => {
                         timer: 1500,
                     });
                     navigate('/allItems');
+                } else {
+                    throw new Error('Unexpected response from server');
                 }
             })
             .catch((error) => {
-                console.error('Error adding post:', error);
+                console.error('[v0] Error adding post:', error.response?.data || error.message);
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
-                    text: 'Something went wrong! Please try again.',
+                    text: error.response?.data?.message || 'Something went wrong! Please try again.',
                 });
             });
     };
