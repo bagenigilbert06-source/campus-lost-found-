@@ -20,7 +20,7 @@ const AddItems = () => {
         initialData.name = user?.displayName;
         initialData.image = imageUrl; // Add the image URL to the data
 
-        axios.post('https://b10a11-server-side-noorjahan220.vercel.app/items', initialData, {
+        axios.post('http://localhost:3001/api/items', initialData, {
             headers: { 'Content-Type': 'application/json' },
         })
             .then((response) => {

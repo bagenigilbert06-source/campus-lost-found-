@@ -67,19 +67,19 @@ const router = createBrowserRouter([
       {
         path: "/items/:id",
         element: <PrivateRoute><PostDetails /></PrivateRoute>,
-        loader: ({ params }) => fetch(`https://b10a11-server-side-noorjahan220.vercel.app/items/${params.id}`)
+        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`)
 
       },
       {
         path: "/update/:id",
         element: <PrivateRoute><UpdateItems /></PrivateRoute>,
-        loader: ({ params }) => fetch(`https://b10a11-server-side-noorjahan220.vercel.app/items/${params.id}`)
+        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`)
 
       },
       {
         path: '/allItems',
         element: <AllItems />,
-        loader: () => fetch('https://b10a11-server-side-noorjahan220.vercel.app/items')
+        loader: () => fetch('http://localhost:3001/api/items')
       },
       {
         path: '/allRecovered',

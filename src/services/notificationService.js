@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'https://b10a11-server-side-noorjahan220.vercel.app';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * Notification Service

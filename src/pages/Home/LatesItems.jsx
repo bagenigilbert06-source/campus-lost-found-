@@ -8,7 +8,7 @@ const LatestItems = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('https://b10a11-server-side-noorjahan220.vercel.app/items')
+        fetch('http://localhost:3001/api/items')
             .then((res) => res.json())
             .then((data) => {
                 const sortedItems = data.sort((a, b) => new Date(b.date) - new Date(a.date));

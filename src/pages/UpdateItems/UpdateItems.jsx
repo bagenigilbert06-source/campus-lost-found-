@@ -32,7 +32,7 @@ const UpdateItems = () => {
             name: user.displayName,
         };
 
-        fetch(`https://b10a11-server-side-noorjahan220.vercel.app/itemUpdate/${_id}`, {
+        fetch(`http://localhost:3001/api/items/${_id}`, {
             method: 'PUT',
             headers: {
                 'content-type': 'application/json',

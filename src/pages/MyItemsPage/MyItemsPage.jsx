@@ -33,7 +33,7 @@ const MyItemsPage = () => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://b10a11-server-side-noorjahan220.vercel.app/itemDelete/${_id}`, {
+        fetch(`http://localhost:3001/api/items/${_id}`, {
           method: 'DELETE',
         })
           .then(res => res.json())
