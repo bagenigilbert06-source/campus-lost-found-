@@ -38,7 +38,8 @@ const MyItemsPage = () => {
         })
           .then(res => res.json())
           .then(data => {
-            if (data.deletedCount > 0) {
+            console.log("[v0] Delete response:", data);
+            if (data.deletedCount > 0 || data.success || data.message) {
               Swal.fire("Deleted!", "Your item has been deleted.", "success");
               setPosts(posts.filter(post => post._id !== _id));
             } else {

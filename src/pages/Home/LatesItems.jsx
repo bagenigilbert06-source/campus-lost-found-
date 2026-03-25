@@ -10,7 +10,9 @@ const LatestItems = () => {
     useEffect(() => {
         fetch('http://localhost:3001/api/items')
             .then((res) => res.json())
-            .then((data) => {
+            .then((response) => {
+                const data = Array.isArray(response) ? response : response.data || [];
+                console.log("[v0] Items response:", response);
                 const sortedItems = data.sort((a, b) => new Date(b.date) - new Date(a.date));
                 const latestItems = sortedItems.slice(0, 6);
                 setItems(latestItems);

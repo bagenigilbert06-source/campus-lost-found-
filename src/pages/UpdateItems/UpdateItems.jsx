@@ -41,7 +41,8 @@ const UpdateItems = () => {
         })
             .then(res => res.json())
             .then(data => {
-                if (data.modifiedCount > 0) {
+                console.log("[v0] Update response:", data);
+                if (data.modifiedCount > 0 || data.success || data._id) {
                     toast.success("Item updated successfully!");
                     navigate('/myItems')
 

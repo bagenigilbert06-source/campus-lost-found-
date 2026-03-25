@@ -67,19 +67,28 @@ const router = createBrowserRouter([
       {
         path: "/items/:id",
         element: <PrivateRoute><PostDetails /></PrivateRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`)
+        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
+          console.log("[v0] Item loader response:", data);
+          return Array.isArray(data) ? data[0] : data.data || data;
+        })
 
       },
       {
         path: "/update/:id",
         element: <PrivateRoute><UpdateItems /></PrivateRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`)
+        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
+          console.log("[v0] Update loader response:", data);
+          return Array.isArray(data) ? data[0] : data.data || data;
+        })
 
       },
       {
         path: '/allItems',
         element: <AllItems />,
-        loader: () => fetch('http://localhost:3001/api/items')
+        loader: () => fetch('http://localhost:3001/api/items').then(res => res.json()).then(data => {
+          console.log("[v0] AllItems loader response:", data);
+          return Array.isArray(data) ? data : data.data || [];
+        })
       },
       {
         path: '/allRecovered',
