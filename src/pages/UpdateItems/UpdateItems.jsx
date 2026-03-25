@@ -32,7 +32,7 @@ const UpdateItems = () => {
             name: user.displayName,
         };
 
-        fetch(`https://b10a11-server-side-noorjahan220.vercel.app/itemUpdate/${_id}`, {
+        fetch(`http://localhost:3001/api/items/${_id}`, {
             method: 'PUT',
             headers: {
                 'content-type': 'application/json',
@@ -41,7 +41,8 @@ const UpdateItems = () => {
         })
             .then(res => res.json())
             .then(data => {
-                if (data.modifiedCount > 0) {
+                console.log("[v0] Update response:", data);
+                if (data.modifiedCount > 0 || data.success || data._id) {
                     toast.success("Item updated successfully!");
                     navigate('/myItems')
 

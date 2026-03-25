@@ -27,11 +27,11 @@ const AdminDashboard = () => {
     const fetchDashboardData = async () => {
         try {
             // Fetch all items
-            const itemsRes = await axios.get('https://b10a11-server-side-noorjahan220.vercel.app/items');
+            const itemsRes = await axios.get('http://localhost:3001/api/items');
             const items = itemsRes.data;
             
             // Fetch recovered items
-            const recoveredRes = await axios.get('https://b10a11-server-side-noorjahan220.vercel.app/recovered', {
+            const recoveredRes = await axios.get('http://localhost:3001/api/items?status=recovered', {
                 withCredentials: true
             });
             
@@ -57,7 +57,7 @@ const AdminDashboard = () => {
 
     const handleVerifyItem = async (itemId) => {
         try {
-            await axios.patch(`https://b10a11-server-side-noorjahan220.vercel.app/items/${itemId}`, {
+            await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
                 verificationStatus: 'verified',
                 verifiedBy: user.email,
                 verifiedAt: new Date().toISOString()
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
 
     const handleRejectItem = async (itemId) => {
         try {
-            await axios.patch(`https://b10a11-server-side-noorjahan220.vercel.app/items/${itemId}`, {
+            await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
                 verificationStatus: 'rejected',
                 verifiedBy: user.email,
                 verifiedAt: new Date().toISOString()

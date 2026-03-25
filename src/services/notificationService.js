@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'https://b10a11-server-side-noorjahan220.vercel.app';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 /**
  * Notification Service

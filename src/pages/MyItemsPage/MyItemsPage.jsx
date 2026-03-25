@@ -33,12 +33,13 @@ const MyItemsPage = () => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://b10a11-server-side-noorjahan220.vercel.app/itemDelete/${_id}`, {
+        fetch(`http://localhost:3001/api/items/${_id}`, {
           method: 'DELETE',
         })
           .then(res => res.json())
           .then(data => {
-            if (data.deletedCount > 0) {
+            console.log("[v0] Delete response:", data);
+            if (data.deletedCount > 0 || data.success || data.message) {
               Swal.fire("Deleted!", "Your item has been deleted.", "success");
               setPosts(posts.filter(post => post._id !== _id));
             } else {
