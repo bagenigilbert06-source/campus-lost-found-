@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { useLoaderData, useNavigate} from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import toast from 'react-hot-toast';
@@ -7,12 +7,33 @@ import { schoolConfig } from '../../config/schoolConfig';
 
 const UpdateItems = () => {
     const item = useLoaderData();
-    const { _id, itemType, title, description, category, location, dateLost, image } = item;
+    const { _id, itemType, title, description, category, location, dateLost, images, image } = item;
     const { user } = useContext(AuthContext);
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+    const [imageUrls, setImageUrls] = useState(images && images.length > 0 ? images : (image ? [image] : []));
+    const [imageInput, setImageInput] = useState('');
+
+    const handleAddImageUrl = () => {
+        if (!imageInput.trim()) {
+            toast.error('Please enter a valid image URL');
+            return;
+        }
+        setImageUrls([...imageUrls, imageInput]);
+        setImageInput('');
+    };
+
+    const handleRemoveImage = (index) => {
+        setImageUrls(imageUrls.filter((_, i) => i !== index));
+    };
 
     const handleUpdate = e => {
         e.preventDefault();
+        
+        if (imageUrls.length === 0) {
+            toast.error('Please add at least one image');
+            return;
+        }
+
         const form = e.target;
         const itemType = form.itemType.value;
         const title = form.title.value;
@@ -28,6 +49,7 @@ const UpdateItems = () => {
             category,
             location,
             dateLost,
+            images: imageUrls,
             email: user.email,
             name: user.displayName,
         };
@@ -78,17 +100,59 @@ const UpdateItems = () => {
                     </select>
                 </div>
 
-                {/* Image Upload */}
+                {/* Image URLs */}
                 <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Upload Image URL</label>
-                    <input
-                        type="text"
-                        name="image"
-                        defaultValue={image}
-                        placeholder="Enter Image URL"
-                        className="input input-bordered w-full mt-2"
-                        required
-                    />
+                    <label className="block text-sm font-medium text-zetech-primary">Images</label>
+                    <div className="flex gap-2 mt-2 mb-2">
+                        <input
+                            type="url"
+                            placeholder="Enter Image URL"
+                            className="input input-bordered w-full"
+                            value={imageInput}
+                            onChange={(e) => setImageInput(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddImageUrl();
+                                }
+                            }}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddImageUrl}
+                            className="btn btn-primary text-white px-6"
+                        >
+                            Add
+                        </button>
+                    </div>
+
+                    {/* Image Preview Grid */}
+                    {imageUrls.length > 0 && (
+                        <div className="mt-4">
+                            <p className="text-sm font-semibold mb-2">Images ({imageUrls.length})</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {imageUrls.map((url, index) => (
+                                    <div key={index} className="relative group">
+                                        <img
+                                            src={url}
+                                            alt={`Preview ${index + 1}`}
+                                            className="w-full h-20 object-cover rounded-lg border-2 border-zetech-primary"
+                                            onError={(e) => {
+                                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10">Invalid</text></svg>';
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveImage(index)}
+                                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Title */}

@@ -5,10 +5,26 @@ import { FaCheckCircle, FaClock } from 'react-icons/fa';
 import { GlassCard, GlassButton } from '../../components/glass';
 
 const ItemsCard = ({ item, delay = 0 }) => {
-  const { itemType, title, description, image, verificationStatus, _id } = item;
+  const { itemType, title, description, images, image, verificationStatus, _id } = item;
   const navigate = useNavigate();
   
   const isVerified = verificationStatus === 'verified';
+  
+  // Get the first image from images array or fallback to single image
+  const imageUrl = (images && images.length > 0) ? images[0] : image;
+
+  // SVG placeholder for missing images
+  const PlaceholderImage = () => (
+    <svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <rect width="300" height="200" fill="#e2e8f0"/>
+      <rect x="50" y="40" width="60" height="60" fill="#cbd5e1" rx="4"/>
+      <circle cx="220" cy="70" r="30" fill="#cbd5e1"/>
+      <path d="M 50 140 L 100 100 L 150 130 L 200 80 L 300 140 L 300 200 L 0 200 Z" fill="#a1aec9"/>
+      <text x="150" y="185" textAnchor="middle" fontSize="14" fill="#64748b" fontFamily="Arial">
+        No Image
+      </text>
+    </svg>
+  );
 
   return (
     <motion.div
@@ -28,17 +44,33 @@ const ItemsCard = ({ item, delay = 0 }) => {
       }}
     >
       {/* Image Section with Tags */}
-      <div className="relative h-32 overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex-shrink-0">
-        <motion.img
-          className="w-full h-full object-cover"
-          src={image || 'https://via.placeholder.com/300'}
-          alt={title}
-          onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/300';
-          }}
-          whileHover={{ scale: 1.08 }}
-          transition={{ duration: 0.3 }}
-        />
+      <div className="relative h-32 overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex-shrink-0 flex items-center justify-center">
+        {imageUrl ? (
+          <motion.img
+            className="w-full h-full object-cover"
+            src={imageUrl}
+            alt={title}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              const placeholder = e.target.parentElement?.querySelector('[data-placeholder="true"]');
+              if (placeholder) placeholder.style.display = 'flex';
+            }}
+            whileHover={{ scale: 1.08 }}
+            transition={{ duration: 0.3 }}
+          />
+        ) : null}
+        
+        {/* Fallback Placeholder */}
+        {!imageUrl && (
+          <div data-placeholder="true" className="w-full h-full flex items-center justify-center">
+            <PlaceholderImage />
+          </div>
+        )}
+        
+        {/* Hidden Placeholder for Error State */}
+        <div data-placeholder="true" className="hidden w-full h-full flex items-center justify-center">
+          <PlaceholderImage />
+        </div>
         
         {/* Item Type Badge */}
         <motion.div

@@ -18,7 +18,11 @@ const PostDetails = () => {
   const [recoveredLocation, setRecoveredLocation] = useState('');
   const [recoveredDate, setRecoveredDate] = useState(new Date());
   const [isRecovered, setIsRecovered] = useState(item.itemType === 'Recovered');
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const axiosSecure = UseAxiosSecure();
+
+  // Get images from images array or fallback to single image
+  const images = (item.images && item.images.length > 0) ? item.images : (item.image ? [item.image] : []);
 
   const handleSubmit = async () => {
     try {
@@ -79,11 +83,43 @@ const PostDetails = () => {
         {item.title}
       </h2>
       <div className="flex flex-col md:flex-row items-center gap-6">
-        <img
-          src={item.image}
-          alt={item.title}
-          className="w-full md:w-1/3 h-64 object-cover rounded-lg shadow-md"
-        />
+        {/* Image Section */}
+        <div className="w-full md:w-1/3 h-64 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg shadow-md overflow-hidden flex items-center justify-center">
+          {images.length > 0 ? (
+            <img
+              src={images[currentImageIndex]}
+              alt={item.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                const placeholder = e.target.parentElement?.querySelector('[data-placeholder="true"]');
+                if (placeholder) placeholder.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          
+          {/* Fallback Placeholder */}
+          {images.length === 0 && (
+            <div data-placeholder="true" className="w-full h-full flex items-center justify-center">
+              <svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                <rect width="300" height="200" fill="#e2e8f0"/>
+                <text x="150" y="100" textAnchor="middle" fontSize="18" fill="#64748b" fontFamily="Arial">
+                  No Image Available
+                </text>
+              </svg>
+            </div>
+          )}
+          
+          {/* Hidden Placeholder for Error State */}
+          <div data-placeholder="true" className="hidden w-full h-full flex items-center justify-center">
+            <svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+              <rect width="300" height="200" fill="#e2e8f0"/>
+              <text x="150" y="100" textAnchor="middle" fontSize="18" fill="#64748b" fontFamily="Arial">
+                Image Failed to Load
+              </text>
+            </svg>
+          </div>
+        </div>
         <div className="flex-1">
           <p className="text-[0.9rem] mb-4" style={{ fontFamily: 'Lato, sans-serif' }}>
             <strong className="font-semibold text-zetech-primary">Description:</strong> {item.description}
