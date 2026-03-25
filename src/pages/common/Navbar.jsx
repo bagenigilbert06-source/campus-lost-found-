@@ -123,15 +123,20 @@ const Navbar = () => {
                                         </Link>
 
                                         <div className="dropdown dropdown-end">
-                                            <button tabIndex={0} className="apple-profile-btn">
-                                                <div className="h-10 w-10 overflow-hidden rounded-full">
+                                            <button 
+                                                tabIndex={0} 
+                                                className="apple-profile-btn"
+                                                onClick={() => navigate('/profile')}
+                                                title="Go to profile"
+                                            >
+                                                <div className="h-10 w-10 overflow-hidden rounded-full cursor-pointer hover:ring-2 hover:ring-teal-500 transition-all duration-200">
                                                     <img
                                                         src={user?.photoURL || fallbackAvatar}
                                                         alt={user?.displayName || user?.email || "User profile"}
                                                         className="h-full w-full object-cover"
                                                     />
                                                 </div>
-                                                <span className="hidden max-w-[120px] truncate text-sm xl:block">
+                                                <span className="hidden max-w-[120px] truncate text-sm xl:block cursor-pointer hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
                                                     {user?.displayName || "My Account"}
                                                 </span>
                                             </button>
@@ -141,16 +146,17 @@ const Navbar = () => {
                                                 className="dropdown-glass menu menu-sm dropdown-content mt-3 w-64 rounded-2xl p-3 shadow-xl"
                                             >
                                                 <li className="mb-2 px-3 py-2">
-                                                    <div className="flex flex-col items-start gap-1">
+                                                    <Link to="/profile" className="flex flex-col items-start gap-1 cursor-pointer hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
                                                         <span className="text-sm font-semibold text-slate-800 dark:text-white">
                                                             {user?.displayName || "User"}
                                                         </span>
                                                         <span className="max-w-full truncate text-xs text-slate-500 dark:text-slate-400">
                                                             {user?.email}
                                                         </span>
-                                                    </div>
+                                                    </Link>
                                                 </li>
 
+                                                <li><Link to="/profile">View Profile</Link></li>
                                                 <li><Link to="/addItems">Add Lost &amp; Found Item</Link></li>
                                                 <li><Link to="/allRecovered">All Recovered Items</Link></li>
                                                 <li><Link to="/myItems">Manage My Items</Link></li>
@@ -171,14 +177,12 @@ const Navbar = () => {
                                         </div>
                                     </div>
 
-                                    <div className="relative lg:hidden">
+                                    <div className="relative lg:hidden flex items-center gap-2">
                                         <button
-                                            ref={buttonRef}
-                                            onClick={toggleMenu}
-                                            className="mobile-icon-btn"
-                                            aria-label="Toggle menu"
-                                            aria-expanded={isMenuOpen}
-                                            aria-controls="mobile-menu"
+                                            onClick={() => navigate('/profile')}
+                                            className="mobile-icon-btn hover:ring-2 hover:ring-teal-500 transition-all duration-200"
+                                            aria-label="Go to profile"
+                                            title="Go to profile"
                                         >
                                             <div className="h-9 w-9 overflow-hidden rounded-full">
                                                 <img
@@ -187,6 +191,37 @@ const Navbar = () => {
                                                     className="h-full w-full object-cover"
                                                 />
                                             </div>
+                                        </button>
+                                        <button
+                                            ref={buttonRef}
+                                            onClick={toggleMenu}
+                                            className="mobile-icon-btn"
+                                            aria-label="Toggle menu"
+                                            aria-expanded={isMenuOpen}
+                                            aria-controls="mobile-menu"
+                                        >
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                strokeWidth="2.2"
+                                                stroke="currentColor"
+                                                className="h-5 w-5"
+                                            >
+                                                {isMenuOpen ? (
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M6 18L18 6M6 6l12 12"
+                                                    />
+                                                ) : (
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M4 6h16M4 12h16m-16 6h16"
+                                                    />
+                                                )}
+                                            </svg>
                                         </button>
                                     </div>
                                 </>
@@ -273,6 +308,7 @@ const Navbar = () => {
                                 <div className="h-px bg-black/5 dark:bg-white/10" />
 
                                 <ul className="space-y-1">
+                                    <li><NavLink to="/profile" className={mobileNavLinkClass} onClick={closeMenu}>My Profile</NavLink></li>
                                     <li><NavLink to="/addItems" className={mobileNavLinkClass} onClick={closeMenu}>Add Lost &amp; Found Item</NavLink></li>
                                     <li><NavLink to="/allRecovered" className={mobileNavLinkClass} onClick={closeMenu}>All Recovered Items</NavLink></li>
                                     <li><NavLink to="/myItems" className={mobileNavLinkClass} onClick={closeMenu}>Manage My Items</NavLink></li>

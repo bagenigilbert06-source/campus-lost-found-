@@ -20,6 +20,7 @@ import Contact from "../pages/Contact/Contact";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 import NotificationSettings from "../pages/Settings/NotificationSettings";
 import CampusDirectory from "../pages/Directory/CampusDirectory";
+import UserProfile from "../pages/UserProfile/UserProfile";
 
 const router = createBrowserRouter([
   {
@@ -106,6 +107,10 @@ const router = createBrowserRouter([
       {
         path: '/directory',
         element: <CampusDirectory />,
+      },
+      {
+        path: '/profile',
+        element: <PrivateRoute><UserProfile /></PrivateRoute>,
       },
     ]
   },
