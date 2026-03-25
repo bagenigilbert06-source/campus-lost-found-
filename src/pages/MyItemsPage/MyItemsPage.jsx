@@ -5,7 +5,7 @@ import UseAxiosSecure from '../../Hooks/UseAxiosSecure';
 import Swal from 'sweetalert2'; 
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
-import { FaCheckCircle, FaXCircle, FaClock } from 'react-icons/fa';
+import { FaCheckCircle, FaClock } from 'react-icons/fa';
 import PlaceholderImage from '../../components/PlaceholderImage';
 
 const MyItemsPage = () => {
