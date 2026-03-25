@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import AuthContext from "../../context/Authcontext/AuthContext";
 
 const Navbar = () => {
-    const { user, signOutUser } = useContext(AuthContext);
+    const { user, signOutUser, isAdmin } = useContext(AuthContext);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
     const buttonRef = useRef(null);
@@ -154,6 +154,14 @@ const Navbar = () => {
                                                 <li><Link to="/addItems">Add Lost &amp; Found Item</Link></li>
                                                 <li><Link to="/allRecovered">All Recovered Items</Link></li>
                                                 <li><Link to="/myItems">Manage My Items</Link></li>
+                                                
+                                                {isAdmin && (
+                                                    <>
+                                                        <li className="divider my-2"></li>
+                                                        <li><Link to="/admin" className="bg-blue-50 text-blue-700 font-semibold dark:bg-blue-900 dark:text-blue-100">Admin Dashboard</Link></li>
+                                                    </>
+                                                )}
+                                                
                                                 <li className="mt-2">
                                                     <button onClick={handleSignOut} className="apple-btn apple-btn-primary w-full">
                                                         Sign Out
@@ -268,6 +276,16 @@ const Navbar = () => {
                                     <li><NavLink to="/addItems" className={mobileNavLinkClass} onClick={closeMenu}>Add Lost &amp; Found Item</NavLink></li>
                                     <li><NavLink to="/allRecovered" className={mobileNavLinkClass} onClick={closeMenu}>All Recovered Items</NavLink></li>
                                     <li><NavLink to="/myItems" className={mobileNavLinkClass} onClick={closeMenu}>Manage My Items</NavLink></li>
+                                    
+                                    {isAdmin && (
+                                        <>
+                                            <li className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                                <NavLink to="/admin" className="mobile-navbar-link mobile-navbar-link-active bg-blue-100 dark:bg-blue-900" onClick={closeMenu}>
+                                                    Admin Dashboard
+                                                </NavLink>
+                                            </li>
+                                        </>
+                                    )}
                                 </ul>
 
                                 <button onClick={handleSignOut} className="apple-btn apple-btn-primary w-full">
