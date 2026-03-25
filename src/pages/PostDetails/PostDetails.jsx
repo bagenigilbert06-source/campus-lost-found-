@@ -21,37 +21,22 @@ const PostDetails = () => {
   const axiosSecure = UseAxiosSecure();
 
   const handleSubmit = async () => {
-    const recoveryData = {
-      itemId: item._id,
-      recoveredLocation,
-      recoveredDate,
-      image: item.image,
-      title: item.title,
-      description: item.description,
-      recoveredBy: {
-        email: user.email,
-        name: user.displayName,
-        image: user.photoURL,
-      },
-    };
-
-    const response = await axiosSecure.post('/recoveredItems',recoveryData, {
-    
-      headers: { 'Content-Type': 'application/json' },
-      
-    });
-
-    if (response.status === 200) {
-      await axiosSecure.patch(`/item/${item._id}`, { itemType: 'Recovered' },{
-       
+    try {
+      // Claim the item using the backend API
+      const response = await axiosSecure.post(`/items/${item._id}/claim`, {}, {
         headers: { 'Content-Type': 'application/json' },
-       
       });
-      toast.success('Item marked as recovered!');
-      setIsRecovered(true);
-      setShowModal(false);
-    } else {
-      toast.error('Error recovering item. Please try again.');
+
+      if (response.status === 200) {
+        toast.success('Item marked as recovered!');
+        setIsRecovered(true);
+        setShowModal(false);
+      } else {
+        toast.error('Error recovering item. Please try again.');
+      }
+    } catch (error) {
+      console.error('[v0] Error claiming item:', error);
+      toast.error(error.response?.data?.message || 'Error recovering item. Please try again.');
     }
   };
 

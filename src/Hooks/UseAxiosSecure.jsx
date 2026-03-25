@@ -4,14 +4,31 @@ import AuthContext from "../context/Authcontext/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const axiosInstance = axios.create({
-    baseURL :'https://b10a11-server-side-noorjahan220.vercel.app',
+    baseURL :'http://localhost:3001/api',
     withCredentials : true
 })
 
 const UseAxiosSecure = () => {
-const { signOutUser } = useContext(AuthContext)
+const { signOutUser, user } = useContext(AuthContext)
 const navigate = useNavigate()
     useEffect(()=>{
+        // Request interceptor to add Firebase token
+        axiosInstance.interceptors.request.use(
+            async (config) => {
+                if (user && user.getIdToken) {
+                    try {
+                        const token = await user.getIdToken();
+                        config.headers.Authorization = `Bearer ${token}`;
+                    } catch (error) {
+                        console.error('[v0] Error getting Firebase token:', error);
+                    }
+                }
+                return config;
+            },
+            (error) => Promise.reject(error)
+        );
+
+        // Response interceptor for error handling
         axiosInstance.interceptors.response.use(response => {return response},
             error => {
                 if(error.status === 401 || error.status=== 403){
@@ -24,7 +41,7 @@ const navigate = useNavigate()
                 }
             return Promise.reject(error)
         })
-    },[])
+    },[user, signOutUser, navigate])
     return axiosInstance
 };
 

@@ -27,6 +27,7 @@
     "lottie-react": "^2.4.0",
     "lottie-web": "^5.12.2",
     "match-sorter": "^8.0.0",
+    "mongodb": "^7.1.0",
     "mongoose": "^9.3.0",
     "motion": "^11.15.0",
     "nodemailer": "^8.0.2",
