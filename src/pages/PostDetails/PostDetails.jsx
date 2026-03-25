@@ -8,8 +8,7 @@ import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 import UseAxiosSecure from '../../Hooks/UseAxiosSecure';
 import { schoolConfig } from '../../config/schoolConfig';
-import { FaCheckCircle, FaClock, FaShieldAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import PlaceholderImage from '../../components/PlaceholderImage';
+import { FaCheckCircle, FaClock, FaShieldAlt } from 'react-icons/fa';
 
 const PostDetails = () => {
   const { user, isAdmin } = useContext(AuthContext);
@@ -19,19 +18,7 @@ const PostDetails = () => {
   const [recoveredLocation, setRecoveredLocation] = useState('');
   const [recoveredDate, setRecoveredDate] = useState(new Date());
   const [isRecovered, setIsRecovered] = useState(item.itemType === 'Recovered');
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const axiosSecure = UseAxiosSecure();
-
-  // Get images from images array or fallback to single image
-  const images = (item.images && item.images.length > 0) ? item.images : (item.image ? [item.image] : []);
-
-  const handlePrevImage = () => {
-    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  };
-
-  const handleNextImage = () => {
-    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
 
   const handleSubmit = async () => {
     try {
@@ -92,115 +79,30 @@ const PostDetails = () => {
         {item.title}
       </h2>
       <div className="flex flex-col md:flex-row items-center gap-6">
-        {/* Image Carousel */}
-        <div className="w-full md:w-1/3 relative group">
-          <div className="relative h-64 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg shadow-md overflow-hidden flex items-center justify-center">
-            {images.length > 0 && images[currentImageIndex] ? (
-              <img
-                src={images[currentImageIndex]}
-                alt={`${item.title} - Image ${currentImageIndex + 1}`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  if (e.target.parentElement?.querySelector('[data-placeholder]')) {
-                    e.target.parentElement.querySelector('[data-placeholder]').style.display = 'flex';
-                  }
-                }}
-              />
-            ) : (
-              <div data-placeholder className="w-full h-full flex items-center justify-center">
-                <PlaceholderImage />
-              </div>
-            )}
-          </div>
-
-          {/* Image Navigation */}
-          {images.length > 1 && (
-            <>
-              <button
-                onClick={handlePrevImage}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100"
-              >
-                <FaChevronLeft size={20} />
-              </button>
-              <button
-                onClick={handleNextImage}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100"
-              >
-                <FaChevronRight size={20} />
-              </button>
-              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
-                {images.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentImageIndex(idx)}
-                    className={`h-2 rounded-full transition ${
-                      idx === currentImageIndex ? 'bg-white w-6' : 'bg-white/50 w-2'
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Image Counter */}
-          {images.length > 1 && (
-            <div className="absolute top-2 right-2 bg-black/60 text-white px-3 py-1 rounded-full text-sm font-semibold">
-              {currentImageIndex + 1} / {images.length}
-            </div>
-          )}
-        </div>
-        <div className="flex-1 space-y-4">
-          {/* Item Type Badge */}
-          <div className="inline-block">
-            <span className={`px-4 py-2 rounded-full font-bold text-white text-sm ${
-              item.itemType === 'Lost' ? 'bg-red-500' :
-              item.itemType === 'Found' ? 'bg-green-500' :
-              'bg-blue-500'
-            }`}>
-              {item.itemType === 'Lost' ? '🔴' : item.itemType === 'Found' ? '🟢' : '✓'} {item.itemType}
-            </span>
-          </div>
-
-          <p className="text-[0.9rem]" style={{ fontFamily: 'Lato, sans-serif' }}>
-            <strong className="font-semibold text-zetech-primary">📝 Description:</strong>
-            <br />
-            {item.description}
+        <img
+          src={item.image}
+          alt={item.title}
+          className="w-full md:w-1/3 h-64 object-cover rounded-lg shadow-md"
+        />
+        <div className="flex-1">
+          <p className="text-[0.9rem] mb-4" style={{ fontFamily: 'Lato, sans-serif' }}>
+            <strong className="font-semibold text-zetech-primary">Description:</strong> {item.description}
           </p>
-
-          <div className="grid grid-cols-2 gap-4">
-            <p className="text-[0.9rem]" style={{ fontFamily: 'Lato, sans-serif' }}>
-              <strong className="font-semibold text-zetech-primary">🏷️ Category:</strong>
-              <br />
-              {item.category}
-            </p>
-            <p className="text-[0.9rem]" style={{ fontFamily: 'Lato, sans-serif' }}>
-              <strong className="font-semibold text-zetech-primary">📍 Location:</strong>
-              <br />
-              {item.location}
-            </p>
-            <p className="text-[0.9rem]" style={{ fontFamily: 'Lato, sans-serif' }}>
-              <strong className="font-semibold text-zetech-primary">📅 Date:</strong>
-              <br />
-              {new Date(item.dateLost || item.createdAt).toLocaleDateString()}
-            </p>
-            <p className="text-[0.9rem]" style={{ fontFamily: 'Lato, sans-serif' }}>
-              <strong className="font-semibold text-zetech-primary">👤 Status:</strong>
-              <br />
-              {item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Active'}
-            </p>
-          </div>
-
-          {/* Contact Information */}
-          <div className="bg-slate-100 p-4 rounded-lg">
-            <h3 className="font-semibold text-zetech-primary mb-2">Contact Information</h3>
-            <p className="text-[0.9rem]" style={{ fontFamily: 'Lato, sans-serif' }}>
-              <strong>Owner:</strong> {item.name}
-            </p>
-            <p className="text-[0.9rem]" style={{ fontFamily: 'Lato, sans-serif' }}>
-              <strong>Email:</strong> <a href={`mailto:${item.email}`} className="text-zetech-primary hover:underline">{item.email}</a>
-            </p>
-          </div>
+          <p className="text-[0.9rem] mb-4" style={{ fontFamily: 'Lato, sans-serif' }}>
+            <strong className="font-semibold text-zetech-primary">Category:</strong> {item.category}
+          </p>
+          <p className="text-[0.9rem] mb-4" style={{ fontFamily: 'Lato, sans-serif' }}>
+            <strong className="font-semibold text-zetech-primary">Location:</strong> {item.location}
+          </p>
+          <p className="text-[0.9rem] mb-4" style={{ fontFamily: 'Lato, sans-serif' }}>
+            <strong className="font-semibold text-zetech-primary">Date Lost:</strong> {item.dateLost}
+          </p>
+          <p className="text-[0.9rem] mb-4" style={{ fontFamily: 'Lato, sans-serif' }}>
+            <strong className="font-semibold text-zetech-primary">Owner:</strong> {item.name}
+          </p>
+          <p className="text-[0.9rem] mb-4" style={{ fontFamily: 'Lato, sans-serif' }}>
+            <strong className="font-semibold text-zetech-primary">Contact:</strong> {item.email}
+          </p>
         </div>
       </div>
 

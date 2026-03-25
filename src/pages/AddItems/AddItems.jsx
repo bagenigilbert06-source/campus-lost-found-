@@ -9,41 +9,18 @@ import { schoolConfig } from '../../config/schoolConfig';
 const AddItems = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
-    const [imageUrls, setImageUrls] = useState([]); // State to hold multiple image URLs
-    const [imagePreviewUrl, setImagePreviewUrl] = useState(''); // Temporary URL for preview
-    const [isLoading, setIsLoading] = useState(false);
-
-    // Handle adding image URLs
-    const handleAddImageUrl = () => {
-        if (!imagePreviewUrl.trim()) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Empty URL',
-                text: 'Please enter an image URL',
-            });
-            return;
-        }
-        setImageUrls([...imageUrls, imagePreviewUrl]);
-        setImagePreviewUrl('');
-    };
-
-    // Remove image from list
-    const handleRemoveImage = (index) => {
-        setImageUrls(imageUrls.filter((_, i) => i !== index));
-    };
+    const [imageUrl, setImageUrl] = useState(''); // State to hold the image URL
 
     const handleAddItems = (e) => {
         e.preventDefault();
-        setIsLoading(true);
 
         // Validate required fields
-        if (imageUrls.length === 0) {
+        if (!imageUrl) {
             Swal.fire({
                 icon: 'error',
                 title: 'Validation Error',
-                text: 'Please provide at least one image URL',
+                text: 'Please provide an image URL',
             });
-            setIsLoading(false);
             return;
         }
 
@@ -53,7 +30,6 @@ const AddItems = () => {
                 title: 'Authentication Error',
                 text: 'Please log in to add an item',
             });
-            setIsLoading(false);
             return;
         }
 
@@ -61,7 +37,7 @@ const AddItems = () => {
         const initialData = Object.fromEntries(formData.entries());
         initialData.email = user?.email;
         initialData.name = user?.displayName;
-        initialData.images = imageUrls; // Add the image URLs array
+        initialData.image = imageUrl; // Add the image URL to the data
         
         console.log("[v0] Submitting form with data:", initialData);
 
@@ -91,8 +67,7 @@ const AddItems = () => {
                     title: 'Oops...',
                     text: error.response?.data?.message || 'Something went wrong! Please try again.',
                 });
-            })
-            .finally(() => setIsLoading(false));
+            });
     };
 
     return (
@@ -123,59 +98,20 @@ const AddItems = () => {
                     </select>
                 </div>
 
-                {/* Image URLs */}
+                {/* Image URL */}
                 <div className="form-control mb-4">
                     <label className="label text-zetech-primary">
-                        <span className="label-text">Add Images</span>
+                        <span className="label-text">Image URL</span>
                     </label>
-                    <div className="flex gap-2 mb-2">
-                        <input
-                            type="url"
-                            placeholder="Enter Image URL (e.g., https://example.com/image.jpg)"
-                            className="input input-bordered w-full focus:ring-zetech-primary"
-                            value={imagePreviewUrl}
-                            onChange={(e) => setImagePreviewUrl(e.target.value)}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddImageUrl();
-                                }
-                            }}
-                        />
-                        <button
-                            type="button"
-                            onClick={handleAddImageUrl}
-                            className="btn btn-primary text-white px-6"
-                        >
-                            Add
-                        </button>
-                    </div>
-                    {imageUrls.length > 0 && (
-                        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {imageUrls.map((url, index) => (
-                                <div key={index} className="relative group">
-                                    <img
-                                        src={url}
-                                        alt={`Preview ${index + 1}`}
-                                        className="w-full h-24 object-cover rounded-lg border-2 border-zetech-primary"
-                                        onError={(e) => {
-                                            e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2UyZThmMCIvPjwvc3ZnPg==';
-                                        }}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveImage(index)}
-                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    <p className="text-sm text-slate-500 mt-2">
-                        {imageUrls.length} image{imageUrls.length !== 1 ? 's' : ''} added
-                    </p>
+                    <input
+                        type="text"
+                        name="image"
+                        placeholder="Enter Image URL"
+                        className="input input-bordered w-full focus:ring-zetech-primary"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        required
+                    />
                 </div>
 
                 {/* Title */}
@@ -286,10 +222,9 @@ const AddItems = () => {
                 <div className="form-control">
                     <button
                         type="submit"
-                        disabled={isLoading}
-                        className="bg-gradient-to-r from-zetech-secondary to-orange-600 text-white mx-auto px-4 py-2 rounded-lg shadow-lg w-40 hover:scale-105 transform transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-gradient-to-r from-zetech-secondary to-orange-600 text-white mx-auto px-4 py-2 rounded-lg shadow-lg w-40 hover:scale-105 transform transition-all duration-300"
                     >
-                        {isLoading ? 'Adding...' : 'Add Post'}
+                        Add Post
                     </button>
                 </div>
             </form>
