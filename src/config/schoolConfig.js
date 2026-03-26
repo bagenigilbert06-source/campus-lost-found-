@@ -68,7 +68,8 @@ export const schoolConfig = {
   adminEmails: [
     'admin@zetech.ac.ke',
     'security@zetech.ac.ke',
-    'lost-and-found@zetech.ac.ke'
+    'lost-and-found@zetech.ac.ke',
+    'bagenigilbert@zetech.ac.ke'
   ]
 };
 

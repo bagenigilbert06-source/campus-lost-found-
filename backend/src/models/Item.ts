@@ -1,7 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IItem extends Document {
-  itemType: 'Lost' | 'Found';
+  itemType: 'Lost' | 'Found' | 'Recovered';
   title: string;
   description: string;
   category: string;
@@ -13,16 +13,20 @@ export interface IItem extends Document {
   dateLost: Date;
   uploadedAt: Date;
   images: string[];
-  userId: string; // Firebase UID
+  userId?: string; // Firebase UID
+  email?: string; // User email
+  name?: string; // User display name
   status: 'active' | 'recovered' | 'claimed';
+  verificationStatus?: 'pending' | 'verified' | 'rejected';
   claimedBy?: string; // Firebase UID
   claimedAt?: Date;
+  recoveredBy?: { email: string; name: string; date: Date };
   metadata?: Record<string, any>;
 }
 
 const ItemSchema = new Schema<IItem>(
   {
-    itemType: { type: String, enum: ['Lost', 'Found'], required: true },
+    itemType: { type: String, enum: ['Lost', 'Found', 'Recovered'], required: true },
     title: { type: String, required: true },
     description: { type: String, required: true },
     category: { type: String, required: true, index: true },
@@ -33,15 +37,27 @@ const ItemSchema = new Schema<IItem>(
     },
     dateLost: { type: Date, required: true },
     images: [{ type: String }],
-    userId: { type: String, required: true, index: true },
+    userId: { type: String, index: true },
+    email: { type: String, index: true },
+    name: { type: String },
     status: {
       type: String,
       enum: ['active', 'recovered', 'claimed'],
       default: 'active',
       index: true,
     },
+    verificationStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected'],
+      default: 'pending',
+    },
     claimedBy: { type: String },
     claimedAt: { type: Date },
+    recoveredBy: {
+      email: { type: String },
+      name: { type: String },
+      date: { type: Date },
+    },
     metadata: { type: Schema.Types.Mixed },
   },
   { timestamps: true }

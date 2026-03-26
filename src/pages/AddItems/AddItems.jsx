@@ -9,17 +9,35 @@ import { schoolConfig } from '../../config/schoolConfig';
 const AddItems = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
-    const [imageUrl, setImageUrl] = useState(''); // State to hold the image URL
+    const [imageUrls, setImageUrls] = useState([]); // State to hold multiple image URLs
+    const [imageInput, setImageInput] = useState(''); // Temp input for new image URL
+
+    const handleAddImageUrl = () => {
+        if (!imageInput.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Empty URL',
+                text: 'Please enter a valid image URL',
+            });
+            return;
+        }
+        setImageUrls([...imageUrls, imageInput]);
+        setImageInput('');
+    };
+
+    const handleRemoveImage = (index) => {
+        setImageUrls(imageUrls.filter((_, i) => i !== index));
+    };
 
     const handleAddItems = (e) => {
         e.preventDefault();
 
         // Validate required fields
-        if (!imageUrl) {
+        if (imageUrls.length === 0) {
             Swal.fire({
                 icon: 'error',
                 title: 'Validation Error',
-                text: 'Please provide an image URL',
+                text: 'Please provide at least one image URL',
             });
             return;
         }
@@ -37,7 +55,8 @@ const AddItems = () => {
         const initialData = Object.fromEntries(formData.entries());
         initialData.email = user?.email;
         initialData.name = user?.displayName;
-        initialData.image = imageUrl; // Add the image URL to the data
+        initialData.images = imageUrls; // Send images array
+        delete initialData.image; // Remove the old image field
         
         console.log("[v0] Submitting form with data:", initialData);
 
@@ -98,20 +117,61 @@ const AddItems = () => {
                     </select>
                 </div>
 
-                {/* Image URL */}
+                {/* Image URLs */}
                 <div className="form-control mb-4">
                     <label className="label text-zetech-primary">
-                        <span className="label-text">Image URL</span>
+                        <span className="label-text">Images (Add at least one)</span>
                     </label>
-                    <input
-                        type="text"
-                        name="image"
-                        placeholder="Enter Image URL"
-                        className="input input-bordered w-full focus:ring-zetech-primary"
-                        value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        required
-                    />
+                    <div className="flex gap-2 mb-2">
+                        <input
+                            type="url"
+                            placeholder="Enter Image URL (e.g., https://example.com/image.jpg)"
+                            className="input input-bordered w-full focus:ring-zetech-primary"
+                            value={imageInput}
+                            onChange={(e) => setImageInput(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddImageUrl();
+                                }
+                            }}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddImageUrl}
+                            className="btn btn-primary text-white px-6"
+                        >
+                            Add Image
+                        </button>
+                    </div>
+
+                    {/* Image Preview Grid */}
+                    {imageUrls.length > 0 && (
+                        <div className="mt-4">
+                            <p className="text-sm font-semibold mb-2">Added Images ({imageUrls.length})</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {imageUrls.map((url, index) => (
+                                    <div key={index} className="relative group">
+                                        <img
+                                            src={url}
+                                            alt={`Preview ${index + 1}`}
+                                            className="w-full h-20 object-cover rounded-lg border-2 border-zetech-primary"
+                                            onError={(e) => {
+                                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10">Invalid</text></svg>';
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveImage(index)}
+                                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Title */}
