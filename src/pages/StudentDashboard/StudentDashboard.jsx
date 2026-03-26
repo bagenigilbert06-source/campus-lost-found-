@@ -148,9 +148,9 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
-      <Helmet>
-        <title>Student Dashboard - {schoolConfig.name}</title>
-      </Helmet>
+            <Helmet>
+                <title>{`Student Dashboard - ${schoolConfig.name}`}</title>
+            </Helmet>
 
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-lg">

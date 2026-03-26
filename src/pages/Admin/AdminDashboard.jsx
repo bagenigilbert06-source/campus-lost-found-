@@ -189,7 +189,7 @@ const AdminDashboard = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-zetech-light to-white">
             <Helmet>
-                <title>Admin Dashboard | {schoolConfig.name} Lost & Found</title>
+                <title>{`Admin Dashboard | ${schoolConfig.name} Lost & Found`}</title>
             </Helmet>
 
             {/* Header */}
