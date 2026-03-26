@@ -3,9 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { schoolConfig } from '../../config/schoolConfig';
-import { FaCheckCircle, FaTimesCircle, FaEye, FaClipboardList, FaShieldAlt, FaUsers, FaBoxes, FaTrash, FaSearch, FaEnvelope, FaReply, FaSign
-
-OutAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaEye, FaClipboardList, FaShieldAlt, FaUsers, FaBoxes, FaTrash, FaSearch, FaEnvelope, FaReply, FaSignOutAlt } from 'react-icons/fa';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 
