@@ -136,6 +136,32 @@ router.get('/user/:userId', optionalAuthMiddleware, async (req: AuthRequest, res
   }
 });
 
+// Get recovered items by email
+router.get('/recovered', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const email = req.query.email as string;
+    
+    if (!email) {
+      res.status(400).json({ success: false, message: 'Email parameter is required' });
+      return;
+    }
+
+    // Get items where the current user has claimed/recovered them
+    const { items } = await itemService.getItems({ status: 'recovered' });
+    
+    // Filter items by the email of the person who recovered them
+    const recoveredItems = items.filter(item => item.recoveredBy?.email === email || item.claimedBy?.email === email);
+    
+    res.json({ 
+      success: true, 
+      data: recoveredItems,
+      message: recoveredItems.length > 0 ? 'Recovered items found' : 'No recovered items found'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get matches for an item
 router.get('/:id/matches', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {

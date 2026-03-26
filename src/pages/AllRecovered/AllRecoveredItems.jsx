@@ -15,12 +15,22 @@ const AllRecoveredItems = () => {
 
   useEffect(() => {
     if (user && user.email) {
-      axiosSecure.get(`/recoveredItem?email=${user.email}`).then((res) => {
-        setRecoverItem(res.data);
-        setLoading(false);
-      });
+      axiosSecure
+        .get(`/items/recovered?email=${user.email}`)
+        .then((res) => {
+          console.log('[v0] Recovered items response:', res.data);
+          // Handle both formats: direct array or wrapped in success/data
+          const items = res.data.data || res.data;
+          setRecoverItem(Array.isArray(items) ? items : []);
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.error('[v0] Error fetching recovered items:', error);
+          setLoading(false);
+          setRecoverItem([]);
+        });
     }
-  }, [user]);
+  }, [user, axiosSecure]);
 
   // Toggle between grid and table layout
   const toggleLayout = () => {
@@ -73,8 +83,10 @@ const AllRecoveredItems = () => {
               <div key={item._id} className="border p-4 rounded-md bg-gray-50 shadow-sm hover:bg-gray-100">
                 {/* Image */}
                 <div className="mb-4">
-                  {item.image ? (
-                    <img src={item.image} alt={item.title} className="w-full h-40 object-cover rounded-md" />
+                  {item.images && item.images.length > 0 ? (
+                    <img src={item.images[0]} alt={item.title} className="w-full h-40 object-cover rounded-md" onError={(e) => {e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"><rect fill="%23e2e8f0" width="300" height="200"/><text x="150" y="100" text-anchor="middle" fill="%2364748b">No Image</text></svg>';}} />
+                  ) : item.image ? (
+                    <img src={item.image} alt={item.title} className="w-full h-40 object-cover rounded-md" onError={(e) => {e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"><rect fill="%23e2e8f0" width="300" height="200"/><text x="150" y="100" text-anchor="middle" fill="%2364748b">No Image</text></svg>';}} />
                   ) : (
                     <div className="w-full h-40 bg-gray-300 rounded-md flex items-center justify-center text-gray-500">
                       No image available
@@ -123,8 +135,10 @@ const AllRecoveredItems = () => {
                 {recoverItem.map((item) => (
                   <tr key={item._id} className="border-b hover:bg-gray-50">
                     <td className="border px-4 py-2">
-                      {item.image ? (
-                        <img src={item.image} alt={item.title} className="w-16 h-16 object-cover rounded-md" />
+                      {item.images && item.images.length > 0 ? (
+                        <img src={item.images[0]} alt={item.title} className="w-16 h-16 object-cover rounded-md" onError={(e) => {e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10">No Image</text></svg>';}} />
+                      ) : item.image ? (
+                        <img src={item.image} alt={item.title} className="w-16 h-16 object-cover rounded-md" onError={(e) => {e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10">No Image</text></svg>';}} />
                       ) : (
                         <div className="w-16 h-16 bg-gray-300 rounded-md flex items-center justify-center text-gray-500">
                           No image
