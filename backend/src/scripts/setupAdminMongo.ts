@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -38,34 +39,59 @@ async function setupAdminMongo() {
     // Firebase UIDs are typically 28 characters long and alphanumeric
     const adminUID = crypto.randomBytes(14).toString('hex');
 
-    // Check if user already exists
-    let adminUser = await User.findOne({ email: ADMIN_EMAIL });
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+
+  // Check if user already exists
+  let adminUser = await User.findOne({ email: ADMIN_EMAIL });
     
-    if (adminUser) {
-      console.log('[Admin Setup] Admin user already exists in MongoDB');
-      console.log('[Admin Setup] Email:', adminUser.email);
-      console.log('[Admin Setup] User ID:', adminUser._id);
-    } else {
-      console.log('[Admin Setup] Creating admin user in MongoDB...');
-      adminUser = new User({
-        _id: adminUID,
-        email: ADMIN_EMAIL,
-        displayName: ADMIN_DISPLAY_NAME,
-        profileImage: '',
-        notificationPreferences: {
-          emailOnMatch: true,
-          emailOnRecovery: true,
-          emailOnVerification: true,
-          emailWeeklyDigest: false,
-        },
-        stats: {
-          itemsPosted: 0,
-          itemsRecovered: 0,
-          itemsClaimed: 0,
-        },
-      });
-      await adminUser.save();
-      console.log('[Admin Setup] Admin user created successfully');
+  if (adminUser) {
+    console.log('[Admin Setup] Admin user already exists in MongoDB');
+    console.log('[Admin Setup] Email:', adminUser.email);
+    console.log('[Admin Setup] User ID:', adminUser._id);
+
+    const updates: any = {};
+    if (!adminUser.authProvider || adminUser.authProvider !== 'local') {
+      updates.authProvider = 'local';
+    }
+    if (!adminUser.role || adminUser.role !== 'admin') {
+      updates.role = 'admin';
+    }
+    if (!adminUser.passwordHash) {
+      updates.passwordHash = passwordHash;
+    }
+    if (!adminUser.isActive) {
+      updates.isActive = true;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await User.updateOne({ _id: adminUser._id }, { $set: updates });
+      console.log('[Admin Setup] Admin user updated with local auth settings.');
+    }
+  } else {
+    console.log('[Admin Setup] Creating admin user in MongoDB...');
+    adminUser = new User({
+      _id: adminUID,
+      email: ADMIN_EMAIL,
+      displayName: ADMIN_DISPLAY_NAME,
+      passwordHash,
+      authProvider: 'local',
+      role: 'admin',
+      isActive: true,
+      profileImage: '',
+      notificationPreferences: {
+        emailOnMatch: true,
+        emailOnRecovery: true,
+        emailOnVerification: true,
+        emailWeeklyDigest: false,
+      },
+      stats: {
+        itemsPosted: 0,
+        itemsRecovered: 0,
+        itemsClaimed: 0,
+      },
+      adminProfile: {
+        permissions: ['verify_items', 'manage_users', 'view_reports'],
+        createdAt: new Date().toISOString(),
       console.log('[Admin Setup] Generated User ID:', adminUID);
     }
 
