@@ -61,6 +61,7 @@ const AdminDashboard = () => {
       label: 'Total Items',
       value: stats?.totalItems || 0,
       color: 'blue',
+      trend: { direction: 'up', percentage: 12 },
     },
     {
       icon: FiClock,
@@ -73,18 +74,21 @@ const AdminDashboard = () => {
       label: 'Verified Items',
       value: stats?.verifiedItems || 0,
       color: 'green',
+      trend: { direction: 'up', percentage: 8 },
     },
     {
       icon: FiTrendingUp,
       label: 'Recovered Items',
       value: stats?.recoveredItems || 0,
       color: 'purple',
+      trend: { direction: 'up', percentage: 5 },
     },
     {
       icon: FiUsers,
       label: 'Total Users',
       value: stats?.totalUsers || 0,
       color: 'indigo',
+      trend: { direction: 'up', percentage: 15 },
     },
     {
       icon: FiXCircle,
@@ -149,10 +153,25 @@ const AdminDashboard = () => {
 
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-600 mt-2">
-          Welcome back, {user?.displayName || 'Administrator'}
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900">Dashboard</h1>
+            <p className="text-slate-600 mt-2 text-lg">
+              Welcome back, <span className="font-semibold text-slate-900">{user?.displayName || 'Administrator'}</span>
+            </p>
+          </div>
+          <div className="text-right hidden md:block">
+            <p className="text-sm text-slate-500">Last updated</p>
+            <p className="text-lg font-semibold text-slate-900">
+              {new Date().toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -185,11 +204,19 @@ const AdminDashboard = () => {
 
       {/* Recent Items Section */}
       <div className="mb-8">
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-slate-900">Recent Items</h2>
-          <p className="text-slate-600 text-sm mt-1">
-            Latest items posted to the platform
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Recent Items</h2>
+            <p className="text-slate-600 text-sm mt-1">
+              Latest items posted to the platform
+            </p>
+          </div>
+          <a 
+            href="/admin/items" 
+            className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+          >
+            View All →
+          </a>
         </div>
         <AdminTable
           columns={itemColumns}
@@ -201,11 +228,19 @@ const AdminDashboard = () => {
 
       {/* Recent Users Section */}
       <div>
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-slate-900">Recent Users</h2>
-          <p className="text-slate-600 text-sm mt-1">
-            Latest registered users
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Recent Users</h2>
+            <p className="text-slate-600 text-sm mt-1">
+              Latest registered users on the platform
+            </p>
+          </div>
+          <a 
+            href="/admin/users" 
+            className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+          >
+            View All →
+          </a>
         </div>
         <AdminTable
           columns={userColumns}

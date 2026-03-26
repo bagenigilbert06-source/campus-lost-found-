@@ -1,7 +1,7 @@
 import apiClient from './apiService';
 
 const adminService = {
-  // Dashboard summary stats
+  // ============ DASHBOARD STATS ============
   getAdminStats: async () => {
     try {
       const response = await apiClient.get('/items/admin/stats');
@@ -12,7 +12,7 @@ const adminService = {
     }
   },
 
-  // Get all items with filtering, pagination
+  // ============ ITEMS MANAGEMENT ============
   getItems: async (params = {}) => {
     try {
       const response = await apiClient.get('/items', { params });
@@ -23,7 +23,18 @@ const adminService = {
     }
   },
 
-  // Get pending items for verification
+  getItemsByStatus: async (status, page = 1, limit = 20) => {
+    try {
+      const response = await apiClient.get('/items', {
+        params: { status, page, limit },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching items by status:', error);
+      throw error;
+    }
+  },
+
   getPendingItems: async (page = 1, limit = 10) => {
     try {
       const response = await apiClient.get('/items', {
@@ -40,7 +51,6 @@ const adminService = {
     }
   },
 
-  // Get recent items
   getRecentItems: async (limit = 10) => {
     try {
       const response = await apiClient.get('/items', {
@@ -56,11 +66,22 @@ const adminService = {
     }
   },
 
-  // Verify an item
+  getItemsByCategory: async (category, page = 1, limit = 20) => {
+    try {
+      const response = await apiClient.get('/items', {
+        params: { category, page, limit },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching items by category:', error);
+      throw error;
+    }
+  },
+
   verifyItem: async (itemId) => {
     try {
       const response = await apiClient.patch(`/items/${itemId}`, {
-        status: 'verified',
+        verificationStatus: 'verified',
       });
       return response.data;
     } catch (error) {
@@ -69,11 +90,10 @@ const adminService = {
     }
   },
 
-  // Reject an item
   rejectItem: async (itemId, reason = '') => {
     try {
       const response = await apiClient.patch(`/items/${itemId}`, {
-        status: 'rejected',
+        verificationStatus: 'rejected',
         rejectionReason: reason,
       });
       return response.data;
@@ -83,7 +103,6 @@ const adminService = {
     }
   },
 
-  // Delete an item
   deleteItem: async (itemId) => {
     try {
       const response = await apiClient.delete(`/items/${itemId}`);
@@ -94,7 +113,6 @@ const adminService = {
     }
   },
 
-  // Mark item as recovered
   markAsRecovered: async (itemId) => {
     try {
       const response = await apiClient.patch(`/items/${itemId}`, {
@@ -107,7 +125,6 @@ const adminService = {
     }
   },
 
-  // Mark item as claimed
   markAsClaimed: async (itemId) => {
     try {
       const response = await apiClient.patch(`/items/${itemId}`, {
@@ -120,7 +137,7 @@ const adminService = {
     }
   },
 
-  // Get users
+  // ============ USERS MANAGEMENT ============
   getUsers: async (params = {}) => {
     try {
       const response = await apiClient.get('/users', { params });
@@ -131,7 +148,18 @@ const adminService = {
     }
   },
 
-  // Get recent users
+  getUsersWithPagination: async (page = 1, limit = 20, sortBy = '-createdAt') => {
+    try {
+      const response = await apiClient.get('/users', {
+        params: { page, limit, sortBy },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  },
+
   getRecentUsers: async (limit = 10) => {
     try {
       const response = await apiClient.get('/users', {
@@ -143,6 +171,49 @@ const adminService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching recent users:', error);
+      throw error;
+    }
+  },
+
+  getUserStats: async (userId) => {
+    try {
+      const response = await apiClient.get(`/items/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      throw error;
+    }
+  },
+
+  // ============ ANALYTICS ============
+  getItemAnalytics: async () => {
+    try {
+      const response = await apiClient.get('/items/admin/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      throw error;
+    }
+  },
+
+  // ============ CATEGORIES ============
+  getCategories: async () => {
+    try {
+      const response = await apiClient.get('/search/categories');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw error;
+    }
+  },
+
+  // ============ LOCATIONS ============
+  getLocations: async () => {
+    try {
+      const response = await apiClient.get('/search/locations');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching locations:', error);
       throw error;
     }
   },

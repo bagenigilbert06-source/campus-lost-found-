@@ -3,11 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   FiHome,
   FiPackage,
-  FiShoppingCart,
   FiUsers,
   FiSettings,
   FiX,
-  FiMenu,
+  FiChevronRight,
 } from 'react-icons/fi';
 
 const AdminSidebar = ({ isOpen, onClose }) => {
@@ -15,8 +14,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   const menuItems = [
     { label: 'Dashboard', path: '/admin', icon: FiHome },
-    { label: 'Products', path: '/admin/products', icon: FiPackage },
-    { label: 'Orders', path: '/admin/orders', icon: FiShoppingCart },
+    { label: 'Items', path: '/admin/items', icon: FiPackage },
     { label: 'Users', path: '/admin/users', icon: FiUsers },
     { label: 'Settings', path: '/admin/settings', icon: FiSettings },
   ];
@@ -35,24 +33,31 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-64 bg-white border-r border-slate-200 shadow-lg transform transition-transform duration-300 z-40 lg:relative lg:transform-none lg:shadow-none ${
+        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-slate-900 to-slate-800 border-r border-slate-700 shadow-2xl transform transition-transform duration-300 z-40 lg:relative lg:transform-none lg:shadow-none ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         <div className="h-full flex flex-col">
-          {/* Header */}
-          <div className="px-6 py-6 border-b border-slate-200 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-slate-900">Campus</h1>
+          {/* Logo Section */}
+          <div className="px-6 py-6 border-b border-slate-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">C</span>
+              </div>
+              <h1 className="text-xl font-bold text-white">Campus Admin</h1>
+            </div>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-slate-100 rounded-lg lg:hidden"
+              className="p-1 hover:bg-slate-700 rounded-lg lg:hidden transition-colors"
+              aria-label="Close menu"
             >
-              <FiX size={20} />
+              <FiX size={20} className="text-slate-300" />
             </button>
           </div>
 
@@ -67,23 +72,27 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                   key={item.path}
                   to={item.path}
                   onClick={onClose}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-all ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-all group ${
                     active
-                      ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
-                      : 'text-slate-600 hover:bg-slate-50'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                   }`}
                 >
                   <Icon size={20} />
-                  <span>{item.label}</span>
+                  <span className="flex-1">{item.label}</span>
+                  {active && <FiChevronRight size={18} />}
                 </Link>
               );
             })}
           </nav>
 
           {/* Footer */}
-          <div className="px-4 py-4 border-t border-slate-200">
-            <p className="text-xs text-slate-500 text-center">
-              Admin Dashboard v1.0
+          <div className="px-6 py-4 border-t border-slate-700">
+            <p className="text-xs text-slate-400 text-center">
+              Admin Dashboard v2.0
+            </p>
+            <p className="text-xs text-slate-500 text-center mt-2">
+              Campus Lost & Found
             </p>
           </div>
         </div>
