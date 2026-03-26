@@ -8,7 +8,7 @@ const AboutUs = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 min-h-screen">
       <Helmet>
-        <title>About Us - {schoolConfig.name} Lost & Found</title>
+        <title>{`About Us - ${schoolConfig.name} Lost & Found`}</title>
       </Helmet>
 
       {/* Hero Section */}

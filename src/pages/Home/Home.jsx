@@ -11,7 +11,7 @@ const Home = () => {
     return (
         <div className='min-h-screen'>
             <Helmet>
-                <title>Home - {schoolConfig.name} Lost & Found</title>
+                <title>{`Home - ${schoolConfig.name} Lost & Found`}</title>
             </Helmet>
            <section><Banner/></section>
            <section><LatesItems/></section>

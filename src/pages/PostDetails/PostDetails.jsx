@@ -86,7 +86,7 @@ const PostDetails = () => {
   return (
     <div className="container mx-auto px-8 py-8 mb-10 mt-10 bg-white rounded-lg shadow-lg space-y-8">
       <Helmet>
-        <title>{item.title} - {schoolConfig.name}</title>
+        <title>{`${item.title || 'Item Details'} - ${schoolConfig.name}`}</title>
       </Helmet>
       {/* Verification Status Banner */}
       <div className={`mb-6 p-4 rounded-lg flex items-center justify-between ${

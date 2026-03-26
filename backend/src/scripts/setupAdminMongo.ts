@@ -92,8 +92,11 @@ async function setupAdminMongo() {
       adminProfile: {
         permissions: ['verify_items', 'manage_users', 'view_reports'],
         createdAt: new Date().toISOString(),
-      console.log('[Admin Setup] Generated User ID:', adminUID);
-    }
+      },
+    });
+
+    await adminUser.save();
+    console.log('[Admin Setup] Generated User ID:', adminUID);
 
     console.log('\n[Admin Setup] ✅ MongoDB admin user setup complete!');
     console.log('━'.repeat(60));

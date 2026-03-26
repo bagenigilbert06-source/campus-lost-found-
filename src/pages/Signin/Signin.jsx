@@ -13,6 +13,17 @@ const Signin = () => {
     const { singInUser, signInWithGoogle } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Check if email is admin and redirect accordingly
+    const redirectBasedOnEmail = (email) => {
+        const isAdminEmail = schoolConfig.adminEmails.includes(email?.toLowerCase());
+        if (isAdminEmail) {
+            navigate('/admin');
+        } else {
+            navigate('/dashboard');
+        }
+    };
 
     const handleSignin = (e) => {
         e.preventDefault();
@@ -20,29 +31,41 @@ const Signin = () => {
         const email = form.email.value;
         const password = form.password.value;
 
-        console.log("[v0] Sign In attempt with email:", email);
-
+        setIsLoading(true);
         singInUser(email, password)
-            .then(() => {
-                console.log("[v0] Sign In successful");
+            .then((result) => {
                 toast.success('Successfully signed in!');
-                navigate('/');
+                // Redirect based on email (role is determined by email in schoolConfig)
+                redirectBasedOnEmail(result?.user?.email || email);
             })
             .catch((error) => {
-                console.error('[v0] Signin error:', error);
-                console.error('[v0] Error code:', error.code);
-                console.error('[v0] Error message:', error.message);
-                toast.error(error.message || "Cannot sign in, please try again.");
-            });
+                console.error('[v0] Signin error code:', error.code);
+                console.error('[v0] Signin error message:', error.message);
+                
+                // Handle Firebase-specific error codes
+                const errorMap = {
+                    'auth/invalid-email': 'Please enter a valid email address.',
+                    'auth/user-disabled': 'This account has been disabled.',
+                    'auth/user-not-found': 'No account found with this email.',
+                    'auth/wrong-password': 'Incorrect password. Please try again.',
+                    'auth/invalid-login-credentials': 'Invalid email or password.',
+                    'auth/too-many-requests': 'Too many failed login attempts. Please try again later.',
+                    'auth/operation-not-allowed': 'Email/password sign-in is not enabled.',
+                };
+                
+                const userFriendlyMessage = errorMap[error.code] || error.message || "Sign in failed. Please try again.";
+                toast.error(userFriendlyMessage);
+            })
+            .finally(() => setIsLoading(false));
     };
 
     const handleGoogleSignIn = () => {
-        console.log("[v0] Google Sign-In initiated");
+        setIsLoading(true);
         signInWithGoogle()
-            .then(() => {
-                console.log("[v0] Google Sign-In successful");
+            .then((result) => {
                 toast.success('Successfully signed in with Google!');
-                navigate('/');
+                // Redirect based on email
+                redirectBasedOnEmail(result?.user?.email);
             })
             .catch((error) => {
                 console.error('[v0] Google Sign-In error code:', error.code);
@@ -51,13 +74,14 @@ const Signin = () => {
                 // Use the user-friendly message from the provider if available
                 const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.";
                 toast.error(errorMessage);
-            });
+            })
+            .finally(() => setIsLoading(false));
     };
 
     return (
         <div className="min-h-screen flex flex-col-reverse md:flex-row items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 gap-8">
              <Helmet>
-                <title>Sign In - {schoolConfig.name} Lost & Found</title>
+                <title>{`Sign In - ${schoolConfig.name} Lost & Found`}</title>
              </Helmet>
             {/* Lottie Animation */}
             <div className="hidden md:flex w-1/2 items-center justify-center">
@@ -77,7 +101,8 @@ const Signin = () => {
                 <button
                     type="button"
                     onClick={handleGoogleSignIn}
-                    className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4"
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <FcGoogle size={20} />
                     Continue with Google
@@ -124,8 +149,11 @@ const Signin = () => {
                         </a>
                     </div>
                     
-                    <button className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-4 active:scale-95">
-                        Sign In
+                    <button 
+                        disabled={isLoading}
+                        className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-4 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
                 
@@ -133,6 +161,13 @@ const Signin = () => {
                     Don't have an account?{' '}
                     <Link to="/register" className="text-zetech-primary hover:underline font-semibold">
                         Register
+                    </Link>
+                </div>
+                
+                <div className="text-center mt-2 text-gray-500 text-xs">
+                    Security staff?{' '}
+                    <Link to="/admin-login" className="text-orange-600 hover:underline font-semibold">
+                        Admin Login
                     </Link>
                 </div>
             </div>

@@ -65,7 +65,7 @@ const NotificationSettings = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-zetech-light to-white py-8 px-4">
             <Helmet>
-                <title>Notification Settings | {schoolConfig.name} Lost & Found</title>
+                <title>{`Notification Settings | ${schoolConfig.name} Lost & Found`}</title>
             </Helmet>
 
             <div className="max-w-2xl mx-auto">

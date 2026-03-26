@@ -92,7 +92,7 @@ const AddItems = () => {
     return (
         <div className="lg:px-10 lg:py-10 w-[70%] mx-auto mb-5">
             <Helmet>
-                <title>Add Lost & Found Item - {schoolConfig.name}</title>
+                <title>{`Add Lost & Found Item - ${schoolConfig.name}`}</title>
             </Helmet>
             <form
                 className="mx-auto p-10 m-14 bg-white rounded-xl shadow-lg space-y-6 hover:shadow-2xl transition-shadow duration-300"

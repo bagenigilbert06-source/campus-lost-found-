@@ -10,10 +10,15 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const AdminLogin = () => {
-    const { singInUser, signInWithGoogle, isAdmin } = useContext(AuthContext);
+    const { singInUser, signInWithGoogle } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Check if email is in admin list
+    const isAdminEmail = (email) => {
+        return schoolConfig.adminEmails.includes(email?.toLowerCase());
+    };
 
     const handleAdminLogin = (e) => {
         e.preventDefault();
@@ -21,38 +26,48 @@ const AdminLogin = () => {
         const email = form.email.value;
         const password = form.password.value;
 
-        console.log("[v0] Admin Sign In attempt with email:", email);
+        // Pre-check: Verify email is in admin list before attempting login
+        if (!isAdminEmail(email)) {
+            toast.error('This email does not have admin privileges');
+            return;
+        }
 
         setIsLoading(true);
         singInUser(email, password)
             .then(() => {
-                console.log("[v0] Admin Sign In successful");
-                
-                // Check if user is admin - if not, log them out
-                if (!isAdmin) {
-                    toast.error('You do not have admin privileges');
-                    navigate('/');
-                    return;
-                }
-                
                 toast.success('Admin signed in successfully!');
                 navigate('/admin');
+                setIsLoading(false);
             })
             .catch((error) => {
-                console.error('[v0] Admin signin error:', error);
-                toast.error(error.message || "Cannot sign in, please try again.");
-            })
-            .finally(() => setIsLoading(false));
+                console.error('[v0] Admin signin error code:', error.code);
+                console.error('[v0] Admin signin error message:', error.message);
+                
+                // Handle Firebase-specific error codes
+                const errorMap = {
+                    'auth/invalid-email': 'Please enter a valid email address.',
+                    'auth/user-disabled': 'This admin account has been disabled.',
+                    'auth/user-not-found': 'No admin account found with this email.',
+                    'auth/wrong-password': 'Incorrect password. Please try again.',
+                    'auth/invalid-login-credentials': 'Invalid credentials. Please verify your email and password.',
+                    'auth/too-many-requests': 'Too many failed attempts. Try again later.',
+                    'auth/operation-not-allowed': 'Admin login is temporarily unavailable.',
+                };
+                
+                const userFriendlyMessage = errorMap[error.code] || error.message || "Admin sign in failed. Please try again.";
+                toast.error(userFriendlyMessage);
+                setIsLoading(false);
+            });
     };
 
     const handleGoogleSignIn = () => {
-        console.log("[v0] Admin Google Sign-In initiated");
         setIsLoading(true);
         signInWithGoogle()
-            .then(() => {
-                console.log("[v0] Admin Google Sign-In successful");
+            .then((result) => {
+                const userEmail = result?.user?.email;
                 
-                if (!isAdmin) {
+                // Check if signed-in user is admin
+                if (!isAdminEmail(userEmail)) {
                     toast.error('Your account does not have admin privileges');
                     navigate('/');
                     return;
@@ -71,7 +86,7 @@ const AdminLogin = () => {
     return (
         <div className="min-h-screen flex flex-col-reverse md:flex-row items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 gap-8">
             <Helmet>
-                <title>Admin Login - {schoolConfig.name}</title>
+                <title>{`Admin Login - ${schoolConfig.name}`}</title>
             </Helmet>
 
             {/* Lottie Animation */}

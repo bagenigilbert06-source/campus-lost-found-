@@ -12,7 +12,18 @@ import { schoolConfig } from '../../config/schoolConfig';
 const Register = () => {
   const { createUser, signInWithGoogle } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Check if email is admin and redirect accordingly
+  const redirectBasedOnEmail = (email) => {
+    const isAdminEmail = schoolConfig.adminEmails.includes(email?.toLowerCase());
+    if (isAdminEmail) {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -29,25 +40,39 @@ const Register = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
       // Create user with Firebase (AuthProvider handles backend registration)
       await createUser(email, password, name, photo);
       
       toast.success('Successfully registered!');
-      navigate('/');
+      // Redirect based on email (role is determined by email in schoolConfig)
+      redirectBasedOnEmail(email);
     } catch (error) {
-      console.error('Registration error:', error);
-      toast.error(error.message || "Cannot sign up, please try again.");
+      setIsLoading(false);
+      console.error('[v0] Registration error:', error);
+      
+      // Handle Firebase-specific error codes
+      const errorMap = {
+        'auth/email-already-in-use': 'This email is already registered. Please sign in instead.',
+        'auth/invalid-email': 'Please enter a valid email address.',
+        'auth/weak-password': 'Password is too weak. Use at least 6 characters with uppercase and lowercase letters.',
+        'auth/operation-not-allowed': 'Email/password registration is not enabled. Please try Google Sign-up.',
+        'auth/too-many-requests': 'Too many registration attempts. Please try again later.',
+      };
+      
+      const userFriendlyMessage = errorMap[error.code] || error.message || "Registration failed. Please try again.";
+      toast.error(userFriendlyMessage);
     }
   };
 
   const handleGoogleSignIn = () => {
-    console.log("[v0] Google Sign-Up initiated");
+    setIsLoading(true);
     signInWithGoogle()
-      .then(() => {
-        console.log("[v0] Google Sign-Up successful");
+      .then((result) => {
         toast.success('Successfully signed up with Google!');
-        navigate('/');
+        // Redirect based on email
+        redirectBasedOnEmail(result?.user?.email);
       })
       .catch((error) => {
         console.error('[v0] Google Sign-Up error code:', error.code);
@@ -63,13 +88,14 @@ const Register = () => {
         } else {
           toast.error(error.message || "Cannot sign up with Google. Try email/password.");
         }
-      });
+      })
+      .finally(() => setIsLoading(false));
   };
 
   return (
     <div className="min-h-screen flex flex-col-reverse md:flex-row items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 gap-8">
       <Helmet>
-        <title>Register - {schoolConfig.name} Lost & Found</title>
+        <title>{`Register - ${schoolConfig.name} Lost & Found`}</title>
       </Helmet>
 
       {/* Form Section */}
@@ -82,7 +108,8 @@ const Register = () => {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4"
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FcGoogle size={20} />
           Continue with Google
@@ -142,8 +169,11 @@ const Register = () => {
             />
           </div>
           
-          <button className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-2 active:scale-95">
-            Create account
+          <button 
+            disabled={isLoading}
+            className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Creating account...' : 'Create account'}
           </button>
         </form>
         

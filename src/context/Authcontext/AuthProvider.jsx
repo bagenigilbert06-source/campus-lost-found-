@@ -25,22 +25,27 @@ const AuthProvider = ({ children }) => {
     const createUser = async (email, password, displayName, photoURL) => {
         setLoading(true);
         try {
+            console.log("[v0] Starting Firebase user creation for:", email);
             // Create Firebase user
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const firebaseUser = userCredential.user;
+            console.log("[v0] Firebase user created successfully:", firebaseUser.uid);
 
             // Update Firebase profile
             await updateProfile(firebaseUser, {
                 displayName: displayName,
                 photoURL: photoURL,
             });
+            console.log("[v0] Firebase profile updated");
 
             // Get Firebase ID token
             const token = await getIdToken(firebaseUser);
+            console.log("[v0] Firebase ID token obtained");
             localStorage.setItem('firebaseToken', token);
 
             // Register user profile in MongoDB
             try {
+                console.log("[v0] Registering user in MongoDB");
                 await axios.post(`${API_URL}/auth/register`, {
                     email: firebaseUser.email,
                     displayName: displayName,
@@ -51,13 +56,16 @@ const AuthProvider = ({ children }) => {
                         'Content-Type': 'application/json',
                     },
                 });
+                console.log("[v0] MongoDB registration successful");
             } catch (mongoErr) {
-                console.warn('MongoDB registration note:', mongoErr.message);
+                console.warn('[v0] MongoDB registration warning:', mongoErr.response?.status === 409 ? 'User already exists' : mongoErr.message);
                 // Don't fail if user already exists in MongoDB
             }
 
+            setLoading(false);
             return firebaseUser;
         } catch (error) {
+            console.error('[v0] Firebase user creation error:', error.code, error.message);
             setLoading(false);
             throw error;
         }

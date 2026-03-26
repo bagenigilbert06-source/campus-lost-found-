@@ -2,9 +2,11 @@ import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import AuthContext from '../context/Authcontext/AuthContext';
 
-
+// PrivateRoute - Requires authentication, allows any authenticated user
+// Use UserRoute for student-only pages that should block admins
 const PrivateRoute = ({ children }) => {
     const { user, loading } = useContext(AuthContext);
+    const location = useLocation();
    
     if (loading) {
         return (
@@ -14,13 +16,12 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    
     if (user) {
         return children;
     }
 
-  
-    return <Navigate to="/signin" state={location?.pathname} />;
+    // Redirect to signin with return path
+    return <Navigate to="/signin" state={{ from: location.pathname }} replace />;
 };
 
 export default PrivateRoute;
