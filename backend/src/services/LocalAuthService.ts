@@ -349,3 +349,5 @@ export class LocalAuthService {
 }
 
 export const localAuthService = new LocalAuthService();
+
+export const localAuthService = new LocalAuthService();
