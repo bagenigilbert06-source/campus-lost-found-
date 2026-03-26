@@ -4,6 +4,7 @@ import { itemService } from '../services/ItemService.js';
 import { matchingService } from '../services/MatchingService.js';
 import { notificationService } from '../services/NotificationService.js';
 import { BadRequest } from '../middleware/errorHandler.js';
+import { Item } from '../models/Item.js';
 
 const router: import('express').Router = Router();
 
@@ -32,6 +33,31 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
         pages: Math.ceil(total / limit),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin stats endpoint - get all items including recovered/claimed
+router.get('/admin/stats', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    // Get all items regardless of status (for admin)
+    const allItems = await Item.find({});
+    
+    const stats = {
+      totalItems: allItems.length,
+      activeItems: allItems.filter(item => item.status === 'active').length,
+      claimedItems: allItems.filter(item => item.status === 'claimed').length,
+      recoveredItems: allItems.filter(item => item.status === 'recovered').length,
+      pendingVerification: allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').length,
+      verifiedItems: allItems.filter(item => item.verificationStatus === 'verified').length,
+      rejectedItems: allItems.filter(item => item.verificationStatus === 'rejected').length,
+      totalUsers: new Set(allItems.map(item => item.userId).filter(Boolean)).size,
+      lostItems: allItems.filter(item => item.itemType === 'Lost').length,
+      foundItems: allItems.filter(item => item.itemType === 'Found').length,
+    };
+
+    res.json({ success: true, data: stats });
   } catch (error) {
     next(error);
   }

@@ -7,6 +7,8 @@ import { FaCheckCircle, FaTimesCircle, FaEye, FaClipboardList, FaShieldAlt, FaUs
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 const AdminDashboard = () => {
     const { user } = useContext(AuthContext);
     const [stats, setStats] = useState({
@@ -26,42 +28,66 @@ const AdminDashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            // Fetch all items
-            const itemsRes = await axios.get('http://localhost:3001/api/items');
-            const items = itemsRes.data;
+            setLoading(true);
             
-            // Fetch recovered items
-            const recoveredRes = await axios.get('http://localhost:3001/api/items?status=recovered', {
-                withCredentials: true
+            // Try to fetch from dedicated admin stats endpoint first
+            try {
+                const statsRes = await axios.get(`${API_URL}/admin/stats`);
+                const adminStats = statsRes.data?.data;
+                
+                if (adminStats) {
+                    setStats({
+                        totalItems: adminStats.totalItems,
+                        pendingVerification: adminStats.pendingVerification,
+                        verifiedItems: adminStats.verifiedItems,
+                        recoveredItems: adminStats.recoveredItems,
+                        totalUsers: adminStats.totalUsers
+                    });
+                    setLoading(false);
+                    return;
+                }
+            } catch (statsError) {
+                console.warn('Admin stats endpoint not available, falling back to items endpoint');
+            }
+            
+            // Fallback: Fetch all items manually
+            const itemsRes = await axios.get(`${API_URL}/items`, {
+                params: { limit: 1000 }
             });
             
-            // Calculate stats
+            const items = Array.isArray(itemsRes.data) 
+                ? itemsRes.data 
+                : (itemsRes.data?.data || []);
+            
             const pendingItems = items.filter(item => item.verificationStatus === 'pending' || !item.verificationStatus);
             const verifiedItems = items.filter(item => item.verificationStatus === 'verified');
+            const recoveredItems = items.filter(item => item.status === 'recovered');
+            const uniqueUsers = new Set(items.map(item => item.email).filter(Boolean));
             
             setStats({
                 totalItems: items.length,
                 pendingVerification: pendingItems.length,
                 verifiedItems: verifiedItems.length,
-                recoveredItems: recoveredRes.data?.length || 0,
-                totalUsers: new Set(items.map(item => item.email)).size
+                recoveredItems: recoveredItems.length,
+                totalUsers: uniqueUsers.size
             });
             
-            setPendingItems(pendingItems.slice(0, 10)); // Show first 10 pending items
+            setPendingItems(pendingItems.slice(0, 10));
             setLoading(false);
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
+            toast.error('Failed to load dashboard data');
             setLoading(false);
         }
     };
 
     const handleVerifyItem = async (itemId) => {
         try {
-            await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
+            await axios.put(`${API_URL}/items/${itemId}`, {
                 verificationStatus: 'verified',
-                verifiedBy: user.email,
+                verifiedBy: user?.email,
                 verifiedAt: new Date().toISOString()
-            }, { withCredentials: true });
+            });
             
             toast.success('Item verified successfully!');
             fetchDashboardData();
@@ -73,11 +99,11 @@ const AdminDashboard = () => {
 
     const handleRejectItem = async (itemId) => {
         try {
-            await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
+            await axios.put(`${API_URL}/items/${itemId}`, {
                 verificationStatus: 'rejected',
-                verifiedBy: user.email,
+                verifiedBy: user?.email,
                 verifiedAt: new Date().toISOString()
-            }, { withCredentials: true });
+            });
             
             toast.success('Item rejected');
             fetchDashboardData();
