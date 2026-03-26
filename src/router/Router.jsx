@@ -1,8 +1,9 @@
 import {
   createBrowserRouter,
-
 } from "react-router-dom";
-import MainLayout from "../layout/MainLayout";
+import UserLayout from "../layout/UserLayout";
+import AdminLayout from "../layout/AdminLayout";
+import PublicLayout from "../layout/PublicLayout";
 import Home from "../pages/Home/Home";
 import Register from "../pages/Register/Register";
 import Signin from "../pages/Signin/Signin";
@@ -26,10 +27,26 @@ import SearchItems from "../pages/SearchItems/SearchItems";
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
 
 const router = createBrowserRouter([
+  // PUBLIC ROUTES - No layout (just Toaster)
+  {
+    path: "/admin-login",
+    element: <AdminLogin />,
+  },
+  // ADMIN ROUTES - Admin layout only (no Navbar/Footer)
+  {
+    path: "/admin",
+    element: <AdminLayout />,
+    children: [
+      {
+        path: "",
+        element: <AdminRoute><AdminDashboard /></AdminRoute>,
+      },
+    ]
+  },
+  // USER ROUTES - User layout (Navbar + Footer)
   {
     path: "/",
-    element: <MainLayout />,
-  
+    element: <UserLayout />,
     children: [
       {
         path: '/',
@@ -43,10 +60,6 @@ const router = createBrowserRouter([
         path: '/signin',
         element: <Signin />
       },
-      {            
-        path: '/admin-login',
-        element: <AdminLogin />
-      },
       {
         path: '/addItems',
         element: <PrivateRoute><AddItems /></PrivateRoute>
@@ -54,19 +67,10 @@ const router = createBrowserRouter([
       {
         path: '/myItems',
         element: <PrivateRoute><MyItemsPage /></PrivateRoute>,
-
-
       },
       {
         path: '/aboutUs',
         element:<AboutUs />,
-
-
-      },
-      
-      {
-        path: "*",
-        element: <ErrorPage />
       },
       {
         path: "/contact",
@@ -79,7 +83,6 @@ const router = createBrowserRouter([
           console.log("[v0] Item loader response:", data);
           return Array.isArray(data) ? data[0] : data.data || data;
         })
-
       },
       {
         path: "/update/:id",
@@ -88,7 +91,6 @@ const router = createBrowserRouter([
           console.log("[v0] Update loader response:", data);
           return Array.isArray(data) ? data[0] : data.data || data;
         })
-
       },
       {
         path: '/allItems',
@@ -101,11 +103,6 @@ const router = createBrowserRouter([
       {
         path: '/allRecovered',
         element: <PrivateRoute><AllRecoveredItems /></PrivateRoute>,
-
-      },
-      {
-        path: '/admin',
-        element: <AdminRoute><AdminDashboard /></AdminRoute>,
       },
       {
         path: '/settings/notifications',
@@ -126,6 +123,10 @@ const router = createBrowserRouter([
       {
         path: '/search',
         element: <SearchItems />,
+      },
+      {
+        path: "*",
+        element: <ErrorPage />
       },
     ]
   },
