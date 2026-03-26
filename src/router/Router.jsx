@@ -1,7 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
 
-// Layouts
-import MainLayout from "../layout/MainLayout";
+// Layouts - Completely Separated
+import MainLayout from "../layout/MainLayout";      // For public + student routes
+import AdminLayout from "../layout/AdminLayout";    // For admin routes only
 
 // Route Guards
 import PrivateRoute from "./PrivetRoute";
@@ -22,7 +23,7 @@ import ErrorPage from "../pages/ErrorPage/ErrorPage";
 import Register from "../pages/Register/Register";
 import Signin from "../pages/Signin/Signin";
 
-// Auth Pages - Admin
+// Auth Pages - Admin (standalone, no layout wrapper needed initially)
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
 
 // Protected Pages - Any Authenticated User
@@ -43,14 +44,16 @@ import AdminDashboard from "../pages/Admin/AdminDashboard";
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const router = createBrowserRouter([
+  // ==========================================
+  // PUBLIC + STUDENT ROUTES (with MainLayout)
+  // Uses Navbar and Footer
+  // ==========================================
   {
     path: "/",
     element: <MainLayout />,
     errorElement: <ErrorPage />,
     children: [
-      // ==========================================
-      // PUBLIC ROUTES - No authentication required
-      // ==========================================
+      // Public Pages - No authentication required
       {
         index: true,
         element: <Home />
@@ -79,10 +82,7 @@ const router = createBrowserRouter([
         element: <CampusDirectory />
       },
 
-      // ==========================================
-      // AUTH ROUTES - Student Login/Register
-      // Redirects authenticated users to their dashboard
-      // ==========================================
+      // Auth Routes - Student Login/Register
       {
         path: 'register',
         element: (
@@ -100,23 +100,7 @@ const router = createBrowserRouter([
         )
       },
 
-      // ==========================================
-      // AUTH ROUTES - Admin Login
-      // Only redirects authenticated admins
-      // ==========================================
-      {
-        path: 'admin-login',
-        element: (
-          <PublicRoute adminOnly>
-            <AdminLogin />
-          </PublicRoute>
-        )
-      },
-
-      // ==========================================
-      // PROTECTED ROUTES - Any Authenticated User
-      // Both students and admins can access these
-      // ==========================================
+      // Protected Routes - Any Authenticated User (Student or Admin)
       {
         path: 'addItems',
         element: (
@@ -180,10 +164,7 @@ const router = createBrowserRouter([
         )
       },
 
-      // ==========================================
-      // STUDENT-ONLY ROUTES
-      // Only students can access (admins redirected to admin dashboard)
-      // ==========================================
+      // Student-Only Dashboard
       {
         path: 'dashboard',
         element: (
@@ -192,28 +173,56 @@ const router = createBrowserRouter([
           </StudentRoute>
         )
       },
-
-      // ==========================================
-      // ADMIN-ONLY ROUTES
-      // Only admins can access (students redirected away)
-      // ==========================================
-      {
-        path: 'admin',
-        element: (
-          <AdminRoute>
-            <AdminDashboard />
-          </AdminRoute>
-        )
-      },
-
-      // ==========================================
-      // CATCH-ALL - 404
-      // ==========================================
-      {
-        path: '*',
-        element: <ErrorPage />
-      }
     ]
+  },
+
+  // ==========================================
+  // ADMIN LOGIN PAGE (standalone - no layout)
+  // Clean login page without any layout wrapper
+  // ==========================================
+  {
+    path: '/admin-login',
+    element: (
+      <PublicRoute adminOnly>
+        <AdminLogin />
+      </PublicRoute>
+    ),
+    errorElement: <ErrorPage />
+  },
+
+  // ==========================================
+  // ADMIN ROUTES (with AdminLayout)
+  // Completely separate from MainLayout
+  // NO Navbar, NO Footer from public site
+  // ==========================================
+  {
+    path: '/admin',
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ),
+    errorElement: <ErrorPage />,
+    children: [
+      // Admin Dashboard (index route)
+      {
+        index: true,
+        element: <AdminDashboard />
+      },
+      // Future admin routes can be added here:
+      // { path: 'items', element: <AdminItems /> },
+      // { path: 'pending', element: <AdminPendingItems /> },
+      // { path: 'users', element: <AdminUsers /> },
+      // { path: 'settings', element: <AdminSettings /> },
+    ]
+  },
+
+  // ==========================================
+  // CATCH-ALL - 404
+  // ==========================================
+  {
+    path: '*',
+    element: <ErrorPage />
   }
 ]);
 

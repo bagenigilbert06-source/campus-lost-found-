@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import Lottie from 'lottie-react';
 import loginAnimation from '../../assets/login.json';
 import { Helmet } from 'react-helmet-async';
@@ -84,6 +84,7 @@ const AdminLogin = () => {
 
     return (
         <div className="min-h-screen flex flex-col-reverse md:flex-row items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 gap-8">
+            <Toaster />
             <Helmet>
                 <title>Admin Login - {schoolConfig.name}</title>
             </Helmet>
