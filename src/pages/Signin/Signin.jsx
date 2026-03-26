@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
@@ -9,56 +9,84 @@ import loginAnimation from '../../assets/login.json';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
+/**
+ * Student Sign In Page
+ * - For students/regular users only
+ * - Admins should use /admin-login
+ * - Redirects to student dashboard after successful login
+ */
 const Signin = () => {
-    const { singInUser, signInWithGoogle } = useContext(AuthContext);
+    const { signInUser, signInWithGoogle, getRedirectPath, USER_ROLES } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleSignin = (e) => {
+    // Get the intended destination or default to dashboard
+    const from = location.state?.from?.pathname || '/dashboard';
+
+    const handleSignin = async (e) => {
         e.preventDefault();
         const form = e.target;
         const email = form.email.value;
         const password = form.password.value;
 
-        console.log("[v0] Sign In attempt with email:", email);
+        setIsLoading(true);
 
-        singInUser(email, password)
-            .then(() => {
-                console.log("[v0] Sign In successful");
-                toast.success('Successfully signed in!');
-                navigate('/');
-            })
-            .catch((error) => {
-                console.error('[v0] Signin error:', error);
-                console.error('[v0] Error code:', error.code);
-                console.error('[v0] Error message:', error.message);
-                toast.error(error.message || "Cannot sign in, please try again.");
-            });
+        try {
+            const { role } = await signInUser(email, password);
+            
+            toast.success('Successfully signed in!');
+            
+            // Role-based redirect
+            if (role === USER_ROLES.ADMIN) {
+                // Admin tried to sign in through student login - redirect to admin
+                toast('Redirecting to admin dashboard', { icon: 'i' });
+                navigate('/admin', { replace: true });
+            } else {
+                // Student - go to intended destination or dashboard
+                const destination = from.startsWith('/admin') ? '/dashboard' : from;
+                navigate(destination, { replace: true });
+            }
+        } catch (error) {
+            console.error('Signin error:', error);
+            toast.error(error.message || "Cannot sign in, please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleGoogleSignIn = () => {
-        console.log("[v0] Google Sign-In initiated");
-        signInWithGoogle()
-            .then(() => {
-                console.log("[v0] Google Sign-In successful");
-                toast.success('Successfully signed in with Google!');
-                navigate('/');
-            })
-            .catch((error) => {
-                console.error('[v0] Google Sign-In error code:', error.code);
-                console.error('[v0] Google Sign-In error:', error.message);
-                
-                // Use the user-friendly message from the provider if available
-                const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.";
-                toast.error(errorMessage);
-            });
+    const handleGoogleSignIn = async () => {
+        setIsLoading(true);
+
+        try {
+            const { role } = await signInWithGoogle();
+            
+            toast.success('Successfully signed in with Google!');
+            
+            // Role-based redirect
+            if (role === USER_ROLES.ADMIN) {
+                toast('Redirecting to admin dashboard', { icon: 'i' });
+                navigate('/admin', { replace: true });
+            } else {
+                const destination = from.startsWith('/admin') ? '/dashboard' : from;
+                navigate(destination, { replace: true });
+            }
+        } catch (error) {
+            console.error('Google Sign-In error:', error);
+            const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.";
+            toast.error(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
         <div className="min-h-screen flex flex-col-reverse md:flex-row items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 gap-8">
-             <Helmet>
+            <Helmet>
                 <title>Sign In - {schoolConfig.name} Lost & Found</title>
-             </Helmet>
+            </Helmet>
+
             {/* Lottie Animation */}
             <div className="hidden md:flex w-1/2 items-center justify-center">
                 <Lottie
@@ -72,15 +100,16 @@ const Signin = () => {
                 <h1 className="text-2xl font-bold text-center mb-1 text-gray-900">
                     Sign In to {schoolConfig.shortName}
                 </h1>
-                <p className="text-center text-gray-500 text-xs mb-5">Welcome back</p>
+                <p className="text-center text-gray-500 text-xs mb-5">Welcome back, student</p>
                 
                 <button
                     type="button"
                     onClick={handleGoogleSignIn}
-                    className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4"
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <FcGoogle size={20} />
-                    Continue with Google
+                    {isLoading ? 'Signing in...' : 'Continue with Google'}
                 </button>
 
                 <div className="relative my-4">
@@ -97,8 +126,9 @@ const Signin = () => {
                         type="email"
                         name="email"
                         placeholder="Email address"
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
                         required
+                        disabled={isLoading}
                     />
                     
                     <div className="relative">
@@ -106,8 +136,9 @@ const Signin = () => {
                             name="password"
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Password"
-                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200"
+                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
                             required
+                            disabled={isLoading}
                         />
                         <button
                             type="button"
@@ -119,20 +150,34 @@ const Signin = () => {
                     </div>
 
                     <div className="text-right">
-                        <a href="#" className="text-xs text-zetech-primary hover:underline">
+                        <a href="#" className="text-xs text-teal-600 hover:underline">
                             Forgot password?
                         </a>
                     </div>
                     
-                    <button className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-4 active:scale-95">
-                        Sign In
+                    <button 
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-teal-700 transition duration-300 text-sm mt-4 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
                 
                 <div className="text-center mt-4 text-gray-600 text-xs">
-                    Don't have an account?{' '}
-                    <Link to="/register" className="text-zetech-primary hover:underline font-semibold">
+                    {"Don't have an account? "}
+                    <Link to="/register" className="text-teal-600 hover:underline font-semibold">
                         Register
+                    </Link>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+                    <p className="text-xs text-gray-500 mb-2">Are you a staff member?</p>
+                    <Link 
+                        to="/admin-login" 
+                        className="text-xs text-orange-600 hover:underline font-semibold"
+                    >
+                        Admin / Security Staff Login
                     </Link>
                 </div>
             </div>

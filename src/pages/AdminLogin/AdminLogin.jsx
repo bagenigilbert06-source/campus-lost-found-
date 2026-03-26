@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
 import toast from 'react-hot-toast';
 import Lottie from 'lottie-react';
@@ -9,63 +9,77 @@ import loginAnimation from '../../assets/login.json';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
+/**
+ * Admin Login Page
+ * - For security staff/admins only
+ * - Students should use /signin
+ * - Validates admin role and redirects to admin dashboard
+ */
 const AdminLogin = () => {
-    const { singInUser, signInWithGoogle, isAdmin } = useContext(AuthContext);
+    const { signInUser, signInWithGoogle, USER_ROLES } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleAdminLogin = (e) => {
+    // Get the intended destination or default to admin dashboard
+    const from = location.state?.from?.pathname || '/admin';
+
+    const handleAdminLogin = async (e) => {
         e.preventDefault();
         const form = e.target;
         const email = form.email.value;
         const password = form.password.value;
 
-        console.log("[v0] Admin Sign In attempt with email:", email);
-
         setIsLoading(true);
-        singInUser(email, password)
-            .then(() => {
-                console.log("[v0] Admin Sign In successful");
-                
-                // Check if user is admin - if not, log them out
-                if (!isAdmin) {
-                    toast.error('You do not have admin privileges');
-                    navigate('/');
-                    return;
-                }
-                
-                toast.success('Admin signed in successfully!');
-                navigate('/admin');
-            })
-            .catch((error) => {
-                console.error('[v0] Admin signin error:', error);
-                toast.error(error.message || "Cannot sign in, please try again.");
-            })
-            .finally(() => setIsLoading(false));
+
+        try {
+            const { role } = await signInUser(email, password);
+            
+            // Check if user has admin privileges
+            if (role !== USER_ROLES.ADMIN) {
+                toast.error('You do not have admin privileges. Please use the student login.');
+                // Sign them out or redirect to student dashboard
+                navigate('/dashboard', { replace: true });
+                return;
+            }
+            
+            toast.success('Admin signed in successfully!');
+            
+            // Redirect to intended admin page or admin dashboard
+            const destination = from.startsWith('/admin') ? from : '/admin';
+            navigate(destination, { replace: true });
+        } catch (error) {
+            console.error('Admin signin error:', error);
+            toast.error(error.message || "Cannot sign in, please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleGoogleSignIn = () => {
-        console.log("[v0] Admin Google Sign-In initiated");
+    const handleGoogleSignIn = async () => {
         setIsLoading(true);
-        signInWithGoogle()
-            .then(() => {
-                console.log("[v0] Admin Google Sign-In successful");
-                
-                if (!isAdmin) {
-                    toast.error('Your account does not have admin privileges');
-                    navigate('/');
-                    return;
-                }
-                
-                toast.success('Admin signed in with Google!');
-                navigate('/admin');
-            })
-            .catch((error) => {
-                console.error('[v0] Admin Google Sign-In error:', error);
-                toast.error(error.message || "Cannot sign in with Google. Try email/password.");
-            })
-            .finally(() => setIsLoading(false));
+
+        try {
+            const { role } = await signInWithGoogle();
+            
+            // Check if user has admin privileges
+            if (role !== USER_ROLES.ADMIN) {
+                toast.error('Your Google account does not have admin privileges.');
+                navigate('/dashboard', { replace: true });
+                return;
+            }
+            
+            toast.success('Admin signed in with Google!');
+            
+            const destination = from.startsWith('/admin') ? from : '/admin';
+            navigate(destination, { replace: true });
+        } catch (error) {
+            console.error('Admin Google Sign-In error:', error);
+            toast.error(error.message || "Cannot sign in with Google. Try email/password.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -84,15 +98,17 @@ const AdminLogin = () => {
 
             {/* Login Form */}
             <div className="w-full max-w-sm bg-white shadow-lg rounded-xl p-6 border border-gray-200 border-l-4 border-l-orange-600">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="w-10 h-10 bg-orange-600 text-white rounded-lg flex items-center justify-center font-bold text-lg">
-                        🔐
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-orange-600 text-white rounded-lg flex items-center justify-center">
+                        <FaShieldAlt className="text-xl" />
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        Lost & Found Office
-                    </h1>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-900">
+                            Lost & Found Office
+                        </h1>
+                        <p className="text-xs text-gray-500">Security Staff Portal</p>
+                    </div>
                 </div>
-                <p className="text-center text-gray-500 text-xs mb-5">Security Staff Portal</p>
                 
                 <button
                     type="button"
@@ -100,10 +116,18 @@ const AdminLogin = () => {
                     disabled={isLoading}
                     className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <FcGoogle /> Sign in with Google
+                    <FcGoogle size={20} />
+                    {isLoading ? 'Verifying...' : 'Sign in with Google'}
                 </button>
 
-                <div className="divider text-xs text-gray-400">OR</div>
+                <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                        <span className="px-2 bg-white text-gray-400">OR</span>
+                    </div>
+                </div>
 
                 <form onSubmit={handleAdminLogin} className="space-y-4">
                     <div>
@@ -115,7 +139,8 @@ const AdminLogin = () => {
                             name="email"
                             placeholder="admin@zetech.ac.ke"
                             required
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-600 focus:border-transparent"
+                            disabled={isLoading}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                     </div>
 
@@ -129,7 +154,8 @@ const AdminLogin = () => {
                                 name="password"
                                 placeholder="Enter your password"
                                 required
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-600 focus:border-transparent"
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                             <button
                                 type="button"
@@ -146,21 +172,24 @@ const AdminLogin = () => {
                         disabled={isLoading}
                         className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
                     >
-                        {isLoading ? 'Signing in...' : 'Sign In'}
+                        {isLoading ? 'Verifying Admin Access...' : 'Sign In as Admin'}
                     </button>
                 </form>
 
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
                     <p className="font-semibold mb-1">Admin Access Only</p>
-                    <p>This portal is restricted to authorized security staff only. Unauthorized access will be logged and reported.</p>
+                    <p>This portal is restricted to authorized security staff only. Unauthorized access attempts will be logged.</p>
                 </div>
 
-                <p className="mt-4 text-center text-xs text-gray-600">
-                    Not an admin?{' '}
-                    <Link to="/signin" className="text-teal-600 hover:underline font-semibold">
+                <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+                    <p className="text-xs text-gray-500 mb-2">Are you a student?</p>
+                    <Link 
+                        to="/signin" 
+                        className="text-xs text-teal-600 hover:underline font-semibold"
+                    >
                         Student Login
                     </Link>
-                </p>
+                </div>
             </div>
         </div>
     );

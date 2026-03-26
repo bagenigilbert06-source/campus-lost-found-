@@ -1,133 +1,220 @@
-import {
-  createBrowserRouter,
+import { createBrowserRouter } from "react-router-dom";
 
-} from "react-router-dom";
+// Layouts
 import MainLayout from "../layout/MainLayout";
-import Home from "../pages/Home/Home";
-import Register from "../pages/Register/Register";
-import Signin from "../pages/Signin/Signin";
-import AddItems from "../pages/AddItems/AddItems";
-import AllItems from "../pages/AllItems/AllItems";
-import PostDetails from "../pages/PostDetails/PostDetails";
+
+// Route Guards
 import PrivateRoute from "./PrivetRoute";
 import AdminRoute from "./AdminRoute";
-import MyItemsPage from "../pages/MyItemsPage/MyItemsPage";
-import AllRecoveredItems from "../pages/AllRecovered/AllRecoveredItems";
-import UpdateItems from "../pages/UpdateItems/UpdateItems";
-import ErrorPage from "../pages/ErrorPage/ErrorPage";
+import StudentRoute from "./StudentRoute";
+import PublicRoute from "./PublicRoute";
+
+// Public Pages
+import Home from "../pages/Home/Home";
 import AboutUs from "../pages/AboutUs/AboutUs";
 import Contact from "../pages/Contact/Contact";
-import AdminDashboard from "../pages/Admin/AdminDashboard";
-import NotificationSettings from "../pages/Settings/NotificationSettings";
-import CampusDirectory from "../pages/Directory/CampusDirectory";
-import UserProfile from "../pages/UserProfile/UserProfile";
-import StudentDashboard from "../pages/StudentDashboard/StudentDashboard";
+import AllItems from "../pages/AllItems/AllItems";
 import SearchItems from "../pages/SearchItems/SearchItems";
+import CampusDirectory from "../pages/Directory/CampusDirectory";
+import ErrorPage from "../pages/ErrorPage/ErrorPage";
+
+// Auth Pages - Student
+import Register from "../pages/Register/Register";
+import Signin from "../pages/Signin/Signin";
+
+// Auth Pages - Admin
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
+
+// Protected Pages - Any Authenticated User
+import PostDetails from "../pages/PostDetails/PostDetails";
+import AddItems from "../pages/AddItems/AddItems";
+import MyItemsPage from "../pages/MyItemsPage/MyItemsPage";
+import UpdateItems from "../pages/UpdateItems/UpdateItems";
+import AllRecoveredItems from "../pages/AllRecovered/AllRecoveredItems";
+import NotificationSettings from "../pages/Settings/NotificationSettings";
+import UserProfile from "../pages/UserProfile/UserProfile";
+
+// Protected Pages - Student Only
+import StudentDashboard from "../pages/StudentDashboard/StudentDashboard";
+
+// Protected Pages - Admin Only
+import AdminDashboard from "../pages/Admin/AdminDashboard";
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <MainLayout />,
-  
+    errorElement: <ErrorPage />,
     children: [
+      // ==========================================
+      // PUBLIC ROUTES - No authentication required
+      // ==========================================
       {
-        path: '/',
+        index: true,
         element: <Home />
       },
       {
-        path: '/register',
-        element: <Register />
-      },
-      {            
-        path: '/signin',
-        element: <Signin />
-      },
-      {            
-        path: '/admin-login',
-        element: <AdminLogin />
+        path: 'aboutUs',
+        element: <AboutUs />
       },
       {
-        path: '/addItems',
-        element: <PrivateRoute><AddItems /></PrivateRoute>
-      },
-      {
-        path: '/myItems',
-        element: <PrivateRoute><MyItemsPage /></PrivateRoute>,
-
-
-      },
-      {
-        path: '/aboutUs',
-        element:<AboutUs />,
-
-
-      },
-      
-      {
-        path: "*",
-        element: <ErrorPage />
-      },
-      {
-        path: "/contact",
+        path: 'contact',
         element: <Contact />
       },
       {
-        path: "/items/:id",
-        element: <PrivateRoute><PostDetails /></PrivateRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          console.log("[v0] Item loader response:", data);
-          return Array.isArray(data) ? data[0] : data.data || data;
-        })
-
-      },
-      {
-        path: "/update/:id",
-        element: <PrivateRoute><UpdateItems /></PrivateRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          console.log("[v0] Update loader response:", data);
-          return Array.isArray(data) ? data[0] : data.data || data;
-        })
-
-      },
-      {
-        path: '/allItems',
+        path: 'allItems',
         element: <AllItems />,
-        loader: () => fetch('http://localhost:3001/api/items').then(res => res.json()).then(data => {
-          console.log("[v0] AllItems loader response:", data);
+        loader: () => fetch(`${API_URL}/items`).then(res => res.json()).then(data => {
           return Array.isArray(data) ? data : data.data || [];
         })
       },
       {
-        path: '/allRecovered',
-        element: <PrivateRoute><AllRecoveredItems /></PrivateRoute>,
+        path: 'search',
+        element: <SearchItems />
+      },
+      {
+        path: 'directory',
+        element: <CampusDirectory />
+      },
 
+      // ==========================================
+      // AUTH ROUTES - Student Login/Register
+      // Redirects authenticated users to their dashboard
+      // ==========================================
+      {
+        path: 'register',
+        element: (
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        )
       },
       {
-        path: '/admin',
-        element: <AdminRoute><AdminDashboard /></AdminRoute>,
+        path: 'signin',
+        element: (
+          <PublicRoute>
+            <Signin />
+          </PublicRoute>
+        )
+      },
+
+      // ==========================================
+      // AUTH ROUTES - Admin Login
+      // Only redirects authenticated admins
+      // ==========================================
+      {
+        path: 'admin-login',
+        element: (
+          <PublicRoute adminOnly>
+            <AdminLogin />
+          </PublicRoute>
+        )
+      },
+
+      // ==========================================
+      // PROTECTED ROUTES - Any Authenticated User
+      // Both students and admins can access these
+      // ==========================================
+      {
+        path: 'addItems',
+        element: (
+          <PrivateRoute>
+            <AddItems />
+          </PrivateRoute>
+        )
       },
       {
-        path: '/settings/notifications',
-        element: <PrivateRoute><NotificationSettings /></PrivateRoute>,
+        path: 'myItems',
+        element: (
+          <PrivateRoute>
+            <MyItemsPage />
+          </PrivateRoute>
+        )
       },
       {
-        path: '/directory',
-        element: <CampusDirectory />,
+        path: 'items/:id',
+        element: (
+          <PrivateRoute>
+            <PostDetails />
+          </PrivateRoute>
+        ),
+        loader: ({ params }) => fetch(`${API_URL}/items/${params.id}`).then(res => res.json()).then(data => {
+          return Array.isArray(data) ? data[0] : data.data || data;
+        })
       },
       {
-        path: '/profile',
-        element: <PrivateRoute><UserProfile /></PrivateRoute>,
+        path: 'update/:id',
+        element: (
+          <PrivateRoute>
+            <UpdateItems />
+          </PrivateRoute>
+        ),
+        loader: ({ params }) => fetch(`${API_URL}/items/${params.id}`).then(res => res.json()).then(data => {
+          return Array.isArray(data) ? data[0] : data.data || data;
+        })
       },
       {
-        path: '/dashboard',
-        element: <PrivateRoute><StudentDashboard /></PrivateRoute>,
+        path: 'allRecovered',
+        element: (
+          <PrivateRoute>
+            <AllRecoveredItems />
+          </PrivateRoute>
+        )
       },
       {
-        path: '/search',
-        element: <SearchItems />,
+        path: 'settings/notifications',
+        element: (
+          <PrivateRoute>
+            <NotificationSettings />
+          </PrivateRoute>
+        )
       },
+      {
+        path: 'profile',
+        element: (
+          <PrivateRoute>
+            <UserProfile />
+          </PrivateRoute>
+        )
+      },
+
+      // ==========================================
+      // STUDENT-ONLY ROUTES
+      // Only students can access (admins redirected to admin dashboard)
+      // ==========================================
+      {
+        path: 'dashboard',
+        element: (
+          <StudentRoute>
+            <StudentDashboard />
+          </StudentRoute>
+        )
+      },
+
+      // ==========================================
+      // ADMIN-ONLY ROUTES
+      // Only admins can access (students redirected away)
+      // ==========================================
+      {
+        path: 'admin',
+        element: (
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        )
+      },
+
+      // ==========================================
+      // CATCH-ALL - 404
+      // ==========================================
+      {
+        path: '*',
+        element: <ErrorPage />
+      }
     ]
-  },
+  }
 ]);
-export default router
+
+export default router;

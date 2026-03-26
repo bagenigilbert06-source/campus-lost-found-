@@ -9,9 +9,16 @@ import registerAnimation from '../../assets/signup.json';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
+/**
+ * Student Registration Page
+ * - Creates student accounts (role=student)
+ * - Initializes student-specific profile defaults
+ * - Admins are designated by email in schoolConfig.adminEmails
+ */
 const Register = () => {
-  const { createUser, signInWithGoogle } = useContext(AuthContext);
+  const { createUser, signInWithGoogle, USER_ROLES } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSignUp = async (e) => {
@@ -19,8 +26,9 @@ const Register = () => {
     const name = e.target.name.value;
     const email = e.target.email.value;
     const password = e.target.password.value;
-    const photo = e.target.photo.value;
+    const photo = e.target.photo.value || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=ffffff`;
 
+    // Password validation
     const isValidPassword =
       password.length >= 6 && /[A-Z]/.test(password) && /[a-z]/.test(password);
 
@@ -29,41 +37,67 @@ const Register = () => {
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      // Create user with Firebase (AuthProvider handles backend registration)
-      await createUser(email, password, name, photo);
+      // Create user - AuthProvider handles role detection and profile initialization
+      const { role } = await createUser(email, password, name, photo);
       
-      toast.success('Successfully registered!');
-      navigate('/');
+      toast.success('Account created successfully!');
+      
+      // Role-based redirect
+      if (role === USER_ROLES.ADMIN) {
+        toast('Admin account detected - redirecting to admin dashboard', { icon: 'i' });
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(error.message || "Cannot sign up, please try again.");
+      
+      // User-friendly error messages
+      const errorMessages = {
+        'auth/email-already-in-use': 'An account with this email already exists. Please sign in instead.',
+        'auth/weak-password': 'Password is too weak. Please use a stronger password.',
+        'auth/invalid-email': 'Please enter a valid email address.',
+      };
+      
+      toast.error(errorMessages[error.code] || error.message || "Cannot sign up, please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    console.log("[v0] Google Sign-Up initiated");
-    signInWithGoogle()
-      .then(() => {
-        console.log("[v0] Google Sign-Up successful");
-        toast.success('Successfully signed up with Google!');
-        navigate('/');
-      })
-      .catch((error) => {
-        console.error('[v0] Google Sign-Up error code:', error.code);
-        console.error('[v0] Google Sign-Up error:', error.message);
-        
-        // Handle specific errors gracefully
-        if (error.code === 'auth/popup-blocked') {
-          toast.error('Popup was blocked. Please allow popups and try again.');
-        } else if (error.code === 'auth/popup-closed-by-user') {
-          toast.error('Sign-up cancelled.');
-        } else if (error.code === 'auth/configuration-not-found') {
-          toast.error('Google Sign-Up not available. Try email/password instead.');
-        } else {
-          toast.error(error.message || "Cannot sign up with Google. Try email/password.");
-        }
-      });
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+
+    try {
+      const { role } = await signInWithGoogle();
+      
+      toast.success('Account created with Google!');
+      
+      // Role-based redirect
+      if (role === USER_ROLES.ADMIN) {
+        toast('Admin account detected - redirecting to admin dashboard', { icon: 'i' });
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (error) {
+      console.error('Google Sign-Up error:', error);
+      
+      if (error.code === 'auth/popup-blocked') {
+        toast.error('Popup was blocked. Please allow popups and try again.');
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        toast.error('Sign-up cancelled.');
+      } else if (error.code === 'auth/configuration-not-found') {
+        toast.error('Google Sign-Up not available. Try email/password instead.');
+      } else {
+        toast.error(error.message || "Cannot sign up with Google. Try email/password.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -82,10 +116,11 @@ const Register = () => {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4"
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FcGoogle size={20} />
-          Continue with Google
+          {isLoading ? 'Creating account...' : 'Continue with Google'}
         </button>
 
         <div className="relative my-4">
@@ -103,8 +138,9 @@ const Register = () => {
               type="text"
               name="name"
               placeholder="Full name"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
               required
+              disabled={isLoading}
             />
           </div>
           <div>
@@ -112,17 +148,19 @@ const Register = () => {
               type="email"
               name="email"
               placeholder="Email address"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
               required
+              disabled={isLoading}
             />
           </div>
           <div className="relative">
             <input
               name="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="Password (6+ chars)"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200"
+              placeholder="Password (6+ chars, upper & lower)"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
               required
+              disabled={isLoading}
             />
             <button
               type="button"
@@ -136,21 +174,35 @@ const Register = () => {
             <input
               type="text"
               name="photo"
-              placeholder="Photo URL"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200"
-              required
+              placeholder="Photo URL (optional)"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
+              disabled={isLoading}
             />
           </div>
           
-          <button className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-2 active:scale-95">
-            Create account
+          <button 
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-teal-700 transition duration-300 text-sm mt-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Creating account...' : 'Create account'}
           </button>
         </form>
         
         <div className="text-center mt-4 text-gray-600 text-xs">
           Already have an account?{' '}
-          <Link to="/signin" className="text-zetech-primary hover:underline font-semibold">
+          <Link to="/signin" className="text-teal-600 hover:underline font-semibold">
             Sign in
+          </Link>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-500 mb-2">Are you security staff?</p>
+          <Link 
+            to="/admin-login" 
+            className="text-xs text-orange-600 hover:underline font-semibold"
+          >
+            Admin / Security Staff Login
           </Link>
         </div>
       </div>
