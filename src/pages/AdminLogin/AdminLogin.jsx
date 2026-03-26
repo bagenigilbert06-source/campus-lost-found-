@@ -10,7 +10,7 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const AdminLogin = () => {
-    const { singInUser, signInWithGoogle, isAdmin } = useContext(AuthContext);
+    const { localLogin, signInWithGoogle, isAdmin } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +24,7 @@ const AdminLogin = () => {
         console.log("[v0] Admin Sign In attempt with email:", email);
 
         setIsLoading(true);
-        singInUser(email, password)
+        localLogin(email, password)
             .then(() => {
                 console.log("[v0] Admin Sign In successful");
                 

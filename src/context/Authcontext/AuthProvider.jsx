@@ -63,7 +63,85 @@ const AuthProvider = ({ children }) => {
         }
     };
 
-    // Sign in with Firebase email/password
+    // Sign in with local backend JWT auth
+    const localLogin = async (email, password) => {
+        setLoading(true);
+        try {
+            console.log("[v0] Local login attempt for:", email);
+            const response = await axios.post(`${API_URL}/auth/local/login`, {
+                email,
+                password,
+            });
+            
+            if (response.data.success && response.data.token) {
+                console.log("[v0] Local login successful, storing JWT token");
+                localStorage.setItem('jwtToken', response.data.token);
+                
+                // Set axios default header with JWT token
+                axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+                
+                // Manually set user data from response
+                if (response.data.user) {
+                    setUser({
+                        email: response.data.user.email,
+                        displayName: response.data.user.displayName,
+                        photoURL: response.data.user.photoURL,
+                    });
+                    const role = determineUserRole(response.data.user.email);
+                    setUserRole(role);
+                }
+                
+                setLoading(false);
+                return response.data;
+            }
+        } catch (error) {
+            console.error('[v0] Local login error:', error.response?.data || error.message);
+            setLoading(false);
+            throw new Error(error.response?.data?.message || error.message || "Login failed");
+        }
+    };
+
+    // Register with local backend JWT auth
+    const localRegister = async (email, password, displayName, photoURL) => {
+        setLoading(true);
+        try {
+            console.log("[v0] Local registration attempt for:", email);
+            const response = await axios.post(`${API_URL}/auth/local/register`, {
+                email,
+                password,
+                displayName,
+                photoURL,
+            });
+            
+            if (response.data.success && response.data.token) {
+                console.log("[v0] Local registration successful, storing JWT token");
+                localStorage.setItem('jwtToken', response.data.token);
+                
+                // Set axios default header with JWT token
+                axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+                
+                // Manually set user data from response
+                if (response.data.user) {
+                    setUser({
+                        email: response.data.user.email,
+                        displayName: response.data.user.displayName,
+                        photoURL: response.data.user.photoURL,
+                    });
+                    const role = determineUserRole(response.data.user.email);
+                    setUserRole(role);
+                }
+                
+                setLoading(false);
+                return response.data;
+            }
+        } catch (error) {
+            console.error('[v0] Local registration error:', error.response?.data || error.message);
+            setLoading(false);
+            throw new Error(error.response?.data?.message || error.message || "Registration failed");
+        }
+    };
+
+    // Sign in with Firebase email/password (fallback)
     const singInUser = async (email, password) => {
         setLoading(true);
         try {
@@ -87,6 +165,10 @@ const AuthProvider = ({ children }) => {
     const signOutUser = async () => {
         setLoading(true);
         localStorage.removeItem('firebaseToken');
+        localStorage.removeItem('jwtToken');
+        delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
+        setUserRole(null);
         return signOut(auth);
     };
 
@@ -163,6 +245,14 @@ const AuthProvider = ({ children }) => {
     // Monitor Firebase authentication state
     useEffect(() => {
         console.log("[v0] AuthProvider mounted - setting up auth state listener");
+        
+        // Check for JWT token on mount
+        const jwtToken = localStorage.getItem('jwtToken');
+        if (jwtToken) {
+            console.log("[v0] JWT token found in localStorage, restoring");
+            axios.defaults.headers.common['Authorization'] = `Bearer ${jwtToken}`;
+        }
+        
         const unSubscribe = onAuthStateChanged(auth, async (currentUser) => {
             console.log("[v0] Auth state changed:", currentUser ? currentUser.email : "No user");
             setUser(currentUser);
@@ -192,6 +282,7 @@ const AuthProvider = ({ children }) => {
                 console.log("[v0] Clearing auth data");
                 setUserRole(null);
                 localStorage.removeItem('firebaseToken');
+                localStorage.removeItem('jwtToken');
                 delete axios.defaults.headers.common['Authorization'];
                 setLoading(false);
             }
@@ -210,6 +301,8 @@ const AuthProvider = ({ children }) => {
         isAdmin: userRole === 'admin',
         createUser,
         singInUser,
+        localLogin,
+        localRegister,
         signOutUser,
         signInWithGoogle,
     };

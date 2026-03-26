@@ -10,7 +10,7 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const Signin = () => {
-    const { singInUser, signInWithGoogle } = useContext(AuthContext);
+    const { localLogin, signInWithGoogle } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
 
@@ -22,7 +22,7 @@ const Signin = () => {
 
         console.log("[v0] Sign In attempt with email:", email);
 
-        singInUser(email, password)
+        localLogin(email, password)
             .then(() => {
                 console.log("[v0] Sign In successful");
                 toast.success('Successfully signed in!');
@@ -30,8 +30,6 @@ const Signin = () => {
             })
             .catch((error) => {
                 console.error('[v0] Signin error:', error);
-                console.error('[v0] Error code:', error.code);
-                console.error('[v0] Error message:', error.message);
                 toast.error(error.message || "Cannot sign in, please try again.");
             });
     };

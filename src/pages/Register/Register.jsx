@@ -10,7 +10,7 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const Register = () => {
-  const { createUser, signInWithGoogle } = useContext(AuthContext);
+  const { localRegister, signInWithGoogle } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
@@ -30,8 +30,9 @@ const Register = () => {
     }
 
     try {
-      // Create user with Firebase (AuthProvider handles backend registration)
-      await createUser(email, password, name, photo);
+      // Use local backend registration instead of Firebase
+      console.log("[v0] Starting local registration");
+      await localRegister(email, password, name, photo);
       
       toast.success('Successfully registered!');
       navigate('/');
