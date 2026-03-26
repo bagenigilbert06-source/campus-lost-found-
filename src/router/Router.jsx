@@ -20,6 +20,11 @@ import ErrorPage from "../pages/ErrorPage/ErrorPage";
 import AboutUs from "../pages/AboutUs/AboutUs";
 import Contact from "../pages/Contact/Contact";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
+import AdminInventory from "../pages/Admin/AdminInventory";
+import AdminClaims from "../pages/Admin/AdminClaims";
+import AdminReports from "../pages/Admin/AdminReports";
+import AdminActivityLog from "../pages/Admin/AdminActivityLog";
+import AdminSettings from "../pages/Admin/AdminSettings";
 import NotificationSettings from "../pages/Settings/NotificationSettings";
 import CampusDirectory from "../pages/Directory/CampusDirectory";
 import UserProfile from "../pages/UserProfile/UserProfile";
@@ -65,11 +70,26 @@ const router = createBrowserRouter([
         path: '',
         element: <AdminRoute><AdminDashboard /></AdminRoute>,
       },
-      // Add more admin routes here as needed
-      // {
-      //   path: 'users',
-      //   element: <AdminRoute><AdminUsers /></AdminRoute>,
-      // },
+      {
+        path: 'inventory',
+        element: <AdminRoute><AdminInventory /></AdminRoute>,
+      },
+      {
+        path: 'claims',
+        element: <AdminRoute><AdminClaims /></AdminRoute>,
+      },
+      {
+        path: 'reports',
+        element: <AdminRoute><AdminReports /></AdminRoute>,
+      },
+      {
+        path: 'activity',
+        element: <AdminRoute><AdminActivityLog /></AdminRoute>,
+      },
+      {
+        path: 'settings',
+        element: <AdminRoute><AdminSettings /></AdminRoute>,
+      },
     ]
   },
 
