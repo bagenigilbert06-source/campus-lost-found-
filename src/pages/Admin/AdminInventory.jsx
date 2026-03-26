@@ -141,10 +141,10 @@ const AdminInventory = () => {
       </Helmet>
 
       <AdminContainer>
-        {/* Header */}
-        <div className="mb-8">
+        {/* Page Header */}
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
-          <p className="text-gray-500 mt-1">Manage all lost and found items</p>
+          <p className="text-gray-500 mt-1">Manage all lost and found items in one place</p>
         </div>
 
         {/* Controls */}

@@ -96,10 +96,10 @@ const AdminReports = () => {
       </Helmet>
 
       <AdminContainer>
-        {/* Header */}
+        {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-500 mt-1">View detailed statistics and insights</p>
+          <p className="text-gray-500 mt-1">Key insights and statistics about lost & found items</p>
         </div>
 
         {/* Key Metrics */}

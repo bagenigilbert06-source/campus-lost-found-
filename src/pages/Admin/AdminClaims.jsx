@@ -101,9 +101,10 @@ const AdminClaims = () => {
       </Helmet>
 
       <AdminContainer>
+        {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Claims & Messages</h1>
-          <p className="text-gray-500 mt-1">Manage item claims and user messages</p>
+          <p className="text-gray-500 mt-1">Manage item claims and communicate with users</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
