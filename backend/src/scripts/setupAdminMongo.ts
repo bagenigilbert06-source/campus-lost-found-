@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -121,6 +121,7 @@ async function setupAdminMongo() {
     await mongoose.disconnect();
     console.log('\n[Admin Setup] Disconnected from MongoDB');
     process.exit(0);
+  }
   } catch (error) {
     console.error('[Admin Setup] Error:', error);
     process.exit(1);
