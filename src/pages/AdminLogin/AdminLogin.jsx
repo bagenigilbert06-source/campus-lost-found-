@@ -30,19 +30,37 @@ const AdminLogin = () => {
                 
                 // Check if user is admin - if not, log them out
                 if (!isAdmin) {
+                    console.log("[v0] User is not admin, denying access");
                     toast.error('You do not have admin privileges');
                     navigate('/');
+                    setIsLoading(false);
                     return;
                 }
                 
+                console.log("[v0] Admin login verified");
                 toast.success('Admin signed in successfully!');
                 navigate('/admin');
+                setIsLoading(false);
             })
             .catch((error) => {
-                console.error('[v0] Admin signin error:', error);
-                toast.error(error.message || "Cannot sign in, please try again.");
-            })
-            .finally(() => setIsLoading(false));
+                console.error('[v0] Admin signin error code:', error.code);
+                console.error('[v0] Admin signin error message:', error.message);
+                
+                // Handle Firebase-specific error codes
+                const errorMap = {
+                    'auth/invalid-email': 'Please enter a valid email address.',
+                    'auth/user-disabled': 'This admin account has been disabled.',
+                    'auth/user-not-found': 'No admin account found with this email.',
+                    'auth/wrong-password': 'Incorrect password. Please try again.',
+                    'auth/invalid-login-credentials': 'Invalid credentials. Please verify your email and password.',
+                    'auth/too-many-requests': 'Too many failed attempts. Try again later.',
+                    'auth/operation-not-allowed': 'Admin login is temporarily unavailable.',
+                };
+                
+                const userFriendlyMessage = errorMap[error.code] || error.message || "Admin sign in failed. Please try again.";
+                toast.error(userFriendlyMessage);
+                setIsLoading(false);
+            });
     };
 
     const handleGoogleSignIn = () => {

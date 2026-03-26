@@ -30,14 +30,27 @@ const Register = () => {
     }
 
     try {
+      console.log("[v0] Registration started for:", email);
       // Create user with Firebase (AuthProvider handles backend registration)
       await createUser(email, password, name, photo);
+      console.log("[v0] Registration successful");
       
       toast.success('Successfully registered!');
       navigate('/');
     } catch (error) {
-      console.error('Registration error:', error);
-      toast.error(error.message || "Cannot sign up, please try again.");
+      console.error('[v0] Registration error:', error);
+      
+      // Handle Firebase-specific error codes
+      const errorMap = {
+        'auth/email-already-in-use': 'This email is already registered. Please sign in instead.',
+        'auth/invalid-email': 'Please enter a valid email address.',
+        'auth/weak-password': 'Password is too weak. Use at least 6 characters with uppercase and lowercase letters.',
+        'auth/operation-not-allowed': 'Email/password registration is not enabled. Please try Google Sign-up.',
+        'auth/too-many-requests': 'Too many registration attempts. Please try again later.',
+      };
+      
+      const userFriendlyMessage = errorMap[error.code] || error.message || "Registration failed. Please try again.";
+      toast.error(userFriendlyMessage);
     }
   };
 

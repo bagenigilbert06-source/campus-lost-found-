@@ -29,10 +29,22 @@ const Signin = () => {
                 navigate('/');
             })
             .catch((error) => {
-                console.error('[v0] Signin error:', error);
-                console.error('[v0] Error code:', error.code);
-                console.error('[v0] Error message:', error.message);
-                toast.error(error.message || "Cannot sign in, please try again.");
+                console.error('[v0] Signin error code:', error.code);
+                console.error('[v0] Signin error message:', error.message);
+                
+                // Handle Firebase-specific error codes
+                const errorMap = {
+                    'auth/invalid-email': 'Please enter a valid email address.',
+                    'auth/user-disabled': 'This account has been disabled.',
+                    'auth/user-not-found': 'No account found with this email.',
+                    'auth/wrong-password': 'Incorrect password. Please try again.',
+                    'auth/invalid-login-credentials': 'Invalid email or password.',
+                    'auth/too-many-requests': 'Too many failed login attempts. Please try again later.',
+                    'auth/operation-not-allowed': 'Email/password sign-in is not enabled.',
+                };
+                
+                const userFriendlyMessage = errorMap[error.code] || error.message || "Sign in failed. Please try again.";
+                toast.error(userFriendlyMessage);
             });
     };
 
