@@ -163,7 +163,7 @@ const CampusDirectory = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-zetech-light to-white py-8 px-4">
             <Helmet>
-                <title>Campus Directory | {schoolConfig.name} Lost & Found</title>
+                <title>{`Campus Directory | ${schoolConfig.name} Lost & Found`}</title>
             </Helmet>
 
             <div className="max-w-6xl mx-auto">

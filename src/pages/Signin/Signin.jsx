@@ -10,13 +10,15 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const Signin = () => {
-    const { singInUser, signInWithGoogle, isAdmin } = useContext(AuthContext);
+    const { singInUser, signInWithGoogle } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Role-based redirect after login
-    const redirectBasedOnRole = (userIsAdmin) => {
-        if (userIsAdmin) {
+    // Check if email is admin and redirect accordingly
+    const redirectBasedOnEmail = (email) => {
+        const isAdminEmail = schoolConfig.adminEmails.includes(email?.toLowerCase());
+        if (isAdminEmail) {
             navigate('/admin');
         } else {
             navigate('/dashboard');
@@ -29,13 +31,12 @@ const Signin = () => {
         const email = form.email.value;
         const password = form.password.value;
 
+        setIsLoading(true);
         singInUser(email, password)
-            .then(() => {
+            .then((result) => {
                 toast.success('Successfully signed in!');
-                // Small delay to allow role to be determined
-                setTimeout(() => {
-                    redirectBasedOnRole(isAdmin);
-                }, 100);
+                // Redirect based on email (role is determined by email in schoolConfig)
+                redirectBasedOnEmail(result?.user?.email || email);
             })
             .catch((error) => {
                 console.error('[v0] Signin error code:', error.code);
@@ -54,17 +55,17 @@ const Signin = () => {
                 
                 const userFriendlyMessage = errorMap[error.code] || error.message || "Sign in failed. Please try again.";
                 toast.error(userFriendlyMessage);
-            });
+            })
+            .finally(() => setIsLoading(false));
     };
 
     const handleGoogleSignIn = () => {
+        setIsLoading(true);
         signInWithGoogle()
-            .then(() => {
+            .then((result) => {
                 toast.success('Successfully signed in with Google!');
-                // Small delay to allow role to be determined
-                setTimeout(() => {
-                    redirectBasedOnRole(isAdmin);
-                }, 100);
+                // Redirect based on email
+                redirectBasedOnEmail(result?.user?.email);
             })
             .catch((error) => {
                 console.error('[v0] Google Sign-In error code:', error.code);
@@ -73,13 +74,14 @@ const Signin = () => {
                 // Use the user-friendly message from the provider if available
                 const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.";
                 toast.error(errorMessage);
-            });
+            })
+            .finally(() => setIsLoading(false));
     };
 
     return (
         <div className="min-h-screen flex flex-col-reverse md:flex-row items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 gap-8">
              <Helmet>
-                <title>Sign In - {schoolConfig.name} Lost & Found</title>
+                <title>{`Sign In - ${schoolConfig.name} Lost & Found`}</title>
              </Helmet>
             {/* Lottie Animation */}
             <div className="hidden md:flex w-1/2 items-center justify-center">
@@ -99,7 +101,8 @@ const Signin = () => {
                 <button
                     type="button"
                     onClick={handleGoogleSignIn}
-                    className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4"
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <FcGoogle size={20} />
                     Continue with Google
@@ -146,8 +149,11 @@ const Signin = () => {
                         </a>
                     </div>
                     
-                    <button className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-4 active:scale-95">
-                        Sign In
+                    <button 
+                        disabled={isLoading}
+                        className="w-full bg-zetech-primary text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-zetech-accent transition duration-300 text-sm mt-4 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
                 

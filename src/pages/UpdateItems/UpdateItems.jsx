@@ -77,7 +77,7 @@ const UpdateItems = () => {
     return (
         <div className="container mx-auto w-[70%] mb-10 mt-10 bg-white rounded-lg shadow-lg space-y-8">
              <Helmet>
-                <title>Update Item - {schoolConfig.name}</title>
+                <title>{`Update Item - ${schoolConfig.name}`}</title>
              </Helmet>
             <h2 className="text-3xl font-bold text-zetech-primary mb-6 text-center pt-6" style={{ fontFamily: 'Poppins, sans-serif' }}>
                 Update Item Details

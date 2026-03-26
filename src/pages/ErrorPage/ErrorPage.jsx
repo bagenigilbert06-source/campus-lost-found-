@@ -9,7 +9,7 @@ const ErrorPage = () => {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-zetech-light p-6">
              <Helmet>
-                <title>Page Not Found - {schoolConfig.name}</title>
+                <title>{`Page Not Found - ${schoolConfig.name}`}</title>
              </Helmet>
             <div className="max-w-lg w-full">
                 <Lottie animationData={lottie404Animation} className="w-full h-auto mb-8" />

@@ -40,7 +40,7 @@ const AllRecoveredItems = () => {
   return (
     <div className="p-10 pb-32 min-h-screen bg-zetech-light">
       <Helmet>
-        <title>Recovered Items - {schoolConfig.name}</title>
+        <title>{`Recovered Items - ${schoolConfig.name}`}</title>
       </Helmet>
 
       <h1 className="text-2xl font-bold text-zetech-primary mb-6">Recovered Items</h1>

@@ -87,7 +87,7 @@ const SearchItems = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8">
       <Helmet>
-        <title>Search Lost & Found Items - {schoolConfig.name}</title>
+        <title>{`Search Lost & Found Items - ${schoolConfig.name}`}</title>
       </Helmet>
 
       <div className="container mx-auto px-4">

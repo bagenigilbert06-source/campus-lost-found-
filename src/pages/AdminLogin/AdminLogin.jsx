@@ -86,7 +86,7 @@ const AdminLogin = () => {
     return (
         <div className="min-h-screen flex flex-col-reverse md:flex-row items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 gap-8">
             <Helmet>
-                <title>Admin Login - {schoolConfig.name}</title>
+                <title>{`Admin Login - ${schoolConfig.name}`}</title>
             </Helmet>
 
             {/* Lottie Animation */}

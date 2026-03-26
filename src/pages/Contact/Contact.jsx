@@ -65,7 +65,7 @@ const Contact = () => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-zetech-light">
             <Helmet>
-                <title>Contact Us - {schoolConfig.name} Lost & Found</title>
+                <title>{`Contact Us - ${schoolConfig.name} Lost & Found`}</title>
             </Helmet>
             <div className="container px-6 py-12">
                 {/* Contact Section */}
