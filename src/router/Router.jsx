@@ -26,9 +26,6 @@ import UserProfile from "../pages/UserProfile/UserProfile";
 import StudentDashboard from "../pages/StudentDashboard/StudentDashboard";
 import SearchItems from "../pages/SearchItems/SearchItems";
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
-import AdminItems from "../pages/Admin/AdminItems";
-import AdminUsers from "../pages/Admin/AdminUsers";
-import AdminSettings from "../pages/Admin/AdminSettings";
 
 // Route Guards
 import PrivateRoute from "./PrivetRoute";
@@ -68,18 +65,11 @@ const router = createBrowserRouter([
         path: '',
         element: <AdminRoute><AdminDashboard /></AdminRoute>,
       },
-      {
-        path: 'items',
-        element: <AdminRoute><AdminItems /></AdminRoute>,
-      },
-      {
-        path: 'users',
-        element: <AdminRoute><AdminUsers /></AdminRoute>,
-      },
-      {
-        path: 'settings',
-        element: <AdminRoute><AdminSettings /></AdminRoute>,
-      },
+      // Add more admin routes here as needed
+      // {
+      //   path: 'users',
+      //   element: <AdminRoute><AdminUsers /></AdminRoute>,
+      // },
     ]
   },
 
