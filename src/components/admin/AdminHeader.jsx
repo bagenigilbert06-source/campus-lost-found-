@@ -5,7 +5,7 @@ import {
   FaSignOutAlt,
   FaUser,
   FaChevronDown,
-  FaLayoutColumns,
+  FaHome,
   FaBox,
   FaComments,
   FaChartBar,
@@ -35,7 +35,7 @@ const AdminHeader = ({ unreadCount = 0 }) => {
   };
 
   const navItems = [
-    { path: '/admin', label: 'Dashboard', icon: FaLayoutColumns },
+    { path: '/admin', label: 'Dashboard', icon: FaHome },
     { path: '/admin/inventory', label: 'Inventory', icon: FaBox },
     { path: '/admin/claims', label: 'Claims', icon: FaComments },
     { path: '/admin/reports', label: 'Reports', icon: FaChartBar },
