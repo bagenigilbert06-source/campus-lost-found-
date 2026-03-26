@@ -16,7 +16,7 @@ import { schoolConfig } from '../../config/schoolConfig';
  * - Validates admin role and redirects to admin dashboard
  */
 const AdminLogin = () => {
-    const { signInUser, signInWithGoogle, USER_ROLES } = useContext(AuthContext);
+    const { signInWithEmail, signInWithGoogle, USER_ROLES } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
     const [showPassword, setShowPassword] = useState(false);
@@ -28,18 +28,23 @@ const AdminLogin = () => {
     const handleAdminLogin = async (e) => {
         e.preventDefault();
         const form = e.target;
-        const email = form.email.value;
+        const email = form.email.value.trim();
         const password = form.password.value;
+
+        if (!email || !password) {
+            toast.error('Please enter email and password');
+            return;
+        }
 
         setIsLoading(true);
 
         try {
-            const { role } = await signInUser(email, password);
+            const { role } = await signInWithEmail(email, password);
             
             // Check if user has admin privileges
             if (role !== USER_ROLES.ADMIN) {
                 toast.error('You do not have admin privileges. Please use the student login.');
-                // Sign them out or redirect to student dashboard
+                // Redirect to student dashboard
                 navigate('/dashboard', { replace: true });
                 return;
             }
@@ -76,7 +81,7 @@ const AdminLogin = () => {
             navigate(destination, { replace: true });
         } catch (error) {
             console.error('Admin Google Sign-In error:', error);
-            toast.error(error.message || "Cannot sign in with Google. Try email/password.");
+            toast.error(error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.");
         } finally {
             setIsLoading(false);
         }

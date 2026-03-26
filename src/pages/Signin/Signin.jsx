@@ -16,7 +16,7 @@ import { schoolConfig } from '../../config/schoolConfig';
  * - Redirects to student dashboard after successful login
  */
 const Signin = () => {
-    const { signInUser, signInWithGoogle, getRedirectPath, USER_ROLES } = useContext(AuthContext);
+    const { signInWithEmail, signInWithGoogle, getRedirectPath, USER_ROLES } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
     const [showPassword, setShowPassword] = useState(false);
@@ -28,20 +28,25 @@ const Signin = () => {
     const handleSignin = async (e) => {
         e.preventDefault();
         const form = e.target;
-        const email = form.email.value;
+        const email = form.email.value.trim();
         const password = form.password.value;
+
+        if (!email || !password) {
+            toast.error('Please enter email and password');
+            return;
+        }
 
         setIsLoading(true);
 
         try {
-            const { role } = await signInUser(email, password);
+            const { role } = await signInWithEmail(email, password);
             
             toast.success('Successfully signed in!');
             
             // Role-based redirect
             if (role === USER_ROLES.ADMIN) {
                 // Admin tried to sign in through student login - redirect to admin
-                toast('Redirecting to admin dashboard', { icon: 'i' });
+                toast('Redirecting to admin dashboard', { icon: 'info' });
                 navigate('/admin', { replace: true });
             } else {
                 // Student - go to intended destination or dashboard
@@ -66,7 +71,7 @@ const Signin = () => {
             
             // Role-based redirect
             if (role === USER_ROLES.ADMIN) {
-                toast('Redirecting to admin dashboard', { icon: 'i' });
+                toast('Redirecting to admin dashboard', { icon: 'info' });
                 navigate('/admin', { replace: true });
             } else {
                 const destination = from.startsWith('/admin') ? '/dashboard' : from;

@@ -1,13 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import AuthContext from './AuthContext';
 import { 
-  createUserWithEmailAndPassword, 
   GoogleAuthProvider, 
   onAuthStateChanged, 
-  signInWithEmailAndPassword, 
   signInWithPopup, 
-  signOut, 
-  updateProfile,
+  signOut as firebaseSignOut, 
   getIdToken 
 } from 'firebase/auth';
 import auth from '../../firebase/firebase.init';
@@ -29,10 +26,17 @@ export const USER_ROLES = {
   STUDENT: 'student'
 };
 
+// Auth provider constants
+export const AUTH_PROVIDERS = {
+  LOCAL: 'local',
+  GOOGLE: 'google'
+};
+
 const AuthProvider = ({ children }) => {
     // Core auth state
     const [user, setUser] = useState(null);
     const [userRole, setUserRole] = useState(null);
+    const [authProvider, setAuthProvider] = useState(null);
     const [authStatus, setAuthStatus] = useState(AUTH_STATUS.LOADING);
     
     // Derived state for convenience
@@ -43,7 +47,7 @@ const AuthProvider = ({ children }) => {
 
     // Determine user role based on email (admin emails from config)
     const determineUserRole = useCallback((userEmail) => {
-        if (!userEmail) return null;
+        if (!userEmail) return USER_ROLES.STUDENT;
         if (schoolConfig.adminEmails.includes(userEmail.toLowerCase())) {
             return USER_ROLES.ADMIN;
         }
@@ -58,91 +62,108 @@ const AuthProvider = ({ children }) => {
         return '/dashboard';
     }, []);
 
-    // Create user with Firebase, then register profile in MongoDB
-    const createUser = async (email, password, displayName, photoURL, isAdminSignup = false) => {
-        try {
-            // Create Firebase user
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const firebaseUser = userCredential.user;
+    // ============================================
+    // LOCAL AUTH METHODS (Email/Password)
+    // ============================================
 
-            // Update Firebase profile
-            await updateProfile(firebaseUser, {
-                displayName: displayName,
-                photoURL: photoURL,
+    /**
+     * Register with email and password (local auth)
+     */
+    const registerWithEmail = async (email, password, displayName, photoURL = '') => {
+        try {
+            const response = await axios.post(`${API_URL}/auth/local/register`, {
+                email,
+                password,
+                displayName,
+                photoURL
             });
 
-            // Get Firebase ID token
-            const token = await getIdToken(firebaseUser);
-            localStorage.setItem('firebaseToken', token);
-
-            // Determine the role for this user
-            const role = determineUserRole(email);
-
-            // Register user profile in MongoDB with role-specific defaults
-            try {
-                await axios.post(`${API_URL}/auth/register`, {
-                    email: firebaseUser.email,
-                    displayName: displayName,
-                    photoURL: photoURL,
-                    role: role,
-                    // Student-specific defaults
-                    ...(role === USER_ROLES.STUDENT && {
-                        studentProfile: {
-                            onboardingComplete: false,
-                            preferences: {},
-                            createdAt: new Date().toISOString()
-                        }
-                    }),
-                    // Admin-specific defaults
-                    ...(role === USER_ROLES.ADMIN && {
-                        adminProfile: {
-                            permissions: ['verify_items', 'manage_users'],
-                            createdAt: new Date().toISOString()
-                        }
-                    })
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-            } catch (mongoErr) {
-                console.warn('MongoDB registration note:', mongoErr.message);
-                // Continue even if MongoDB sync fails - user is authenticated in Firebase
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Registration failed');
             }
 
-            return { user: firebaseUser, role };
+            const { user: userData, token } = response.data;
+
+            // Store the local token
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('authProvider', AUTH_PROVIDERS.LOCAL);
+
+            // Set axios default header
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+            // Update state
+            setUser({
+                uid: userData._id,
+                email: userData.email,
+                displayName: userData.displayName,
+                photoURL: userData.profileImage,
+            });
+            setUserRole(userData.role);
+            setAuthProvider(AUTH_PROVIDERS.LOCAL);
+            setAuthStatus(AUTH_STATUS.AUTHENTICATED);
+
+            return { user: userData, role: userData.role };
         } catch (error) {
-            throw error;
+            const message = error.response?.data?.message || error.message || 'Registration failed';
+            throw new Error(message);
         }
     };
 
-    // Sign in with Firebase email/password
-    const signInUser = async (email, password) => {
+    /**
+     * Sign in with email and password (local auth)
+     */
+    const signInWithEmail = async (email, password) => {
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const token = await getIdToken(userCredential.user);
-            localStorage.setItem('firebaseToken', token);
-            
-            // Return the role for immediate redirect decision
-            const role = determineUserRole(email);
-            return { user: userCredential.user, role };
+            const response = await axios.post(`${API_URL}/auth/local/login`, {
+                email,
+                password
+            });
+
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Login failed');
+            }
+
+            const { user: userData, token } = response.data;
+
+            // Store the local token
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('authProvider', AUTH_PROVIDERS.LOCAL);
+
+            // Set axios default header
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+            // Update state
+            setUser({
+                uid: userData._id,
+                email: userData.email,
+                displayName: userData.displayName,
+                photoURL: userData.profileImage,
+            });
+            setUserRole(userData.role);
+            setAuthProvider(AUTH_PROVIDERS.LOCAL);
+            setAuthStatus(AUTH_STATUS.AUTHENTICATED);
+
+            return { user: userData, role: userData.role };
         } catch (error) {
-            throw error;
+            const message = error.response?.data?.message || error.message || 'Login failed';
+            throw new Error(message);
         }
     };
 
-    // Legacy alias for backward compatibility
-    const singInUser = signInUser;
-
-    // Sign out user
-    const signOutUser = async () => {
-        localStorage.removeItem('firebaseToken');
-        setUserRole(null);
-        return signOut(auth);
+    // Legacy aliases for backward compatibility
+    const signInUser = signInWithEmail;
+    const singInUser = signInWithEmail;
+    const createUser = async (email, password, displayName, photoURL) => {
+        return registerWithEmail(email, password, displayName, photoURL);
     };
 
-    // Sign in with Google
+    // ============================================
+    // GOOGLE AUTH METHODS
+    // ============================================
+
+    /**
+     * Sign in with Google (Firebase)
+     */
     const signInWithGoogle = async () => {
         const googleProvider = new GoogleAuthProvider();
         
@@ -156,7 +177,11 @@ const AuthProvider = ({ children }) => {
             const firebaseUser = userCredential.user;
             
             const token = await getIdToken(firebaseUser);
-            localStorage.setItem('firebaseToken', token);
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('authProvider', AUTH_PROVIDERS.GOOGLE);
+
+            // Set axios default header
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
             // Determine the role for this user
             const role = determineUserRole(firebaseUser.email);
@@ -181,15 +206,16 @@ const AuthProvider = ({ children }) => {
                             createdAt: new Date().toISOString()
                         }
                     })
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
                 });
             } catch (mongoErr) {
                 console.warn('MongoDB sync warning:', mongoErr.message);
             }
+
+            // Update state
+            setUser(firebaseUser);
+            setUserRole(role);
+            setAuthProvider(AUTH_PROVIDERS.GOOGLE);
+            setAuthStatus(AUTH_STATUS.AUTHENTICATED);
 
             return { user: firebaseUser, role };
         } catch (error) {
@@ -206,14 +232,112 @@ const AuthProvider = ({ children }) => {
         }
     };
 
-    // Monitor Firebase authentication state
+    // ============================================
+    // SIGN OUT
+    // ============================================
+
+    /**
+     * Sign out user (works for both auth providers)
+     */
+    const signOutUser = async () => {
+        const currentProvider = localStorage.getItem('authProvider');
+        
+        // Clear local storage
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('authProvider');
+        
+        // Clear axios header
+        delete axios.defaults.headers.common['Authorization'];
+        
+        // Clear state
+        setUser(null);
+        setUserRole(null);
+        setAuthProvider(null);
+        setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
+
+        // If Google auth, also sign out from Firebase
+        if (currentProvider === AUTH_PROVIDERS.GOOGLE) {
+            try {
+                await firebaseSignOut(auth);
+            } catch (error) {
+                console.warn('Firebase sign out warning:', error);
+            }
+        }
+    };
+
+    // ============================================
+    // SESSION RESTORATION
+    // ============================================
+
+    /**
+     * Restore session on page load
+     */
+    const restoreSession = useCallback(async () => {
+        const storedProvider = localStorage.getItem('authProvider');
+        const storedToken = localStorage.getItem('authToken');
+
+        if (!storedToken) {
+            setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
+            return;
+        }
+
+        // Set axios header for API calls
+        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+
+        if (storedProvider === AUTH_PROVIDERS.LOCAL) {
+            // Verify local token
+            try {
+                const response = await axios.post(`${API_URL}/auth/local/verify`);
+                
+                if (response.data.success && response.data.user) {
+                    const userData = response.data.user;
+                    setUser({
+                        uid: userData._id,
+                        email: userData.email,
+                        displayName: userData.displayName,
+                        photoURL: userData.profileImage,
+                    });
+                    setUserRole(userData.role);
+                    setAuthProvider(AUTH_PROVIDERS.LOCAL);
+                    setAuthStatus(AUTH_STATUS.AUTHENTICATED);
+                } else {
+                    // Token invalid, clear auth
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('authProvider');
+                    delete axios.defaults.headers.common['Authorization'];
+                    setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
+                }
+            } catch (error) {
+                console.error('Local session restore failed:', error);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('authProvider');
+                delete axios.defaults.headers.common['Authorization'];
+                setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
+            }
+        }
+        // Google auth will be handled by Firebase onAuthStateChanged
+    }, []);
+
+    // ============================================
+    // AUTH STATE MONITORING
+    // ============================================
+
+    // Monitor Firebase authentication state (for Google auth)
     useEffect(() => {
         const unSubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            const storedProvider = localStorage.getItem('authProvider');
+            
+            // If using local auth, don't process Firebase state changes
+            if (storedProvider === AUTH_PROVIDERS.LOCAL) {
+                return;
+            }
+
             if (currentUser?.email) {
                 try {
                     // Get and store Firebase ID token
                     const token = await getIdToken(currentUser);
-                    localStorage.setItem('firebaseToken', token);
+                    localStorage.setItem('authToken', token);
+                    localStorage.setItem('authProvider', AUTH_PROVIDERS.GOOGLE);
 
                     // Set axios default header for API requests
                     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -223,18 +347,22 @@ const AuthProvider = ({ children }) => {
                     
                     setUser(currentUser);
                     setUserRole(role);
+                    setAuthProvider(AUTH_PROVIDERS.GOOGLE);
                     setAuthStatus(AUTH_STATUS.AUTHENTICATED);
                 } catch (err) {
                     console.error('Token retrieval error:', err);
                     setUser(null);
                     setUserRole(null);
+                    setAuthProvider(null);
                     setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
                 }
-            } else {
-                // Clear data on logout
+            } else if (storedProvider !== AUTH_PROVIDERS.LOCAL) {
+                // Clear data on logout (only if not using local auth)
                 setUser(null);
                 setUserRole(null);
-                localStorage.removeItem('firebaseToken');
+                setAuthProvider(null);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('authProvider');
                 delete axios.defaults.headers.common['Authorization'];
                 setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
             }
@@ -243,32 +371,67 @@ const AuthProvider = ({ children }) => {
         return () => unSubscribe();
     }, [determineUserRole]);
 
+    // Restore local auth session on mount
+    useEffect(() => {
+        const storedProvider = localStorage.getItem('authProvider');
+        if (storedProvider === AUTH_PROVIDERS.LOCAL) {
+            restoreSession();
+        }
+    }, [restoreSession]);
+
+    // ============================================
+    // CONTEXT VALUE
+    // ============================================
+
     // Memoize auth context value
     const authInfo = useMemo(() => ({
         // State
         user,
         userRole,
+        authProvider,
         authStatus,
         loading,
         isAuthenticated,
         isAdmin,
         isStudent,
         
-        // Methods
+        // Local auth methods
+        registerWithEmail,
+        signInWithEmail,
+        
+        // Google auth methods
+        signInWithGoogle,
+        
+        // Legacy aliases (for backward compatibility)
         createUser,
         signInUser,
-        singInUser, // Legacy alias
+        singInUser,
+        
+        // Sign out
         signOutUser,
-        signInWithGoogle,
         
         // Helpers
         determineUserRole,
         getRedirectPath,
+        restoreSession,
         
         // Constants
         AUTH_STATUS,
-        USER_ROLES
-    }), [user, userRole, authStatus, loading, isAuthenticated, isAdmin, isStudent, determineUserRole, getRedirectPath]);
+        USER_ROLES,
+        AUTH_PROVIDERS
+    }), [
+        user, 
+        userRole, 
+        authProvider, 
+        authStatus, 
+        loading, 
+        isAuthenticated, 
+        isAdmin, 
+        isStudent, 
+        determineUserRole, 
+        getRedirectPath,
+        restoreSession
+    ]);
 
     return (
         <AuthContext.Provider value={authInfo}>

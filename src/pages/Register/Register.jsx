@@ -16,17 +16,22 @@ import { schoolConfig } from '../../config/schoolConfig';
  * - Admins are designated by email in schoolConfig.adminEmails
  */
 const Register = () => {
-  const { createUser, signInWithGoogle, USER_ROLES } = useContext(AuthContext);
+  const { registerWithEmail, signInWithGoogle, USER_ROLES } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    const name = e.target.name.value;
-    const email = e.target.email.value;
+    const name = e.target.name.value.trim();
+    const email = e.target.email.value.trim();
     const password = e.target.password.value;
     const photo = e.target.photo.value || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=ffffff`;
+
+    if (!name || !email || !password) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
     // Password validation
     const isValidPassword =
@@ -40,29 +45,21 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // Create user - AuthProvider handles role detection and profile initialization
-      const { role } = await createUser(email, password, name, photo);
+      // Create user using local auth - saves to MongoDB with hashed password
+      const { role } = await registerWithEmail(email, password, name, photo);
       
       toast.success('Account created successfully!');
       
       // Role-based redirect
       if (role === USER_ROLES.ADMIN) {
-        toast('Admin account detected - redirecting to admin dashboard', { icon: 'i' });
+        toast('Admin account detected - redirecting to admin dashboard', { icon: 'info' });
         navigate('/admin', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
     } catch (error) {
       console.error('Registration error:', error);
-      
-      // User-friendly error messages
-      const errorMessages = {
-        'auth/email-already-in-use': 'An account with this email already exists. Please sign in instead.',
-        'auth/weak-password': 'Password is too weak. Please use a stronger password.',
-        'auth/invalid-email': 'Please enter a valid email address.',
-      };
-      
-      toast.error(errorMessages[error.code] || error.message || "Cannot sign up, please try again.");
+      toast.error(error.message || "Cannot sign up, please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +75,7 @@ const Register = () => {
       
       // Role-based redirect
       if (role === USER_ROLES.ADMIN) {
-        toast('Admin account detected - redirecting to admin dashboard', { icon: 'i' });
+        toast('Admin account detected - redirecting to admin dashboard', { icon: 'info' });
         navigate('/admin', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
@@ -93,7 +90,7 @@ const Register = () => {
       } else if (error.code === 'auth/configuration-not-found') {
         toast.error('Google Sign-Up not available. Try email/password instead.');
       } else {
-        toast.error(error.message || "Cannot sign up with Google. Try email/password.");
+        toast.error(error.userFriendlyMessage || error.message || "Cannot sign up with Google. Try email/password.");
       }
     } finally {
       setIsLoading(false);
