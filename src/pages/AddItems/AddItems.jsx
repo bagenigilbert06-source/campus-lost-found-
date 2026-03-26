@@ -103,19 +103,18 @@ const AddItems = () => {
                 {/* Post Type */}
                 <div className="mb-4">
                     <label htmlFor="postType" className="block text-sm font-medium text-zetech-primary">
-                        Post Type *
+                        Post Type
                     </label>
                     <select
                         id="postType"
                         name="itemType"
                         className="select select-bordered w-full mt-2 focus:ring-zetech-primary"
-                        required
                     >
-                        <option value="">Select Type</option>
-                        <option value="Lost">Lost Item - I lost something</option>
-                        <option value="Found">Found Item - I found something</option>
+                        <option>Post Type</option>
+                        <option value="Lost">Lost</option>
+                        <option value="Found">Found</option>
+                        <option value="Recovered">Recovered</option>
                     </select>
-                    <p className="text-xs text-slate-500 mt-1">Items are marked as recovered when someone claims them</p>
                 </div>
 
                 {/* Image URLs */}
