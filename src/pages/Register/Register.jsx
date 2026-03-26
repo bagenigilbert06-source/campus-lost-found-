@@ -10,9 +10,18 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const Register = () => {
-  const { createUser, signInWithGoogle } = useContext(AuthContext);
+  const { createUser, signInWithGoogle, isAdmin } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  // Role-based redirect after registration
+  const redirectBasedOnRole = (userIsAdmin) => {
+    if (userIsAdmin) {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -30,13 +39,14 @@ const Register = () => {
     }
 
     try {
-      console.log("[v0] Registration started for:", email);
       // Create user with Firebase (AuthProvider handles backend registration)
       await createUser(email, password, name, photo);
-      console.log("[v0] Registration successful");
       
       toast.success('Successfully registered!');
-      navigate('/');
+      // Small delay to allow role to be determined
+      setTimeout(() => {
+        redirectBasedOnRole(isAdmin);
+      }, 100);
     } catch (error) {
       console.error('[v0] Registration error:', error);
       
@@ -55,12 +65,13 @@ const Register = () => {
   };
 
   const handleGoogleSignIn = () => {
-    console.log("[v0] Google Sign-Up initiated");
     signInWithGoogle()
       .then(() => {
-        console.log("[v0] Google Sign-Up successful");
         toast.success('Successfully signed up with Google!');
-        navigate('/');
+        // Small delay to allow role to be determined
+        setTimeout(() => {
+          redirectBasedOnRole(isAdmin);
+        }, 100);
       })
       .catch((error) => {
         console.error('[v0] Google Sign-Up error code:', error.code);

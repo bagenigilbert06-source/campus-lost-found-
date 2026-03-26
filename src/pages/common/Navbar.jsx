@@ -157,14 +157,18 @@ const Navbar = () => {
                                                 </li>
 
                                                 <li><Link to="/profile">View Profile</Link></li>
-                                                <li><Link to="/addItems">Add Lost &amp; Found Item</Link></li>
-                                                <li><Link to="/allRecovered">All Recovered Items</Link></li>
-                                                <li><Link to="/myItems">Manage My Items</Link></li>
                                                 
-                                                {isAdmin && (
+                                                {isAdmin ? (
                                                     <>
                                                         <li className="divider my-2"></li>
-                                                        <li><Link to="/admin" className="bg-blue-50 text-blue-700 font-semibold dark:bg-blue-900 dark:text-blue-100">Admin Dashboard</Link></li>
+                                                        <li><Link to="/admin" className="bg-orange-50 text-orange-700 font-semibold dark:bg-orange-900 dark:text-orange-100">Admin Dashboard</Link></li>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <li><Link to="/dashboard" className="bg-teal-50 text-teal-700 font-semibold dark:bg-teal-900 dark:text-teal-100">My Dashboard</Link></li>
+                                                        <li><Link to="/addItems">Add Lost &amp; Found Item</Link></li>
+                                                        <li><Link to="/allRecovered">All Recovered Items</Link></li>
+                                                        <li><Link to="/myItems">Manage My Items</Link></li>
                                                     </>
                                                 )}
                                                 
@@ -309,17 +313,19 @@ const Navbar = () => {
 
                                 <ul className="space-y-1">
                                     <li><NavLink to="/profile" className={mobileNavLinkClass} onClick={closeMenu}>My Profile</NavLink></li>
-                                    <li><NavLink to="/addItems" className={mobileNavLinkClass} onClick={closeMenu}>Add Lost &amp; Found Item</NavLink></li>
-                                    <li><NavLink to="/allRecovered" className={mobileNavLinkClass} onClick={closeMenu}>All Recovered Items</NavLink></li>
-                                    <li><NavLink to="/myItems" className={mobileNavLinkClass} onClick={closeMenu}>Manage My Items</NavLink></li>
                                     
-                                    {isAdmin && (
+                                    {isAdmin ? (
+                                        <li className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                            <NavLink to="/admin" className="mobile-navbar-link mobile-navbar-link-active bg-orange-100 dark:bg-orange-900" onClick={closeMenu}>
+                                                Admin Dashboard
+                                            </NavLink>
+                                        </li>
+                                    ) : (
                                         <>
-                                            <li className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                                <NavLink to="/admin" className="mobile-navbar-link mobile-navbar-link-active bg-blue-100 dark:bg-blue-900" onClick={closeMenu}>
-                                                    Admin Dashboard
-                                                </NavLink>
-                                            </li>
+                                            <li><NavLink to="/dashboard" className="mobile-navbar-link mobile-navbar-link-active bg-teal-100 dark:bg-teal-900" onClick={closeMenu}>My Dashboard</NavLink></li>
+                                            <li><NavLink to="/addItems" className={mobileNavLinkClass} onClick={closeMenu}>Add Lost &amp; Found Item</NavLink></li>
+                                            <li><NavLink to="/allRecovered" className={mobileNavLinkClass} onClick={closeMenu}>All Recovered Items</NavLink></li>
+                                            <li><NavLink to="/myItems" className={mobileNavLinkClass} onClick={closeMenu}>Manage My Items</NavLink></li>
                                         </>
                                     )}
                                 </ul>

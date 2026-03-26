@@ -10,9 +10,18 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const Signin = () => {
-    const { singInUser, signInWithGoogle } = useContext(AuthContext);
+    const { singInUser, signInWithGoogle, isAdmin } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
+
+    // Role-based redirect after login
+    const redirectBasedOnRole = (userIsAdmin) => {
+        if (userIsAdmin) {
+            navigate('/admin');
+        } else {
+            navigate('/dashboard');
+        }
+    };
 
     const handleSignin = (e) => {
         e.preventDefault();
@@ -20,13 +29,13 @@ const Signin = () => {
         const email = form.email.value;
         const password = form.password.value;
 
-        console.log("[v0] Sign In attempt with email:", email);
-
         singInUser(email, password)
             .then(() => {
-                console.log("[v0] Sign In successful");
                 toast.success('Successfully signed in!');
-                navigate('/');
+                // Small delay to allow role to be determined
+                setTimeout(() => {
+                    redirectBasedOnRole(isAdmin);
+                }, 100);
             })
             .catch((error) => {
                 console.error('[v0] Signin error code:', error.code);
@@ -49,12 +58,13 @@ const Signin = () => {
     };
 
     const handleGoogleSignIn = () => {
-        console.log("[v0] Google Sign-In initiated");
         signInWithGoogle()
             .then(() => {
-                console.log("[v0] Google Sign-In successful");
                 toast.success('Successfully signed in with Google!');
-                navigate('/');
+                // Small delay to allow role to be determined
+                setTimeout(() => {
+                    redirectBasedOnRole(isAdmin);
+                }, 100);
             })
             .catch((error) => {
                 console.error('[v0] Google Sign-In error code:', error.code);
@@ -145,6 +155,13 @@ const Signin = () => {
                     Don't have an account?{' '}
                     <Link to="/register" className="text-zetech-primary hover:underline font-semibold">
                         Register
+                    </Link>
+                </div>
+                
+                <div className="text-center mt-2 text-gray-500 text-xs">
+                    Security staff?{' '}
+                    <Link to="/admin-login" className="text-orange-600 hover:underline font-semibold">
+                        Admin Login
                     </Link>
                 </div>
             </div>

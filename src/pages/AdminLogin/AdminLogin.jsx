@@ -10,10 +10,15 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const AdminLogin = () => {
-    const { singInUser, signInWithGoogle, isAdmin } = useContext(AuthContext);
+    const { singInUser, signInWithGoogle } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Check if email is in admin list
+    const isAdminEmail = (email) => {
+        return schoolConfig.adminEmails.includes(email?.toLowerCase());
+    };
 
     const handleAdminLogin = (e) => {
         e.preventDefault();
@@ -21,23 +26,15 @@ const AdminLogin = () => {
         const email = form.email.value;
         const password = form.password.value;
 
-        console.log("[v0] Admin Sign In attempt with email:", email);
+        // Pre-check: Verify email is in admin list before attempting login
+        if (!isAdminEmail(email)) {
+            toast.error('This email does not have admin privileges');
+            return;
+        }
 
         setIsLoading(true);
         singInUser(email, password)
             .then(() => {
-                console.log("[v0] Admin Sign In successful");
-                
-                // Check if user is admin - if not, log them out
-                if (!isAdmin) {
-                    console.log("[v0] User is not admin, denying access");
-                    toast.error('You do not have admin privileges');
-                    navigate('/');
-                    setIsLoading(false);
-                    return;
-                }
-                
-                console.log("[v0] Admin login verified");
                 toast.success('Admin signed in successfully!');
                 navigate('/admin');
                 setIsLoading(false);
@@ -64,13 +61,13 @@ const AdminLogin = () => {
     };
 
     const handleGoogleSignIn = () => {
-        console.log("[v0] Admin Google Sign-In initiated");
         setIsLoading(true);
         signInWithGoogle()
-            .then(() => {
-                console.log("[v0] Admin Google Sign-In successful");
+            .then((result) => {
+                const userEmail = result?.user?.email;
                 
-                if (!isAdmin) {
+                // Check if signed-in user is admin
+                if (!isAdminEmail(userEmail)) {
                     toast.error('Your account does not have admin privileges');
                     navigate('/');
                     return;

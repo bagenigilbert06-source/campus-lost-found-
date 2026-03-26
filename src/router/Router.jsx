@@ -1,16 +1,18 @@
-import {
-  createBrowserRouter,
+import { createBrowserRouter } from "react-router-dom";
 
-} from "react-router-dom";
-import MainLayout from "../layout/MainLayout";
+// Layouts
+import PublicLayout from "../layout/PublicLayout";
+import UserLayout from "../layout/UserLayout";
+import AdminLayout from "../layout/AdminLayout";
+import AuthLayout from "../layout/AuthLayout";
+
+// Pages
 import Home from "../pages/Home/Home";
 import Register from "../pages/Register/Register";
 import Signin from "../pages/Signin/Signin";
 import AddItems from "../pages/AddItems/AddItems";
 import AllItems from "../pages/AllItems/AllItems";
 import PostDetails from "../pages/PostDetails/PostDetails";
-import PrivateRoute from "./PrivetRoute";
-import AdminRoute from "./AdminRoute";
 import MyItemsPage from "../pages/MyItemsPage/MyItemsPage";
 import AllRecoveredItems from "../pages/AllRecovered/AllRecoveredItems";
 import UpdateItems from "../pages/UpdateItems/UpdateItems";
@@ -25,109 +27,139 @@ import StudentDashboard from "../pages/StudentDashboard/StudentDashboard";
 import SearchItems from "../pages/SearchItems/SearchItems";
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
 
+// Route Guards
+import PrivateRoute from "./PrivetRoute";
+import AdminRoute from "./AdminRoute";
+import UserRoute from "./UserRoute";
+
 const router = createBrowserRouter([
+  // ============================================
+  // AUTH ROUTES - No Navbar/Footer (clean auth pages)
+  // ============================================
+  {
+    element: <AuthLayout />,
+    children: [
+      {
+        path: '/signin',
+        element: <Signin />
+      },
+      {
+        path: '/register',
+        element: <Register />
+      },
+      {
+        path: '/admin-login',
+        element: <AdminLogin />
+      },
+    ]
+  },
+
+  // ============================================
+  // ADMIN ROUTES - Admin layout only (no user Navbar/Footer)
+  // ============================================
+  {
+    path: "/admin",
+    element: <AdminLayout />,
+    children: [
+      {
+        path: '',
+        element: <AdminRoute><AdminDashboard /></AdminRoute>,
+      },
+      // Add more admin routes here as needed
+      // {
+      //   path: 'users',
+      //   element: <AdminRoute><AdminUsers /></AdminRoute>,
+      // },
+    ]
+  },
+
+  // ============================================
+  // USER/STUDENT ROUTES - User layout with Navbar/Footer
+  // ============================================
+  {
+    element: <UserLayout />,
+    children: [
+      {
+        path: '/dashboard',
+        element: <UserRoute><StudentDashboard /></UserRoute>,
+      },
+      {
+        path: '/profile',
+        element: <UserRoute><UserProfile /></UserRoute>,
+      },
+      {
+        path: '/myItems',
+        element: <UserRoute><MyItemsPage /></UserRoute>,
+      },
+      {
+        path: '/addItems',
+        element: <UserRoute><AddItems /></UserRoute>,
+      },
+      {
+        path: '/allRecovered',
+        element: <UserRoute><AllRecoveredItems /></UserRoute>,
+      },
+      {
+        path: '/settings/notifications',
+        element: <UserRoute><NotificationSettings /></UserRoute>,
+      },
+      {
+        path: "/update/:id",
+        element: <UserRoute><UpdateItems /></UserRoute>,
+        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
+          return Array.isArray(data) ? data[0] : data.data || data;
+        })
+      },
+    ]
+  },
+
+  // ============================================
+  // PUBLIC ROUTES - Public layout with Navbar/Footer
+  // ============================================
   {
     path: "/",
-    element: <MainLayout />,
-  
+    element: <PublicLayout />,
     children: [
       {
         path: '/',
         element: <Home />
       },
       {
-        path: '/register',
-        element: <Register />
-      },
-      {            
-        path: '/signin',
-        element: <Signin />
-      },
-      {            
-        path: '/admin-login',
-        element: <AdminLogin />
-      },
-      {
-        path: '/addItems',
-        element: <PrivateRoute><AddItems /></PrivateRoute>
-      },
-      {
-        path: '/myItems',
-        element: <PrivateRoute><MyItemsPage /></PrivateRoute>,
-
-
-      },
-      {
         path: '/aboutUs',
-        element:<AboutUs />,
-
-
-      },
-      
-      {
-        path: "*",
-        element: <ErrorPage />
+        element: <AboutUs />,
       },
       {
         path: "/contact",
         element: <Contact />
       },
       {
-        path: "/items/:id",
-        element: <PrivateRoute><PostDetails /></PrivateRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          console.log("[v0] Item loader response:", data);
-          return Array.isArray(data) ? data[0] : data.data || data;
-        })
-
-      },
-      {
-        path: "/update/:id",
-        element: <PrivateRoute><UpdateItems /></PrivateRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          console.log("[v0] Update loader response:", data);
-          return Array.isArray(data) ? data[0] : data.data || data;
-        })
-
-      },
-      {
-        path: '/allItems',
-        element: <AllItems />,
-        loader: () => fetch('http://localhost:3001/api/items').then(res => res.json()).then(data => {
-          console.log("[v0] AllItems loader response:", data);
-          return Array.isArray(data) ? data : data.data || [];
-        })
-      },
-      {
-        path: '/allRecovered',
-        element: <PrivateRoute><AllRecoveredItems /></PrivateRoute>,
-
-      },
-      {
-        path: '/admin',
-        element: <AdminRoute><AdminDashboard /></AdminRoute>,
-      },
-      {
-        path: '/settings/notifications',
-        element: <PrivateRoute><NotificationSettings /></PrivateRoute>,
-      },
-      {
         path: '/directory',
         element: <CampusDirectory />,
-      },
-      {
-        path: '/profile',
-        element: <PrivateRoute><UserProfile /></PrivateRoute>,
-      },
-      {
-        path: '/dashboard',
-        element: <PrivateRoute><StudentDashboard /></PrivateRoute>,
       },
       {
         path: '/search',
         element: <SearchItems />,
       },
+      {
+        path: '/allItems',
+        element: <AllItems />,
+        loader: () => fetch('http://localhost:3001/api/items').then(res => res.json()).then(data => {
+          return Array.isArray(data) ? data : data.data || [];
+        })
+      },
+      {
+        path: "/items/:id",
+        element: <PrivateRoute><PostDetails /></PrivateRoute>,
+        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
+          return Array.isArray(data) ? data[0] : data.data || data;
+        })
+      },
+      {
+        path: "*",
+        element: <ErrorPage />
+      },
     ]
   },
 ]);
-export default router
+
+export default router;
