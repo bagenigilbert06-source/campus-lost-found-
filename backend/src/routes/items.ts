@@ -219,4 +219,42 @@ router.post('/:id/claim-with-notification', authMiddleware, async (req: AuthRequ
   }
 });
 
+// Update item status (admin only)
+router.patch('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
+
+    const { status, verificationStatus, rejectionReason } = req.body;
+    const updateData: any = {};
+
+    if (status) {
+      updateData.status = status;
+    }
+    if (verificationStatus) {
+      updateData.verificationStatus = verificationStatus;
+    }
+    if (rejectionReason) {
+      updateData.rejectionReason = rejectionReason;
+    }
+
+    const item = await Item.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    if (!item) {
+      res.status(404).json({ success: false, message: 'Item not found' });
+      return;
+    }
+
+    res.json({ success: true, data: item });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
