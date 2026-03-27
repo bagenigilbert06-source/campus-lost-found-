@@ -68,8 +68,8 @@ const Footer = () => {
             <div className="flex flex-col gap-3">
               <LinkItem to="/">Home</LinkItem>
               <LinkItem to="/allItems">Lost & Found Items</LinkItem>
-              <LinkItem to="/addItems">Report Item</LinkItem>
-              <LinkItem to="/allRecovered">Recovered Items</LinkItem>
+              <LinkItem to="/signin">Report Item</LinkItem>
+              <LinkItem to="/allItems">All Items</LinkItem>
             </div>
           </motion.div>
 

@@ -2,7 +2,6 @@ import { createBrowserRouter } from "react-router-dom";
 
 // Layouts
 import PublicLayout from "../layout/PublicLayout";
-import UserLayout from "../layout/UserLayout";
 import DashboardLayout from "../layout/DashboardLayout";
 import AdminLayout from "../layout/AdminLayout";
 import AuthLayout from "../layout/AuthLayout";
@@ -30,7 +29,6 @@ import AdminSettings from "../pages/Admin/AdminSettings";
 import NotificationSettings from "../pages/Settings/NotificationSettings";
 import CampusDirectory from "../pages/Directory/CampusDirectory";
 import UserProfile from "../pages/UserProfile/UserProfile";
-import StudentDashboard from "../pages/StudentDashboard/StudentDashboard";
 import SearchItems from "../pages/SearchItems/SearchItems";
 import DashboardSearch from "../pages/DashboardSearch/DashboardSearch";
 import DashboardMessages from "../pages/DashboardMessages/DashboardMessages";
@@ -158,50 +156,7 @@ const router = createBrowserRouter([
     ]
   },
 
-  // ============================================
-  // LEGACY USER ROUTES (backwards compatibility)
-  // Redirects to /app/* paths
-  // ============================================
-  {
-    element: <UserLayout />,
-    children: [
-      {
-        path: '/dashboard',
-        element: <UserRoute><StudentDashboard /></UserRoute>,
-      },
-      {
-        path: '/profile',
-        element: <UserRoute><UserProfile /></UserRoute>,
-      },
-      {
-        path: '/myItems',
-        element: <UserRoute><MyItemsPage /></UserRoute>,
-      },
-      {
-        path: '/addItems',
-        element: <UserRoute><AddItems /></UserRoute>,
-      },
-      {
-        path: '/post-lost-item',
-        element: <UserRoute><PostLostItem /></UserRoute>,
-      },
-      {
-        path: '/allRecovered',
-        element: <UserRoute><AllRecoveredItems /></UserRoute>,
-      },
-      {
-        path: '/settings/notifications',
-        element: <UserRoute><NotificationSettings /></UserRoute>,
-      },
-      {
-        path: "/update/:id",
-        element: <UserRoute><UpdateItems /></UserRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          return Array.isArray(data) ? data[0] : data.data || data;
-        })
-      },
-    ]
-  },
+
 
   // ============================================
   // PUBLIC ROUTES - Public layout with Navbar/Footer

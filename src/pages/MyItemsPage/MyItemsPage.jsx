@@ -67,7 +67,7 @@ const MyItemsPage = () => {
         <div className="flex flex-col items-center justify-center text-center space-y-4 bg-white p-8 rounded-lg shadow">
           <h2 className="text-xl font-semibold text-zetech-primary">You have no posts yet.</h2>
           <p className="text-lg text-gray-600">Add your first lost or found item to get started.</p>
-          <Link to="/addItems">
+          <Link to="/app/post-item">
             <button className="bg-zetech-primary text-white py-2 px-6 rounded-lg shadow hover:bg-zetech-accent hover:scale-105 transition">
               Report an Item
             </button>

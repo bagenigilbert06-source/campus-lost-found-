@@ -166,7 +166,7 @@ const PostLostItem = () => {
           icon: 'success',
           confirmButtonColor: '#14b8a6',
         }).then(() => {
-          navigate('/dashboard');
+          navigate('/app/dashboard');
         });
       }
     } catch (error) {
@@ -189,7 +189,7 @@ const PostLostItem = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/app/dashboard')}
             className="flex items-center gap-2 text-teal-600 hover:text-teal-700 mb-4 font-medium"
           >
             <FaArrowLeft size={16} />

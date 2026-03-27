@@ -51,7 +51,7 @@ const PostDetails = () => {
             console.log('[v0] Delete response:', data);
             if (data.deletedCount > 0 || data.success || data.message) {
               Swal.fire('Deleted!', 'Your item has been deleted.', 'success').then(() => {
-                navigate('/myItems');
+                navigate('/app/my-items');
               });
             } else {
               Swal.fire('Error!', 'Item could not be deleted.', 'error');
@@ -311,7 +311,7 @@ const PostDetails = () => {
             <p className="text-sm font-medium text-blue-700">Item Management</p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => navigate(`/update/${item._id}`)}
+                onClick={() => navigate(`/app/update/${item._id}`)}
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow hover:shadow-md transition font-medium"
               >
                 <FaEdit size={16} />
