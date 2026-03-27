@@ -121,7 +121,7 @@ const DashboardActivity = () => {
   return (
     <>
       <Helmet>
-        <title>Activity - {schoolConfig.schoolName} Lost & Found</title>
+        <title>Activity - {schoolConfig.name} Lost & Found</title>
       </Helmet>
 
       <div className="max-w-6xl mx-auto">
