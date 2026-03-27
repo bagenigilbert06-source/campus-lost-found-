@@ -31,6 +31,7 @@ import UserProfile from "../pages/UserProfile/UserProfile";
 import StudentDashboard from "../pages/StudentDashboard/StudentDashboard";
 import SearchItems from "../pages/SearchItems/SearchItems";
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
+import PostLostItem from "../pages/PostLostItem/PostLostItem";
 
 // Route Guards
 import PrivateRoute from "./PrivetRoute";
@@ -114,6 +115,10 @@ const router = createBrowserRouter([
       {
         path: '/addItems',
         element: <UserRoute><AddItems /></UserRoute>,
+      },
+      {
+        path: '/post-lost-item',
+        element: <UserRoute><PostLostItem /></UserRoute>,
       },
       {
         path: '/allRecovered',
