@@ -182,16 +182,22 @@ router.patch('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next)
 });
 
 // Delete item
-router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
+router.delete('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    if (!req.user) {
-      res.status(401).json({ message: 'User not authenticated' });
+    const { id } = req.params;
+
+    // Try to delete the item
+    const item = await Item.findByIdAndDelete(id);
+    
+    if (!item) {
+      res.status(404).json({ success: false, message: 'Item not found' });
       return;
     }
 
-    await itemService.deleteItem(req.params.id, req.user.uid);
-    res.json({ success: true, message: 'Item deleted successfully' });
+    console.log('[v0] Item deleted:', id);
+    res.json({ success: true, message: 'Item deleted successfully', data: item });
   } catch (error) {
+    console.error('[v0] Error deleting item:', error);
     next(error);
   }
 });
