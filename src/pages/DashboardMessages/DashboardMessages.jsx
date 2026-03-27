@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { FaEnvelope, FaTrash, FaReply, FaTimes, FaCheckCircle } from 'react-icons/fa';
+import { FaEnvelope, FaTrash, FaReply, FaTimes, FaCheckCircle, FaUser } from 'react-icons/fa';
 
 const DashboardMessages = () => {
   const { user } = useContext(AuthContext);
@@ -21,7 +21,6 @@ const DashboardMessages = () => {
       navigate('/signin');
       return;
     }
-
     fetchMessages();
   }, [user, navigate]);
 
@@ -102,192 +101,185 @@ const DashboardMessages = () => {
     }
   };
 
-  const filteredMessages = messages.filter(msg => {
-    if (filter === 'unread') return !msg.isRead;
-    if (filter === 'read') return msg.isRead;
-    return true;
-  });
+  const getFilteredMessages = () => {
+    if (filter === 'all') return messages;
+    if (filter === 'unread') return messages.filter(m => !m.isRead);
+    if (filter === 'read') return messages.filter(m => m.isRead);
+    return messages;
+  };
 
+  const filteredMessages = getFilteredMessages();
   const unreadCount = messages.filter(m => !m.isRead).length;
 
   return (
-    <div className="min-h-screen">
+    <>
       <Helmet>
-        <title>{`Messages - ${schoolConfig.name}`}</title>
+        <title>Messages - {schoolConfig.schoolName} Lost & Found</title>
       </Helmet>
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Messages</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          You have {unreadCount} unread message{unreadCount !== 1 ? 's' : ''}
-        </p>
-      </div>
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Messages</h1>
+          <p className="text-gray-600">
+            {unreadCount > 0 ? `You have ${unreadCount} unread message${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Messages List */}
-        <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {/* Filter Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setFilter('all')}
-                className={`flex-1 px-4 py-3 font-medium transition text-center ${
-                  filter === 'all'
-                    ? 'border-b-2 border-teal-600 text-teal-600 dark:text-teal-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                All ({messages.length})
-              </button>
-              <button
-                onClick={() => setFilter('unread')}
-                className={`flex-1 px-4 py-3 font-medium transition text-center ${
-                  filter === 'unread'
-                    ? 'border-b-2 border-teal-600 text-teal-600 dark:text-teal-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Unread ({unreadCount})
-              </button>
-              <button
-                onClick={() => setFilter('read')}
-                className={`flex-1 px-4 py-3 font-medium transition text-center ${
-                  filter === 'read'
-                    ? 'border-b-2 border-teal-600 text-teal-600 dark:text-teal-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Read
-              </button>
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-6 border-b border-gray-200">
+          {[
+            { id: 'all', label: 'All Messages', count: messages.length },
+            { id: 'unread', label: 'Unread', count: unreadCount },
+            { id: 'read', label: 'Read', count: messages.filter(m => m.isRead).length }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setFilter(tab.id)}
+              className={`px-4 py-3 font-medium border-b-2 transition ${
+                filter === tab.id
+                  ? 'border-teal-600 text-teal-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <div className="inline-block">
+              <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div>
             </div>
-
-            {/* Messages */}
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <span className="loading loading-dots loading-lg"></span>
-              </div>
-            ) : filteredMessages.length > 0 ? (
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            <p className="text-gray-600 mt-4">Loading messages...</p>
+          </div>
+        ) : filteredMessages.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <FaEnvelope className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No messages yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Messages List */}
+            <div className="lg:col-span-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
                 {filteredMessages.map(message => (
                   <button
                     key={message._id}
                     onClick={() => {
+                      handleMarkAsRead(message._id);
                       setSelectedMessage(message);
-                      if (!message.isRead) handleMarkAsRead(message._id);
                     }}
-                    className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition flex items-start gap-3 ${
-                      selectedMessage?._id === message._id ? 'bg-teal-50 dark:bg-teal-900/20' : ''
-                    } ${!message.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                    className={`w-full p-4 text-left hover:bg-gray-50 transition ${
+                      selectedMessage?._id === message._id ? 'bg-teal-50' : ''
+                    } ${!message.isRead ? 'bg-teal-50' : ''}`}
                   >
-                    <div className="pt-1">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-teal-100">
+                        <FaUser className="w-4 h-4 text-teal-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium text-gray-900 truncate ${!message.isRead ? 'font-bold' : ''}`}>
+                          {message.senderName || message.senderEmail}
+                        </p>
+                        <p className="text-sm text-gray-600 truncate">{message.content}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(message.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                       {!message.isRead && (
-                        <div className="w-3 h-3 bg-teal-500 rounded-full" />
+                        <div className="w-2 h-2 rounded-full bg-teal-600 flex-shrink-0 mt-2"></div>
                       )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`font-semibold text-gray-900 dark:text-white ${!message.isRead ? 'font-bold' : ''}`}>
-                        {message.senderName || message.senderEmail}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                        {message.subject || message.content}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        {new Date(message.createdAt).toLocaleDateString()}
-                      </p>
                     </div>
                   </button>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <FaEnvelope className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4 opacity-50" />
-                <p className="text-gray-600 dark:text-gray-400">
-                  {filter === 'unread' ? 'No unread messages' : 'No messages'}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Message Detail */}
-        <div className="lg:col-span-1">
-          {selectedMessage ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">
-                    {selectedMessage.senderName || selectedMessage.senderEmail}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {selectedMessage.senderEmail}
-                  </p>
+            {/* Message Detail */}
+            <div className="lg:col-span-2">
+              {selectedMessage ? (
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  {/* Message Header */}
+                  <div className="flex items-start justify-between mb-6 pb-6 border-b border-gray-200">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg bg-teal-100">
+                        <FaEnvelope className="w-6 h-6 text-teal-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">
+                          {selectedMessage.senderName || selectedMessage.senderEmail}
+                        </h2>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {new Date(selectedMessage.createdAt).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedMessage(null);
+                        setReplyText('');
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    >
+                      <FaTimes className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+
+                  {/* Message Content */}
+                  <div className="mb-6">
+                    <p className="text-gray-700 whitespace-pre-wrap">{selectedMessage.content}</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 mb-6 pb-6 border-b border-gray-200">
+                    <button
+                      onClick={() => handleDelete(selectedMessage._id)}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition font-medium"
+                    >
+                      <FaTrash className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </div>
+
+                  {/* Reply Form */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Send a Reply</label>
+                    <textarea
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Type your reply..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                      rows="4"
+                    />
+                    <button
+                      onClick={handleReply}
+                      className="mt-3 flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition font-medium"
+                    >
+                      <FaReply className="w-4 h-4" />
+                      Send Reply
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setSelectedMessage(null)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                >
-                  <FaTimes />
-                </button>
-              </div>
-
-              <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
-
-              {/* Date */}
-              <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
-                {new Date(selectedMessage.createdAt).toLocaleString()}
-              </p>
-
-              {/* Content */}
-              <div className="mb-6 max-h-64 overflow-y-auto">
-                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                  {selectedMessage.content}
-                </p>
-              </div>
-
-              {/* Status */}
-              {selectedMessage.isRead && (
-                <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 mb-4">
-                  <FaCheckCircle /> Read
+              ) : (
+                <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                  <FaEnvelope className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Select a message to view details</p>
                 </div>
               )}
-
-              {/* Actions */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
-                <textarea
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Write your reply..."
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 text-sm"
-                  rows={3}
-                />
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleReply}
-                    className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
-                  >
-                    <FaReply /> Reply
-                  </button>
-                  <button
-                    onClick={() => handleDelete(selectedMessage._id)}
-                    className="px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg font-medium transition"
-                  >
-                    <FaTrash />
-                  </button>
-                </div>
-              </div>
             </div>
-          ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 text-center">
-              <FaEnvelope className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4 opacity-50" />
-              <p className="text-gray-600 dark:text-gray-400">Select a message to view details</p>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 };
 

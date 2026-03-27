@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { FaHistory, FaBox, FaCheckCircle, FaComments, FaPlus, FaEye } from 'react-icons/fa';
+import { FaHistory, FaBox, FaCheckCircle, FaComments, FaTag } from 'react-icons/fa';
 
 const DashboardActivity = () => {
   const { user } = useContext(AuthContext);
@@ -19,15 +19,12 @@ const DashboardActivity = () => {
       navigate('/signin');
       return;
     }
-
     fetchActivity();
   }, [user, navigate]);
 
   const fetchActivity = async () => {
     try {
       setLoading(true);
-
-      // Fetch user's items, claims, and messages
       const [itemsRes, claimsRes, messagesRes] = await Promise.all([
         axios.get('http://localhost:3001/api/items', {
           params: { userEmail: user?.email },
@@ -47,7 +44,6 @@ const DashboardActivity = () => {
       const claims = Array.isArray(claimsRes.data) ? claimsRes.data : claimsRes.data?.data || [];
       const messages = Array.isArray(messagesRes.data) ? messagesRes.data : messagesRes.data?.data || [];
 
-      // Combine and sort activities by date
       const allActivities = [
         ...items.map(item => ({
           id: item._id,
@@ -55,7 +51,9 @@ const DashboardActivity = () => {
           title: item.title,
           description: `Posted ${item.itemType} item`,
           icon: FaBox,
-          color: 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
+          bgColor: 'bg-blue-100',
+          textColor: 'text-blue-700',
+          iconBg: 'bg-blue-600',
           date: item.createdAt,
           details: `Category: ${item.category}`
         })),
@@ -65,11 +63,9 @@ const DashboardActivity = () => {
           title: claim.itemTitle,
           description: `Claim ${claim.status}`,
           icon: FaCheckCircle,
-          color: claim.status === 'approved'
-            ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-            : claim.status === 'rejected'
-              ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300'
-              : 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300',
+          bgColor: claim.status === 'approved' ? 'bg-green-100' : claim.status === 'rejected' ? 'bg-red-100' : 'bg-amber-100',
+          textColor: claim.status === 'approved' ? 'text-green-700' : claim.status === 'rejected' ? 'text-red-700' : 'text-amber-700',
+          iconBg: claim.status === 'approved' ? 'bg-green-600' : claim.status === 'rejected' ? 'bg-red-600' : 'bg-amber-600',
           date: claim.createdAt,
           details: `Status: ${claim.status}`
         })),
@@ -79,9 +75,9 @@ const DashboardActivity = () => {
           title: `Message from ${msg.senderName || msg.senderEmail}`,
           description: 'New message received',
           icon: FaComments,
-          color: msg.isRead
-            ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-            : 'bg-teal-100 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300',
+          bgColor: msg.isRead ? 'bg-gray-100' : 'bg-teal-100',
+          textColor: msg.isRead ? 'text-gray-700' : 'text-teal-700',
+          iconBg: msg.isRead ? 'bg-gray-600' : 'bg-teal-600',
           date: msg.createdAt,
           details: msg.isRead ? 'Read' : 'Unread'
         }))
@@ -102,153 +98,115 @@ const DashboardActivity = () => {
   });
 
   const stats = {
-    totalActivities: activities.length,
+    total: activities.length,
     items: activities.filter(a => a.type === 'item').length,
     claims: activities.filter(a => a.type === 'claim').length,
     messages: activities.filter(a => a.type === 'message').length
   };
 
-  const StatCard = ({ label, value, icon: Icon, color }) => (
-    <div className={`p-4 rounded-lg border border-gray-200 dark:border-gray-700 ${color}`}>
+  const StatCard = ({ label, value, icon: Icon, bgColor, textColor }) => (
+    <div className={`${bgColor} rounded-lg p-6 border border-gray-200`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
+          <p className="text-sm font-medium text-gray-600 mb-1">{label}</p>
+          <p className={`text-3xl font-bold ${textColor}`}>{value}</p>
         </div>
-        <Icon className="w-8 h-8 opacity-20" />
+        <div className={`p-3 rounded-lg bg-white`}>
+          <Icon className={`w-6 h-6 ${textColor}`} />
+        </div>
       </div>
     </div>
   );
 
-  const ActivityItem = ({ activity }) => {
-    const Icon = activity.icon;
-    return (
-      <div className="flex gap-4 pb-6 border-b border-gray-200 dark:border-gray-700 last:border-b-0 last:pb-0">
-        <div className={`p-3 rounded-lg flex-shrink-0 ${activity.color}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 dark:text-white">{activity.title}</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-gray-500 dark:text-gray-500">{activity.details}</span>
-            <span className="text-xs text-gray-500 dark:text-gray-500">
-              {new Date(activity.date).toLocaleDateString()} {new Date(activity.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="min-h-screen">
+    <>
       <Helmet>
-        <title>{`Activity - ${schoolConfig.name}`}</title>
+        <title>Activity - {schoolConfig.schoolName} Lost & Found</title>
       </Helmet>
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Activity History</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Track your recent actions and interactions
-        </p>
-      </div>
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Activity History</h1>
+          <p className="text-gray-600">Your recent items, claims, and messages</p>
+        </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          label="Total Activities"
-          value={stats.totalActivities}
-          icon={FaHistory}
-          color="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300"
-        />
-        <StatCard
-          label="Items Posted"
-          value={stats.items}
-          icon={FaBox}
-          color="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300"
-        />
-        <StatCard
-          label="Claims"
-          value={stats.claims}
-          icon={FaCheckCircle}
-          color="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300"
-        />
-        <StatCard
-          label="Messages"
-          value={stats.messages}
-          icon={FaComments}
-          color="bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-300"
-        />
-      </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard label="Total Activities" value={stats.total} icon={FaHistory} bgColor="bg-teal-50" textColor="text-teal-700" />
+          <StatCard label="Items Posted" value={stats.items} icon={FaBox} bgColor="bg-blue-50" textColor="text-blue-700" />
+          <StatCard label="Claims" value={stats.claims} icon={FaCheckCircle} bgColor="bg-green-50" textColor="text-green-700" />
+          <StatCard label="Messages" value={stats.messages} icon={FaComments} bgColor="bg-purple-50" textColor="text-purple-700" />
+        </div>
 
-      {/* Filter */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition ${
-            filter === 'all'
-              ? 'bg-teal-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          All Activities
-        </button>
-        <button
-          onClick={() => setFilter('item')}
-          className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-            filter === 'item'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          <FaBox /> Items
-        </button>
-        <button
-          onClick={() => setFilter('claim')}
-          className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-            filter === 'claim'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          <FaCheckCircle /> Claims
-        </button>
-        <button
-          onClick={() => setFilter('message')}
-          className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-            filter === 'message'
-              ? 'bg-teal-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          <FaComments /> Messages
-        </button>
-      </div>
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          {[
+            { id: 'all', label: 'All Activities', icon: FaHistory },
+            { id: 'item', label: 'Items', icon: FaBox },
+            { id: 'claim', label: 'Claims', icon: FaCheckCircle },
+            { id: 'message', label: 'Messages', icon: FaComments }
+          ].map(btn => {
+            const BtnIcon = btn.icon;
+            return (
+              <button
+                key={btn.id}
+                onClick={() => setFilter(btn.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition ${
+                  filter === btn.id
+                    ? 'bg-teal-600 text-white shadow-md'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:border-teal-300'
+                }`}
+              >
+                <BtnIcon className="w-4 h-4" />
+                {btn.label}
+              </button>
+            );
+          })}
+        </div>
 
-      {/* Activity Timeline */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        {/* Activity List */}
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <span className="loading loading-dots loading-lg"></span>
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <div className="inline-block">
+              <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div>
+            </div>
+            <p className="text-gray-600 mt-4">Loading activity...</p>
           </div>
-        ) : filteredActivities.length > 0 ? (
-          <div>
-            {filteredActivities.map((activity, idx) => (
-              <ActivityItem key={activity.id} activity={activity} />
-            ))}
+        ) : filteredActivities.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <FaHistory className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No activity yet</p>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <FaHistory className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4 opacity-50" />
-            <p className="text-gray-600 dark:text-gray-400">
-              {filter === 'all' ? 'No activities yet' : `No ${filter}s found`}
-            </p>
+          <div className="space-y-3">
+            {filteredActivities.map((activity) => {
+              const Icon = activity.icon;
+              return (
+                <div
+                  key={activity.id}
+                  className={`${activity.bgColor} border border-gray-200 rounded-lg p-4 hover:shadow-md transition`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-lg ${activity.iconBg} flex-shrink-0`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`font-semibold ${activity.textColor} truncate`}>{activity.title}</h3>
+                      <p className={`text-sm ${activity.textColor} opacity-75 mt-0.5`}>{activity.description}</p>
+                      <p className={`text-xs ${activity.textColor} opacity-60 mt-2`}>{activity.details}</p>
+                    </div>
+                    <div className={`text-xs ${activity.textColor} opacity-60 flex-shrink-0 whitespace-nowrap`}>
+                      {new Date(activity.date).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 };
 
