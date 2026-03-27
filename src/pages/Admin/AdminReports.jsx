@@ -30,11 +30,15 @@ const AdminReports = () => {
   const fetchData = async () => {
     try {
       const res = await axios.get('http://localhost:3001/api/items');
-      setItems(res.data || []);
+      console.log('[v0] Items response:', res.data);
+      // Handle both array and object with data property
+      const itemsArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setItems(itemsArray);
       setLoading(false);
     } catch (error) {
       console.error('[v0] Error fetching items:', error);
       toast.error('Failed to load report data');
+      setItems([]);
       setLoading(false);
     }
   };
