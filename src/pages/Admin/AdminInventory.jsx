@@ -93,16 +93,26 @@ const AdminInventory = () => {
 
   const confirmDelete = async () => {
     setDeleting(true);
+    const itemIdToDelete = deleteConfirm.itemId;
+    
     try {
-      await axios.delete(`http://localhost:3001/api/items/${deleteConfirm.itemId}`, {
+      // Immediately remove from UI for instant feedback
+      setItems(prevItems => prevItems.filter(item => item._id !== itemIdToDelete));
+      setFilteredItems(prevItems => prevItems.filter(item => item._id !== itemIdToDelete));
+      
+      // Then delete from database
+      const response = await axios.delete(`http://localhost:3001/api/items/${itemIdToDelete}`, {
         withCredentials: true
       });
+      
+      console.log('[v0] Item deleted from database:', response.data);
       toast.success('Item deleted successfully');
       setDeleteConfirm({ isOpen: false, itemId: null, itemTitle: '' });
-      fetchItems();
     } catch (error) {
       console.error('[v0] Error deleting item:', error);
       toast.error('Failed to delete item');
+      // Restore item if deletion failed
+      fetchItems();
     } finally {
       setDeleting(false);
     }
