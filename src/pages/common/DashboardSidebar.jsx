@@ -51,8 +51,8 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
     const navLinkClass = ({ isActive }) =>
         `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition ${
             isActive
-                ? "bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-100"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200"
+                ? "bg-teal-100 text-teal-700"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
         }`;
 
     return (
@@ -67,14 +67,14 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
 
             {/* Sidebar */}
             <aside
-                className={`fixed lg:relative top-16 lg:top-0 left-0 h-[calc(100vh-64px)] w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 overflow-y-auto transition-transform duration-300 z-40 lg:z-0 ${
+                className={`fixed lg:relative top-16 lg:top-0 left-0 h-[calc(100vh-64px)] w-64 bg-white border-r border-gray-200 overflow-y-auto transition-transform duration-300 z-40 lg:z-0 ${
                     isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
                 }`}
             >
                 {/* Close button for mobile */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                    className="absolute top-4 right-4 lg:hidden p-2 hover:bg-gray-100 rounded-lg"
                     aria-label="Close sidebar"
                 >
                     <svg
@@ -114,10 +114,10 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
                 </nav>
 
                 {/* Bottom Section */}
-                <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-gray-700 p-4">
+                <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 p-4">
                     <a
                         href="/contact"
-                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
                     >
                         <svg
                             className="w-5 h-5"

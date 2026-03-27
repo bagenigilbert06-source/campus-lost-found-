@@ -26,28 +26,28 @@ const DashboardHome = () => {
       description: 'Find lost or found items on campus',
       path: '/app/search',
       icon: FaSearch,
-      color: 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-300'
+      color: 'bg-blue-50 text-blue-600'
     },
     {
       title: 'Post Lost Item',
       description: 'Report a lost item and help find it',
       path: '/app/post-lost-item',
       icon: FaPlus,
-      color: 'bg-teal-50 text-teal-600 dark:bg-teal-900 dark:text-teal-300'
+      color: 'bg-teal-50 text-teal-600'
     },
     {
       title: 'Post Found Item',
       description: 'Share a found item with the community',
       path: '/app/post-item',
       icon: FaBox,
-      color: 'bg-green-50 text-green-600 dark:bg-green-900 dark:text-green-300'
+      color: 'bg-green-50 text-green-600'
     },
     {
       title: 'My Items',
       description: 'Manage your postings',
       path: '/app/my-items',
       icon: FaEye,
-      color: 'bg-purple-50 text-purple-600 dark:bg-purple-900 dark:text-purple-300'
+      color: 'bg-purple-50 text-purple-600'
     },
   ]);
 

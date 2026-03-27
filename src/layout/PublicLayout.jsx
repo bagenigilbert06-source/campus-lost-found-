@@ -8,7 +8,7 @@ import { Toaster } from 'react-hot-toast';
 // Shows marketing site with home, items, about, contact
 const PublicLayout = () => {
     return (
-        <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
+        <div className="min-h-screen flex flex-col bg-white">
             <Toaster position="top-right" />
             <PublicNavbar />
             <main className="flex-grow max-w-7xl w-full mx-auto">

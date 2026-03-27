@@ -125,9 +125,9 @@ const PublicNavbar = () => {
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     strokeWidth="2.2"
-                                    stroke="currentColor"
-                                    className="h-5 w-5 text-slate-800 dark:text-white"
-                                >
+                    stroke="currentColor"
+                    className="h-5 w-5 text-slate-800"
+                >
                                     {isMenuOpen ? (
                                         <path
                                             strokeLinecap="round"

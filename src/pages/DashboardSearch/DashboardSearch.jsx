@@ -93,9 +93,9 @@ const DashboardSearch = () => {
   };
 
   const ItemCard = ({ item }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition">
       {item.images && item.images[0] && (
-        <div className="h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden">
+        <div className="h-40 bg-gray-100 overflow-hidden">
           <img
             src={item.images[0]}
             alt={item.title}

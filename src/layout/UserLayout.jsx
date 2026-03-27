@@ -18,7 +18,7 @@ const UserLayout = () => {
     };
 
     return (
-        <div className='min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950'>
+        <div className='min-h-screen flex flex-col bg-gray-50'>
             <Toaster position="top-right" />
             <DashboardNavbar onToggleSidebar={toggleSidebar} />
             <div className='flex flex-1 overflow-hidden'>
