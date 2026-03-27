@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { FaSearch, FaFilter, FaBox, FaTimes, FaMapPin, FaCalendarAlt } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaBox, FaTimes, FaMapPin, FaCalendarAlt, FaTag } from 'react-icons/fa';
 
 const DashboardSearch = () => {
   const { user } = useContext(AuthContext);
