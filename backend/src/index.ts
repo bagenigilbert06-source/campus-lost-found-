@@ -13,6 +13,7 @@ import itemRoutes from './routes/items.js';
 import searchRoutes from './routes/search.js';
 import matchRoutes from './routes/matches.js';
 import notificationRoutes from './routes/notifications.js';
+import messagesRoutes from './routes/messages.js';
 
 // Get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -46,6 +47,7 @@ app.use('/api/items', itemRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
