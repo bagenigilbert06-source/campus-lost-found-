@@ -21,7 +21,7 @@ const Register = () => {
     if (isAdminEmail) {
       navigate('/admin');
     } else {
-      navigate('/dashboard');
+      navigate('/app/dashboard');
     }
   };
 
