@@ -136,7 +136,7 @@ const DashboardSearch = () => {
   return (
     <>
       <Helmet>
-        <title>Search Items - {schoolConfig.schoolName} Lost & Found</title>
+        <title>Search Items - {schoolConfig.name} Lost & Found</title>
       </Helmet>
 
       <div className="max-w-7xl mx-auto">

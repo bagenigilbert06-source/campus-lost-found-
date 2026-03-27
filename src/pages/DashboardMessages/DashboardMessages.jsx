@@ -114,7 +114,7 @@ const DashboardMessages = () => {
   return (
     <>
       <Helmet>
-        <title>Messages - {schoolConfig.schoolName} Lost & Found</title>
+        <title>Messages - {schoolConfig.name} Lost & Found</title>
       </Helmet>
 
       <div className="max-w-6xl mx-auto">
