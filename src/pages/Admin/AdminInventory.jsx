@@ -17,6 +17,7 @@ import {
 import AdminContainer from '../../components/admin/AdminContainer';
 import EmptyState from '../../components/admin/EmptyState';
 import LoadingState from '../../components/admin/LoadingState';
+import ConfirmationDialog from '../../components/ConfirmationDialog';
 
 const AdminInventory = () => {
   const { user } = useContext(AuthContext);
@@ -28,6 +29,8 @@ const AdminInventory = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterVerification, setFilterVerification] = useState('all');
   const [viewMode, setViewMode] = useState('table');
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, itemId: null, itemTitle: '' });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchItems();
@@ -84,19 +87,24 @@ const AdminInventory = () => {
     setFilteredItems(filtered);
   };
 
-  const handleDeleteItem = async (itemId) => {
-    if (!window.confirm('Are you sure you want to delete this item? This cannot be undone.')) {
-      return;
-    }
+  const handleDeleteItem = (itemId, itemTitle) => {
+    setDeleteConfirm({ isOpen: true, itemId, itemTitle });
+  };
 
+  const confirmDelete = async () => {
+    setDeleting(true);
     try {
-      await axios.delete(`http://localhost:3001/api/items/${itemId}`, {
+      await axios.delete(`http://localhost:3001/api/items/${deleteConfirm.itemId}`, {
         withCredentials: true
       });
       toast.success('Item deleted successfully');
+      setDeleteConfirm({ isOpen: false, itemId: null, itemTitle: '' });
       fetchItems();
     } catch (error) {
+      console.error('[v0] Error deleting item:', error);
       toast.error('Failed to delete item');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -143,6 +151,18 @@ const AdminInventory = () => {
       <Helmet>
         <title>{`Inventory | ${schoolConfig.name} Lost & Found`}</title>
       </Helmet>
+
+      <ConfirmationDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Item"
+        message={`Are you sure you want to delete "${deleteConfirm.itemTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        isLoading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, itemId: null, itemTitle: '' })}
+      />
 
       <AdminContainer>
         {/* Page Header */}
@@ -316,7 +336,7 @@ const AdminInventory = () => {
                             </>
                           )}
                           <button
-                            onClick={() => handleDeleteItem(item._id)}
+                            onClick={() => handleDeleteItem(item._id, item.title)}
                             className="btn btn-xs btn-outline border-red-500 text-red-500 hover:bg-red-50"
                             title="Delete"
                           >
@@ -380,7 +400,7 @@ const AdminInventory = () => {
                       </button>
                     )}
                     <button
-                      onClick={() => handleDeleteItem(item._id)}
+                      onClick={() => handleDeleteItem(item._id, item.title)}
                       className="btn btn-xs btn-error text-white flex-1"
                     >
                       <FaTrash size={12} /> Delete
