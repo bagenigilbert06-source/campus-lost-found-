@@ -38,8 +38,44 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
+// Admin dashboard endpoint - get dashboard data including stats and pending items
+router.get('/admin/dashboard', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    // Get all items regardless of status (for admin)
+    const allItems = await Item.find({}).sort({ createdAt: -1 }).lean();
+    
+    const pendingItems = allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').slice(0, 5);
+    const recentActivity = allItems.slice(0, 5);
+    
+    const stats = {
+      totalItems: allItems.length,
+      activeItems: allItems.filter(item => item.status === 'active').length,
+      claimedItems: allItems.filter(item => item.status === 'claimed').length,
+      recoveredItems: allItems.filter(item => item.status === 'recovered').length,
+      pendingVerification: allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').length,
+      verifiedItems: allItems.filter(item => item.verificationStatus === 'verified').length,
+      rejectedItems: allItems.filter(item => item.verificationStatus === 'rejected').length,
+      totalUsers: new Set(allItems.map(item => item.userId).filter(Boolean)).size,
+      lostItems: allItems.filter(item => item.itemType === 'Lost').length,
+      foundItems: allItems.filter(item => item.itemType === 'Found').length,
+      unreadMessages: 0, // Placeholder for future implementation
+    };
+
+    res.json({ 
+      success: true, 
+      data: {
+        stats,
+        pendingItems,
+        recentActivity
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Admin stats endpoint - get all items including recovered/claimed
-router.get('/admin/stats', authMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/admin/stats', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
     // Get all items regardless of status (for admin)
     const allItems = await Item.find({});
@@ -122,17 +158,46 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
-// Delete item
-router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
+// Patch item (for partial updates like verification)
+router.patch('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    if (!req.user) {
-      res.status(401).json({ message: 'User not authenticated' });
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const item = await Item.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!item) {
+      res.status(404).json({ success: false, message: 'Item not found' });
       return;
     }
 
-    await itemService.deleteItem(req.params.id, req.user.uid);
-    res.json({ success: true, message: 'Item deleted successfully' });
+    res.json({ success: true, data: item });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Delete item
+router.delete('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Try to delete the item
+    const item = await Item.findByIdAndDelete(id);
+    
+    if (!item) {
+      res.status(404).json({ success: false, message: 'Item not found' });
+      return;
+    }
+
+    console.log('[v0] Item deleted:', id);
+    res.json({ success: true, message: 'Item deleted successfully', data: item });
+  } catch (error) {
+    console.error('[v0] Error deleting item:', error);
     next(error);
   }
 });

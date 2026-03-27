@@ -17,6 +17,7 @@ import {
 import AdminContainer from '../../components/admin/AdminContainer';
 import EmptyState from '../../components/admin/EmptyState';
 import LoadingState from '../../components/admin/LoadingState';
+import ConfirmationDialog from '../../components/ConfirmationDialog';
 
 const AdminInventory = () => {
   const { user } = useContext(AuthContext);
@@ -28,6 +29,8 @@ const AdminInventory = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterVerification, setFilterVerification] = useState('all');
   const [viewMode, setViewMode] = useState('table');
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, itemId: null, itemTitle: '' });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchItems();
@@ -40,11 +43,15 @@ const AdminInventory = () => {
   const fetchItems = async () => {
     try {
       const res = await axios.get('http://localhost:3001/api/items');
-      setItems(res.data);
+      console.log('[v0] Items response:', res.data);
+      // Handle both array and object with data property
+      const itemsArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setItems(itemsArray);
       setLoading(false);
     } catch (error) {
       console.error('[v0] Error fetching items:', error);
       toast.error('Failed to load items');
+      setItems([]);
       setLoading(false);
     }
   };
@@ -80,19 +87,34 @@ const AdminInventory = () => {
     setFilteredItems(filtered);
   };
 
-  const handleDeleteItem = async (itemId) => {
-    if (!window.confirm('Are you sure you want to delete this item? This cannot be undone.')) {
-      return;
-    }
+  const handleDeleteItem = (itemId, itemTitle) => {
+    setDeleteConfirm({ isOpen: true, itemId, itemTitle });
+  };
 
+  const confirmDelete = async () => {
+    setDeleting(true);
+    const itemIdToDelete = deleteConfirm.itemId;
+    
     try {
-      await axios.delete(`http://localhost:3001/api/items/${itemId}`, {
+      // Immediately remove from UI for instant feedback
+      setItems(prevItems => prevItems.filter(item => item._id !== itemIdToDelete));
+      setFilteredItems(prevItems => prevItems.filter(item => item._id !== itemIdToDelete));
+      
+      // Then delete from database
+      const response = await axios.delete(`http://localhost:3001/api/items/${itemIdToDelete}`, {
         withCredentials: true
       });
+      
+      console.log('[v0] Item deleted from database:', response.data);
       toast.success('Item deleted successfully');
-      fetchItems();
+      setDeleteConfirm({ isOpen: false, itemId: null, itemTitle: '' });
     } catch (error) {
+      console.error('[v0] Error deleting item:', error);
       toast.error('Failed to delete item');
+      // Restore item if deletion failed
+      fetchItems();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -139,6 +161,18 @@ const AdminInventory = () => {
       <Helmet>
         <title>{`Inventory | ${schoolConfig.name} Lost & Found`}</title>
       </Helmet>
+
+      <ConfirmationDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Item"
+        message={`Are you sure you want to delete "${deleteConfirm.itemTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        isLoading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, itemId: null, itemTitle: '' })}
+      />
 
       <AdminContainer>
         {/* Page Header */}
@@ -312,7 +346,7 @@ const AdminInventory = () => {
                             </>
                           )}
                           <button
-                            onClick={() => handleDeleteItem(item._id)}
+                            onClick={() => handleDeleteItem(item._id, item.title)}
                             className="btn btn-xs btn-outline border-red-500 text-red-500 hover:bg-red-50"
                             title="Delete"
                           >
@@ -376,7 +410,7 @@ const AdminInventory = () => {
                       </button>
                     )}
                     <button
-                      onClick={() => handleDeleteItem(item._id)}
+                      onClick={() => handleDeleteItem(item._id, item.title)}
                       className="btn btn-xs btn-error text-white flex-1"
                     >
                       <FaTrash size={12} /> Delete

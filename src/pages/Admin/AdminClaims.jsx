@@ -33,10 +33,14 @@ const AdminClaims = () => {
       const res = await axios.get('http://localhost:3001/api/messages?role=admin', {
         withCredentials: true
       });
-      setMessages(res.data || []);
+      // Handle both array and object with data property
+      const messagesArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setMessages(messagesArray);
       setLoading(false);
     } catch (error) {
-      console.error('[v0] Error fetching messages:', error);
+      console.error('[v0] Error fetching messages:', error?.response?.status, error.message);
+      // If endpoint doesn't exist, silently fail and show empty messages
+      setMessages([]);
       setLoading(false);
     }
   };

@@ -40,63 +40,96 @@ const AdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const itemsRes = await axios.get('http://localhost:3001/api/items');
-      const items = itemsRes.data;
-
-      const messagesRes = await axios.get('http://localhost:3001/api/messages?role=admin', {
+      console.log('[v0] Fetching dashboard data from backend...');
+      
+      // Try the new admin/dashboard endpoint first
+      const dashboardRes = await axios.get('http://localhost:3001/api/items/admin/dashboard', {
         withCredentials: true
-      }).catch(() => ({ data: [] }));
-
-      const pendingItems = items.filter(item => item.verificationStatus === 'pending' || !item.verificationStatus);
-      const verifiedItems = items.filter(item => item.verificationStatus === 'verified');
-      const unreadMessages = messagesRes.data?.filter(m => !m.isRead && m.recipientRole === 'admin').length || 0;
-
-      setStats({
-        totalItems: items.length,
-        pendingVerification: pendingItems.length,
-        verifiedItems: verifiedItems.length,
-        recoveredItems: items.filter(i => i.status === 'recovered').length || 0,
-        totalUsers: new Set(items.map(item => item.email)).size,
-        unreadMessages: unreadMessages
       });
 
-      setPendingItems(pendingItems.slice(0, 5));
-      setRecentActivity(items.slice(-5).reverse());
-      setLoading(false);
+      console.log('[v0] Dashboard data received:', dashboardRes.data);
+
+      if (dashboardRes.data.success && dashboardRes.data.data) {
+        const { stats, pendingItems, recentActivity } = dashboardRes.data.data;
+        
+        setStats({
+          totalItems: stats.totalItems || 0,
+          pendingVerification: stats.pendingVerification || 0,
+          verifiedItems: stats.verifiedItems || 0,
+          recoveredItems: stats.recoveredItems || 0,
+          totalUsers: stats.totalUsers || 0,
+          unreadMessages: stats.unreadMessages || 0
+        });
+
+        setPendingItems(pendingItems || []);
+        setRecentActivity(recentActivity || []);
+        setLoading(false);
+      }
     } catch (error) {
-      console.error('[v0] Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-      setLoading(false);
+      console.error('[v0] Error fetching dashboard data:', error?.response?.data || error.message);
+      
+      // Fallback: try to get items directly
+      try {
+        console.log('[v0] Trying fallback endpoint...');
+        const itemsRes = await axios.get('http://localhost:3001/api/items');
+        const items = itemsRes.data?.data || [];
+
+        const pendingItems = items.filter(item => item.verificationStatus === 'pending' || !item.verificationStatus);
+        const verifiedItems = items.filter(item => item.verificationStatus === 'verified');
+
+        setStats({
+          totalItems: items.length,
+          pendingVerification: pendingItems.length,
+          verifiedItems: verifiedItems.length,
+          recoveredItems: items.filter(i => i.status === 'recovered').length || 0,
+          totalUsers: new Set(items.map(item => item.email)).size,
+          unreadMessages: 0
+        });
+
+        setPendingItems(pendingItems.slice(0, 5));
+        setRecentActivity(items.slice(-5).reverse());
+        setLoading(false);
+      } catch (fallbackError) {
+        console.error('[v0] Fallback failed:', fallbackError.message);
+        toast.error('Failed to load dashboard data. Make sure the backend server is running on port 3001.');
+        setLoading(false);
+      }
     }
   };
 
   const handleVerifyItem = async (itemId) => {
     try {
-      await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
+      console.log('[v0] Verifying item:', itemId);
+      const response = await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
         verificationStatus: 'verified',
-        verifiedBy: user.email,
+        verifiedBy: user?.email,
         verifiedAt: new Date().toISOString()
-      }, { withCredentials: true });
+      });
       
+      console.log('[v0] Item verified:', response.data);
       toast.success('Item verified successfully!');
       fetchDashboardData();
     } catch (error) {
-      toast.error('Failed to verify item');
+      console.error('[v0] Error verifying item:', error?.response?.data || error.message);
+      toast.error('Failed to verify item: ' + (error?.response?.data?.message || error.message));
     }
   };
 
   const handleRejectItem = async (itemId) => {
     try {
-      await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
+      console.log('[v0] Rejecting item:', itemId);
+      const response = await axios.patch(`http://localhost:3001/api/items/${itemId}`, {
         verificationStatus: 'rejected',
-        verifiedBy: user.email,
+        verifiedBy: user?.email,
         verifiedAt: new Date().toISOString()
-      }, { withCredentials: true });
+      });
       
+      console.log('[v0] Item rejected:', response.data);
       toast.success('Item rejected');
       fetchDashboardData();
     } catch (error) {
-      toast.error('Failed to reject item');
+      console.error('[v0] Error rejecting item:', error?.response?.data || error.message);
+      toast.error('Failed to reject item: ' + (error?.response?.data?.message || error.message));
     }
   };
 
