@@ -125,17 +125,19 @@ const DashboardHome = () => {
     }
   };
 
-  const StatCard = ({ label, value, icon: Icon, color, link }) => (
+  const StatCard = ({ label, value, icon: Icon, accentColor, link }) => (
     <Link
       to={link}
-      className={`p-6 rounded-lg border border-gray-200 dark:border-gray-700 transition hover:shadow-lg ${color}`}
+      className="bg-white p-6 rounded-xl border border-gray-100 transition hover:shadow-md hover:border-gray-200 group"
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
+          <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+          <p className={`text-4xl font-bold mt-3 ${accentColor}`}>{value}</p>
         </div>
-        <Icon className="w-8 h-8 opacity-20" />
+        <div className={`p-3 rounded-lg ${accentColor} opacity-10`}>
+          <Icon className={`w-8 h-8 ${accentColor}`} />
+        </div>
       </div>
     </Link>
   );
@@ -148,10 +150,10 @@ const DashboardHome = () => {
 
       {/* Welcome Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">
           Welcome back, {user?.displayName || 'Student'}!
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-gray-600">
           Here's your campus lost and found activity at a glance.
         </p>
       </div>
@@ -162,49 +164,49 @@ const DashboardHome = () => {
           label="Items Posted"
           value={stats.itemsPosted}
           icon={FaBox}
-          color="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+          accentColor="text-teal-600"
           link="/app/my-items"
         />
         <StatCard
           label="Claims Submitted"
           value={stats.claimsSubmitted}
           icon={FaCheckCircle}
-          color="bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400"
+          accentColor="text-emerald-600"
           link="/app/dashboard"
         />
         <StatCard
           label="Awaiting Review"
           value={stats.claimsPending}
           icon={FaHourglass}
-          color="bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+          accentColor="text-amber-600"
           link="/app/dashboard"
         />
         <StatCard
           label="Approved Claims"
           value={stats.claimsApproved}
           icon={FaCheckCircle}
-          color="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+          accentColor="text-green-600"
           link="/app/dashboard"
         />
         <StatCard
           label="Items Recovered"
           value={stats.itemsRecovered}
           icon={FaEye}
-          color="bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
+          accentColor="text-cyan-600"
           link="/app/recovered"
         />
         <StatCard
           label="New Messages"
           value={stats.unreadMessages}
           icon={FaComments}
-          color="bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400"
+          accentColor="text-blue-600"
           link="/app/messages"
         />
       </div>
 
       {/* Quick Actions */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickLinks.map((link) => {
             const Icon = link.icon;
@@ -212,11 +214,13 @@ const DashboardHome = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition ${link.color} group`}
+                className="bg-white p-6 rounded-xl border border-gray-100 hover:shadow-md hover:border-gray-200 transition group"
               >
-                <Icon className="w-8 h-8 mb-3 group-hover:scale-110 transition" />
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{link.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{link.description}</p>
+                <div className="p-3 rounded-lg bg-teal-50 w-fit mb-3 group-hover:bg-teal-100 transition">
+                  <Icon className="w-6 h-6 text-teal-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">{link.title}</h3>
+                <p className="text-sm text-gray-600">{link.description}</p>
               </Link>
             );
           })}
@@ -225,24 +229,24 @@ const DashboardHome = () => {
 
       {/* Recent Activity */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Recent Activity</h2>
         {recentActivity.length > 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
             {recentActivity.map((activity, idx) => {
               const Icon = activity.icon;
               return (
                 <div
                   key={idx}
-                  className="flex items-center gap-4 p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
+                  className="flex items-center gap-4 p-5 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition"
                 >
-                  <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700">
-                    <Icon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                  <div className="p-2.5 rounded-lg bg-teal-50">
+                    <Icon className="w-5 h-5 text-teal-600" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{activity.title}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
+                    <h3 className="font-semibold text-gray-900">{activity.title}</h3>
+                    <p className="text-sm text-gray-600">{activity.description}</p>
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-xs text-gray-500 whitespace-nowrap">
                     {activity.date ? new Date(activity.date).toLocaleDateString() : 'Recently'}
                   </span>
                 </div>
@@ -250,12 +254,14 @@ const DashboardHome = () => {
             })}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
-            <FaHistory className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4 opacity-50" />
-            <p className="text-gray-600 dark:text-gray-400">No recent activity yet. Start by posting or searching for items!</p>
+          <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
+            <div className="p-3 rounded-lg bg-gray-100 w-fit mx-auto mb-4">
+              <FaHistory className="w-12 h-12 text-gray-400 opacity-60" />
+            </div>
+            <p className="text-gray-600 mb-4">No recent activity yet. Start by posting or searching for items!</p>
             <Link
               to="/app/search"
-              className="inline-block mt-4 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition"
+              className="inline-block px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition"
             >
               Browse Items
             </Link>
