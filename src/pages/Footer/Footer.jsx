@@ -67,9 +67,9 @@ const Footer = () => {
             <h6 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">Quick Links</h6>
             <div className="flex flex-col gap-3">
               <LinkItem to="/">Home</LinkItem>
-              <LinkItem to="/allItems">Lost & Found Items</LinkItem>
-              <LinkItem to="/addItems">Report Item</LinkItem>
-              <LinkItem to="/allRecovered">Recovered Items</LinkItem>
+              <LinkItem to="/aboutUs">About Us</LinkItem>
+              <LinkItem to="/contact">Contact</LinkItem>
+              <LinkItem to="/signin">Sign In</LinkItem>
             </div>
           </motion.div>
 

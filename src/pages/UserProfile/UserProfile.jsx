@@ -1,320 +1,550 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
-import { FaUser, FaEnvelope, FaCalendarAlt, FaEdit, FaSignOutAlt, FaShieldAlt } from 'react-icons/fa';
-import toast from 'react-hot-toast';
 import { schoolConfig } from '../../config/schoolConfig';
+import toast from 'react-hot-toast';
+import axios from 'axios';
+import Swal from 'sweetalert2';
+import {
+  FaUser,
+  FaCog,
+  FaClock,
+  FaChartBar,
+  FaEdit,
+  FaSave,
+  FaTimes,
+  FaLock,
+  FaBell,
+  FaEye,
+  FaEyeSlash,
+  FaCheckCircle,
+  FaArrowLeft
+} from 'react-icons/fa';
 
 const UserProfile = () => {
-  const { user, signOutUser, isAdmin } = useContext(AuthContext);
+  const { user, signOutUser } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    displayName: user?.displayName || '',
+  const [activeTab, setActiveTab] = useState('personal');
+  const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const [personalData, setPersonalData] = useState({
+    fullName: user?.displayName || '',
+    phone: '',
+    studentId: '',
+    bio: ''
   });
 
-  const fallbackAvatar =
-    "https://ui-avatars.com/api/?name=" + 
-    encodeURIComponent(user?.displayName || "User") + 
-    "&background=10b981&color=ffffff&size=200";
+  const [profileImage, setProfileImage] = useState(user?.photoURL || '');
 
-  const handleSignOut = async () => {
-    try {
-      await signOutUser();
-      toast.success('Successfully signed out!');
-      navigate('/');
-    } catch {
-      toast.error('Error signing out. Please try again.');
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const [settings, setSettings] = useState({
+    emailNotifications: true,
+    dailyDigest: false,
+    announcements: true,
+    showNamePublic: true,
+    showPhonePublic: false,
+    showEmailPublic: false
+  });
+
+  const [activityLog, setActivityLog] = useState([]);
+  const [stats, setStats] = useState({
+    itemsPosted: 0,
+    itemsRecovered: 0,
+    claimsSubmitted: 0,
+    claimsApproved: 0,
+    successRate: '0%'
+  });
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/signin');
+      return;
     }
-  };
+    fetchUserData();
+  }, [user, navigate]);
 
-  const handleEditChange = (e) => {
-    setEditData({
-      ...editData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSaveProfile = async () => {
+  const fetchUserData = async () => {
     try {
-      if (!editData.displayName.trim()) {
-        toast.error('Name cannot be empty');
-        return;
+      setLoading(true);
+      
+      // Fetch user profile
+      const profileRes = await axios.get('http://localhost:3001/api/users/profile', {
+        params: { email: user?.email },
+        withCredentials: true
+      }).catch(() => ({ data: {} }));
+
+      if (profileRes.data) {
+        setPersonalData(prev => ({
+          ...prev,
+          ...profileRes.data
+        }));
+        if (profileRes.data.profileImage) {
+          setProfileImage(profileRes.data.profileImage);
+        }
+        if (profileRes.data.settings) {
+          setSettings(prev => ({
+            ...prev,
+            ...profileRes.data.settings
+          }));
+        }
       }
-      toast.success('Profile updated successfully!');
-      setIsEditing(false);
-    } catch {
-      toast.error('Error updating profile');
+
+      // Fetch activity log
+      const activityRes = await axios.get('http://localhost:3001/api/users/activity', {
+        params: { email: user?.email, limit: 10 },
+        withCredentials: true
+      }).catch(() => ({ data: { data: [] } }));
+
+      setActivityLog(activityRes.data?.data || []);
+
+      // Fetch stats
+      const statsRes = await axios.get('http://localhost:3001/api/users/stats', {
+        params: { email: user?.email },
+        withCredentials: true
+      }).catch(() => ({ data: { data: {} } }));
+
+      if (statsRes.data?.data) {
+        setStats(statsRes.data.data);
+      }
+    } catch (error) {
+      console.error('[v0] Error fetching user data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getMemberSince = () => {
-    if (user?.metadata?.creationTime) {
-      return new Date(user.metadata.creationTime).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+  const handlePersonalChange = (e) => {
+    const { name, value } = e.target;
+    setPersonalData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSettingChange = (setting) => {
+    setSettings(prev => ({
+      ...prev,
+      [setting]: !prev[setting]
+    }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSavePersonalInfo = async () => {
+    if (!personalData.fullName.trim()) {
+      toast.error('Please enter your full name');
+      return;
     }
-    return 'Unknown';
+
+    setLoading(true);
+    try {
+      const response = await axios.put('http://localhost:3001/api/users/profile', {
+        ...personalData,
+        email: user?.email,
+        profileImage
+      }, {
+        withCredentials: true
+      });
+
+      if (response.status === 200 || response.data.success) {
+        toast.success('Profile updated successfully!');
+        setIsEditingPersonal(false);
+      }
+    } catch (error) {
+      console.error('[v0] Error updating profile:', error);
+      toast.error(error.response?.data?.message || 'Error updating profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordData.currentPassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
+    if (!passwordData.newPassword) {
+      toast.error('Please enter a new password');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.put('http://localhost:3001/api/users/password', {
+        email: user?.email,
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      }, {
+        withCredentials: true
+      });
+
+      if (response.status === 200 || response.data.success) {
+        toast.success('Password changed successfully!');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setShowPasswordForm(false);
+      }
+    } catch (error) {
+      console.error('[v0] Error changing password:', error);
+      toast.error(error.response?.data?.message || 'Error changing password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.put('http://localhost:3001/api/users/settings', {
+        email: user?.email,
+        settings
+      }, {
+        withCredentials: true
+      });
+
+      if (response.status === 200 || response.data.success) {
+        toast.success('Settings saved successfully!');
+      }
+    } catch (error) {
+      console.error('[v0] Error saving settings:', error);
+      toast.error('Error saving settings');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen pt-20 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4">
       <Helmet>
-        <title>{`My Profile - ${schoolConfig.name} Lost & Found`}</title>
+        <title>{`My Profile - ${schoolConfig.name}`}</title>
       </Helmet>
 
-      <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        {/* Header Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8"
-        >
-          <h1 className="text-4xl font-bold text-teal-600 dark:text-teal-400 mb-2">
-            My Profile
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your account information and preferences
-          </p>
-        </motion.div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="lg:col-span-1"
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => navigate('/app/dashboard')}
+            className="flex items-center gap-2 text-teal-600 hover:text-teal-700 mb-4 font-medium"
           >
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 sticky top-24">
-              {/* Avatar */}
-              <div className="flex flex-col items-center mb-6">
-                <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-teal-500 shadow-lg mb-4">
-                  <img
-                    src={user?.photoURL || fallbackAvatar}
-                    alt={user?.displayName || 'User profile'}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-
-                {isAdmin && (
-                  <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100 px-3 py-1 rounded-full text-xs font-semibold mb-3">
-                    <FaShieldAlt size={12} />
-                    Admin
-                  </div>
-                )}
-
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white text-center">
-                  {user?.displayName || 'User'}
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-1">
-                  {user?.email}
-                </p>
-              </div>
-
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
-                <button
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="w-full flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
-                >
-                  <FaEdit size={16} />
-                  {isEditing ? 'Cancel' : 'Edit Profile'}
-                </button>
-                <button
-                  onClick={handleSignOut}
-                  className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
-                >
-                  <FaSignOutAlt size={16} />
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Main Content */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="lg:col-span-2 space-y-6"
-          >
-            {/* Account Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-                <FaUser className="text-teal-500" size={24} />
-                Account Information
-              </h3>
-
-              {isEditing ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Display Name
-                    </label>
-                    <input
-                      type="text"
-                      name="displayName"
-                      value={editData.displayName}
-                      onChange={handleEditChange}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      placeholder="Enter your name"
-                    />
-                  </div>
-                  <button
-                    onClick={handleSaveProfile}
-                    className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
-                  >
-                    Save Changes
-                  </button>
-                </div>
+            <FaArrowLeft size={16} />
+            Back to Dashboard
+          </button>
+          
+          <div className="bg-white rounded-lg shadow-md p-8 flex items-center gap-6">
+            <div className="w-24 h-24 rounded-full bg-teal-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {profileImage ? (
+                <img src={profileImage} alt={personalData.fullName} className="w-full h-full object-cover" />
               ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <FaUser className="text-teal-500" size={20} />
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                        Display Name
-                      </p>
-                      <p className="text-lg font-medium text-slate-800 dark:text-white">
-                        {user?.displayName || 'Not set'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <FaEnvelope className="text-teal-500" size={20} />
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                        Email Address
-                      </p>
-                      <p className="text-lg font-medium text-slate-800 dark:text-white break-all">
-                        {user?.email}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <FaCalendarAlt className="text-teal-500" size={20} />
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                        Member Since
-                      </p>
-                      <p className="text-lg font-medium text-slate-800 dark:text-white">
-                        {getMemberSince()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <FaUser className="text-3xl text-teal-600" />
               )}
             </div>
-
-            {/* Account Stats */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">
-                Account Stats
-              </h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900 dark:to-teal-800 rounded-lg p-4"
-                >
-                  <p className="text-sm font-medium text-teal-600 dark:text-teal-300 mb-1">
-                    Lost Items Reported
-                  </p>
-                  <p className="text-3xl font-bold text-teal-700 dark:text-teal-200">
-                    0
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900 dark:to-green-800 rounded-lg p-4"
-                >
-                  <p className="text-sm font-medium text-green-600 dark:text-green-300 mb-1">
-                    Items Found
-                  </p>
-                  <p className="text-3xl font-bold text-green-700 dark:text-green-200">
-                    0
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 rounded-lg p-4"
-                >
-                  <p className="text-sm font-medium text-blue-600 dark:text-blue-300 mb-1">
-                    Items Recovered
-                  </p>
-                  <p className="text-3xl font-bold text-blue-700 dark:text-blue-200">
-                    0
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800 rounded-lg p-4"
-                >
-                  <p className="text-sm font-medium text-purple-600 dark:text-purple-300 mb-1">
-                    Community Score
-                  </p>
-                  <p className="text-3xl font-bold text-purple-700 dark:text-purple-200">
-                    0
-                  </p>
-                </motion.div>
-              </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{personalData.fullName || 'Your Profile'}</h1>
+              <p className="text-gray-600 mt-1">{user?.email}</p>
+              <span className="inline-block mt-3 px-4 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium">
+                Student
+              </span>
             </div>
+          </div>
+        </div>
 
-            {/* Quick Actions */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">
-                Quick Actions
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate('/addItems')}
-                  className="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="flex border-b border-gray-200 flex-wrap">
+            {[
+              { id: 'personal', label: 'Personal Info', icon: FaUser },
+              { id: 'settings', label: 'Settings', icon: FaCog },
+              { id: 'activity', label: 'Activity', icon: FaClock },
+              { id: 'stats', label: 'Statistics', icon: FaChartBar }
+            ].map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 sm:flex-none px-6 py-4 font-medium flex items-center justify-center gap-2 border-b-2 transition ${
+                    activeTab === tab.id
+                      ? 'border-teal-600 text-teal-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
                 >
-                  Report Lost/Found Item
-                </motion.button>
+                  <Icon size={18} />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate('/myItems')}
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
-                >
-                  Manage My Items
-                </motion.button>
+          {/* Tab Content */}
+          <div className="p-8">
+            {/* Personal Information Tab */}
+            {activeTab === 'personal' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Personal Information</h2>
+                  {!isEditingPersonal && (
+                    <button
+                      onClick={() => setIsEditingPersonal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition"
+                    >
+                      <FaEdit size={16} />
+                      Edit
+                    </button>
+                  )}
+                </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate('/allItems')}
-                  className="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
-                >
-                  Browse All Items
-                </motion.button>
+                {isEditingPersonal ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="fullName"
+                        value={personalData.fullName}
+                        onChange={handlePersonalChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                      />
+                    </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate('/allRecovered')}
-                  className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
-                >
-                  View Recovered Items
-                </motion.button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={personalData.phone}
+                          onChange={handlePersonalChange}
+                          placeholder="Enter your phone number"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Student ID
+                        </label>
+                        <input
+                          type="text"
+                          name="studentId"
+                          value={personalData.studentId}
+                          onChange={handlePersonalChange}
+                          placeholder="Enter your student ID"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Bio (Optional)
+                      </label>
+                      <textarea
+                        name="bio"
+                        value={personalData.bio}
+                        onChange={handlePersonalChange}
+                        placeholder="Tell us a bit about yourself..."
+                        rows="4"
+                        maxLength="200"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none resize-none"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">{personalData.bio.length}/200</p>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        onClick={handleSavePersonalInfo}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50 transition"
+                      >
+                        <FaSave size={16} />
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={() => setIsEditingPersonal(false)}
+                        className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                      >
+                        <FaTimes size={16} />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-gray-50 p-6 rounded-lg">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Full Name</p>
+                      <p className="text-lg text-gray-900 font-medium">{personalData.fullName}</p>
+                    </div>
+                    <div className="bg-gray-50 p-6 rounded-lg">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Email</p>
+                      <p className="text-lg text-gray-900 font-medium">{user?.email}</p>
+                    </div>
+                    <div className="bg-gray-50 p-6 rounded-lg">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Phone</p>
+                      <p className="text-lg text-gray-900 font-medium">{personalData.phone || 'Not provided'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-6 rounded-lg">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Student ID</p>
+                      <p className="text-lg text-gray-900 font-medium">{personalData.studentId || 'Not provided'}</p>
+                    </div>
+                    {personalData.bio && (
+                      <div className="bg-gray-50 p-6 rounded-lg md:col-span-2">
+                        <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Bio</p>
+                        <p className="text-gray-900">{personalData.bio}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          </motion.div>
+            )}
+
+            {/* Settings Tab */}
+            {activeTab === 'settings' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h2>
+
+                {/* Notification Settings */}
+                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <FaBell className="text-teal-600" />
+                    Notification Preferences
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'emailNotifications', label: 'Email when item match found' },
+                      { key: 'dailyDigest', label: 'Daily activity digest' },
+                      { key: 'announcements', label: 'Admin announcements' }
+                    ].map(item => (
+                      <label key={item.key} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings[item.key]}
+                          onChange={() => handleSettingChange(item.key)}
+                          className="w-5 h-5 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
+                        />
+                        <span className="text-gray-700">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Privacy Settings */}
+                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Privacy Settings</h3>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'showNamePublic', label: 'Show my name on postings' },
+                      { key: 'showPhonePublic', label: 'Show my phone number' },
+                      { key: 'showEmailPublic', label: 'Show my email address' }
+                    ].map(item => (
+                      <label key={item.key} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings[item.key]}
+                          onChange={() => handleSettingChange(item.key)}
+                          className="w-5 h-5 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
+                        />
+                        <span className="text-gray-700">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSaveSettings}
+                  disabled={loading}
+                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50 transition flex items-center gap-2"
+                >
+                  <FaSave size={16} />
+                  Save Settings
+                </button>
+              </div>
+            )}
+
+            {/* Activity Tab */}
+            {activeTab === 'activity' && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Activity</h2>
+                {activityLog.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <p>No activity yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {activityLog.map((activity, idx) => (
+                      <div key={idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex items-start gap-4">
+                        <div className="text-teal-600 text-xl mt-1">
+                          <FaCheckCircle />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{activity.description || activity.action}</p>
+                          <p className="text-sm text-gray-600">
+                            {new Date(activity.timestamp || activity.createdAt).toLocaleDateString()} at {new Date(activity.timestamp || activity.createdAt).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Statistics Tab */}
+            {activeTab === 'stats' && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Statistics</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Items Posted', value: stats.itemsPosted },
+                    { label: 'Items Recovered', value: stats.itemsRecovered },
+                    { label: 'Claims Submitted', value: stats.claimsSubmitted },
+                    { label: 'Claims Approved', value: stats.claimsApproved }
+                  ].map((stat, idx) => (
+                    <div key={idx} className="bg-gradient-to-br from-teal-50 to-blue-50 p-6 rounded-lg border border-teal-200">
+                      <p className="text-sm text-gray-600 font-medium">{stat.label}</p>
+                      <p className="text-3xl font-bold text-teal-600 mt-2">{stat.value}</p>
+                    </div>
+                  ))}
+                </div>
+                {stats.successRate && (
+                  <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg border border-green-200">
+                    <p className="text-sm text-gray-600 font-medium">Success Rate</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">{stats.successRate}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

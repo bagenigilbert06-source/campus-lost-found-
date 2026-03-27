@@ -5,12 +5,16 @@ import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
+import { FaCloudUploadAlt, FaTimes, FaEdit } from 'react-icons/fa';
 
 const AddItems = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
     const [imageUrls, setImageUrls] = useState([]); // State to hold multiple image URLs
     const [imageInput, setImageInput] = useState(''); // Temp input for new image URL
+    const [isDragging, setIsDragging] = useState(false);
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [editingUrl, setEditingUrl] = useState('');
 
     const handleAddImageUrl = () => {
         if (!imageInput.trim()) {
@@ -27,6 +31,56 @@ const AddItems = () => {
 
     const handleRemoveImage = (index) => {
         setImageUrls(imageUrls.filter((_, i) => i !== index));
+    };
+
+    const handleFileUpload = async (files) => {
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid File',
+                    text: 'Please upload only image files',
+                });
+                continue;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setImageUrls((prev) => [...prev, e.target.result]);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = Array.from(e.dataTransfer.files);
+        handleFileUpload(files);
+    };
+
+    const handleEditImage = (index, currentUrl) => {
+        setEditingIndex(index);
+        setEditingUrl(currentUrl);
+    };
+
+    const handleSaveEdit = () => {
+        if (editingUrl.trim()) {
+            const newUrls = [...imageUrls];
+            newUrls[editingIndex] = editingUrl;
+            setImageUrls(newUrls);
+            setEditingIndex(null);
+            setEditingUrl('');
+        }
     };
 
     const handleAddItems = (e) => {
@@ -74,7 +128,7 @@ const AddItems = () => {
                         showConfirmButton: false,
                         timer: 1500,
                     });
-                    navigate('/allItems');
+                    navigate('/app/my-items');
                 } else {
                     throw new Error('Unexpected response from server');
                 }
@@ -122,27 +176,64 @@ const AddItems = () => {
                     <label className="label text-zetech-primary">
                         <span className="label-text">Images (Add at least one)</span>
                     </label>
-                    <div className="flex gap-2 mb-2">
-                        <input
-                            type="url"
-                            placeholder="Enter Image URL (e.g., https://example.com/image.jpg)"
-                            className="input input-bordered w-full focus:ring-zetech-primary"
-                            value={imageInput}
-                            onChange={(e) => setImageInput(e.target.value)}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddImageUrl();
-                                }
-                            }}
-                        />
-                        <button
-                            type="button"
-                            onClick={handleAddImageUrl}
-                            className="btn btn-primary text-white px-6"
-                        >
-                            Add Image
-                        </button>
+
+                    {/* URL Input Method */}
+                    <div className="mb-4">
+                        <label className="text-sm font-medium text-gray-600 mb-2 block">Add Image URL</label>
+                        <div className="flex gap-2 mb-2">
+                            <input
+                                type="url"
+                                placeholder="Enter Image URL (e.g., https://example.com/image.jpg)"
+                                className="input input-bordered w-full focus:ring-zetech-primary"
+                                value={imageInput}
+                                onChange={(e) => setImageInput(e.target.value)}
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddImageUrl();
+                                    }
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={handleAddImageUrl}
+                                className="btn btn-primary text-white px-6"
+                            >
+                                Add Image
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Drag & Drop Upload Area */}
+                    <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`p-8 border-2 border-dashed rounded-lg text-center transition-all duration-300 ${
+                            isDragging
+                                ? 'border-zetech-primary bg-emerald-50'
+                                : 'border-gray-300 hover:border-zetech-primary hover:bg-gray-50'
+                        }`}
+                    >
+                        <FaCloudUploadAlt className="mx-auto text-4xl text-gray-400 mb-2" />
+                        <p className="text-gray-700 font-medium mb-1">
+                            Drag and drop images here or click to select
+                        </p>
+                        <p className="text-sm text-gray-500 mb-3">
+                            Supported formats: JPG, PNG, GIF, WebP (Max 5 files at once)
+                        </p>
+                        <label className="inline-block">
+                            <span className="btn btn-sm btn-outline">
+                                Choose Files
+                            </span>
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={(e) => handleFileUpload(Array.from(e.target.files))}
+                                className="hidden"
+                            />
+                        </label>
                     </div>
 
                     {/* Image Preview Grid */}
@@ -152,21 +243,62 @@ const AddItems = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                 {imageUrls.map((url, index) => (
                                     <div key={index} className="relative group">
-                                        <img
-                                            src={url}
-                                            alt={`Preview ${index + 1}`}
-                                            className="w-full h-20 object-cover rounded-lg border-2 border-zetech-primary"
-                                            onError={(e) => {
-                                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10">Invalid</text></svg>';
-                                            }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveImage(index)}
-                                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
-                                        >
-                                            ×
-                                        </button>
+                                        {editingIndex === index ? (
+                                            <div className="absolute inset-0 bg-white rounded-lg border-2 border-zetech-primary p-2 z-10 flex flex-col">
+                                                <input
+                                                    type="url"
+                                                    value={editingUrl}
+                                                    onChange={(e) => setEditingUrl(e.target.value)}
+                                                    className="input input-bordered input-sm w-full mb-1 flex-1"
+                                                    placeholder="Edit URL"
+                                                />
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleSaveEdit}
+                                                        className="btn btn-xs btn-success text-white flex-1"
+                                                    >
+                                                        Save
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditingIndex(null)}
+                                                        className="btn btn-xs btn-ghost flex-1"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <img
+                                                    src={url}
+                                                    alt={`Preview ${index + 1}`}
+                                                    className="w-full h-20 object-cover rounded-lg border-2 border-zetech-primary"
+                                                    onError={(e) => {
+                                                        e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10">Invalid</text></svg>';
+                                                    }}
+                                                />
+                                                <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEditImage(index, url)}
+                                                        className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-blue-600"
+                                                        title="Edit image URL"
+                                                    >
+                                                        <FaEdit size={12} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveImage(index)}
+                                                        className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                                                        title="Delete image"
+                                                    >
+                                                        <FaTimes size={12} />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 ))}
                             </div>

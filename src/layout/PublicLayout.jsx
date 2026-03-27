@@ -1,17 +1,19 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Navbar from '../pages/common/Navbar';
+import PublicNavbar from '../pages/common/PublicNavbar';
 import Footer from '../pages/Footer/Footer';
 import { Toaster } from 'react-hot-toast';
 
-// Public Layout - includes Navbar and Footer for public pages
-// Used for home, about, contact, login, register, etc.
+// Public Layout - For unauthenticated users
+// Shows marketing site with home, items, about, contact
 const PublicLayout = () => {
     return (
-        <div className='max-w-7xl mx-auto'>
+        <div className="min-h-screen flex flex-col bg-white">
             <Toaster position="top-right" />
-            <Navbar />
-            <Outlet />
+            <PublicNavbar />
+            <main className="flex-grow max-w-7xl w-full mx-auto">
+                <Outlet />
+            </main>
             <Footer />
         </div>
     );

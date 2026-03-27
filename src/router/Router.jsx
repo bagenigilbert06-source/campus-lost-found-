@@ -2,16 +2,15 @@ import { createBrowserRouter } from "react-router-dom";
 
 // Layouts
 import PublicLayout from "../layout/PublicLayout";
-import UserLayout from "../layout/UserLayout";
+import DashboardLayout from "../layout/DashboardLayout";
 import AdminLayout from "../layout/AdminLayout";
 import AuthLayout from "../layout/AuthLayout";
 
 // Pages
 import Home from "../pages/Home/Home";
+import DashboardHome from "../pages/DashboardHome/DashboardHome";
 import Register from "../pages/Register/Register";
 import Signin from "../pages/Signin/Signin";
-import AddItems from "../pages/AddItems/AddItems";
-import AllItems from "../pages/AllItems/AllItems";
 import PostDetails from "../pages/PostDetails/PostDetails";
 import MyItemsPage from "../pages/MyItemsPage/MyItemsPage";
 import AllRecoveredItems from "../pages/AllRecovered/AllRecoveredItems";
@@ -19,6 +18,9 @@ import UpdateItems from "../pages/UpdateItems/UpdateItems";
 import ErrorPage from "../pages/ErrorPage/ErrorPage";
 import AboutUs from "../pages/AboutUs/AboutUs";
 import Contact from "../pages/Contact/Contact";
+import FeaturesPage from "../pages/Features/FeaturesPage";
+import ServicesPage from "../pages/Services/ServicesPage";
+import FAQPage from "../pages/FAQ/FAQPage";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 import AdminInventory from "../pages/Admin/AdminInventory";
 import AdminClaims from "../pages/Admin/AdminClaims";
@@ -28,33 +30,38 @@ import AdminSettings from "../pages/Admin/AdminSettings";
 import NotificationSettings from "../pages/Settings/NotificationSettings";
 import CampusDirectory from "../pages/Directory/CampusDirectory";
 import UserProfile from "../pages/UserProfile/UserProfile";
-import StudentDashboard from "../pages/StudentDashboard/StudentDashboard";
 import SearchItems from "../pages/SearchItems/SearchItems";
+import AddItems from "../pages/AddItems/AddItems";
+import DashboardSearch from "../pages/DashboardSearch/DashboardSearch";
+import DashboardMessages from "../pages/DashboardMessages/DashboardMessages";
+import DashboardActivity from "../pages/DashboardActivity/DashboardActivity";
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
 
 // Route Guards
 import PrivateRoute from "./PrivetRoute";
 import AdminRoute from "./AdminRoute";
 import UserRoute from "./UserRoute";
+import AuthGuard from "./AuthGuard";
 
 const router = createBrowserRouter([
   // ============================================
   // AUTH ROUTES - No Navbar/Footer (clean auth pages)
+  // AuthGuard prevents logged-in users from accessing these
   // ============================================
   {
     element: <AuthLayout />,
     children: [
       {
         path: '/signin',
-        element: <Signin />
+        element: <AuthGuard><Signin /></AuthGuard>
       },
       {
         path: '/register',
-        element: <Register />
+        element: <AuthGuard><Register /></AuthGuard>
       },
       {
         path: '/admin-login',
-        element: <AdminLogin />
+        element: <AuthGuard><AdminLogin /></AuthGuard>
       },
     ]
   },
@@ -94,37 +101,50 @@ const router = createBrowserRouter([
   },
 
   // ============================================
-  // USER/STUDENT ROUTES - User layout with Navbar/Footer
+  // DASHBOARD ROUTES - App with sidebar (/app/*)
   // ============================================
   {
-    element: <UserLayout />,
+    path: "/app",
+    element: <DashboardLayout />,
     children: [
       {
-        path: '/dashboard',
-        element: <UserRoute><StudentDashboard /></UserRoute>,
+        path: 'dashboard',
+        element: <UserRoute><DashboardHome /></UserRoute>,
       },
       {
-        path: '/profile',
+        path: 'profile',
         element: <UserRoute><UserProfile /></UserRoute>,
       },
       {
-        path: '/myItems',
+        path: 'my-items',
         element: <UserRoute><MyItemsPage /></UserRoute>,
       },
       {
-        path: '/addItems',
+        path: 'post-item',
         element: <UserRoute><AddItems /></UserRoute>,
       },
       {
-        path: '/allRecovered',
+        path: 'search',
+        element: <UserRoute><DashboardSearch /></UserRoute>,
+      },
+      {
+        path: 'messages',
+        element: <UserRoute><DashboardMessages /></UserRoute>,
+      },
+      {
+        path: 'activity',
+        element: <UserRoute><DashboardActivity /></UserRoute>,
+      },
+      {
+        path: 'recovered',
         element: <UserRoute><AllRecoveredItems /></UserRoute>,
       },
       {
-        path: '/settings/notifications',
+        path: 'settings/notifications',
         element: <UserRoute><NotificationSettings /></UserRoute>,
       },
       {
-        path: "/update/:id",
+        path: "update/:id",
         element: <UserRoute><UpdateItems /></UserRoute>,
         loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
           return Array.isArray(data) ? data[0] : data.data || data;
@@ -132,6 +152,8 @@ const router = createBrowserRouter([
       },
     ]
   },
+
+
 
   // ============================================
   // PUBLIC ROUTES - Public layout with Navbar/Footer
@@ -143,6 +165,18 @@ const router = createBrowserRouter([
       {
         path: '/',
         element: <Home />
+      },
+      {
+        path: '/features',
+        element: <FeaturesPage />
+      },
+      {
+        path: '/services',
+        element: <ServicesPage />
+      },
+      {
+        path: '/faq',
+        element: <FAQPage />
       },
       {
         path: '/aboutUs',
@@ -160,13 +194,7 @@ const router = createBrowserRouter([
         path: '/search',
         element: <SearchItems />,
       },
-      {
-        path: '/allItems',
-        element: <AllItems />,
-        loader: () => fetch('http://localhost:3001/api/items').then(res => res.json()).then(data => {
-          return Array.isArray(data) ? data : data.data || [];
-        })
-      },
+
       {
         path: "/items/:id",
         element: <PrivateRoute><PostDetails /></PrivateRoute>,

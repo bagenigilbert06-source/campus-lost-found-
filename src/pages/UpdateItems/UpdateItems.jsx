@@ -66,7 +66,7 @@ const UpdateItems = () => {
                 console.log("[v0] Update response:", data);
                 if (data.modifiedCount > 0 || data.success || data._id) {
                     toast.success("Item updated successfully!");
-                    navigate('/myItems')
+                    navigate('/app/my-items')
 
                 } else {
                     toast.error("Item update failed.");
