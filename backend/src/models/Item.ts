@@ -18,10 +18,12 @@ export interface IItem extends Document {
   name?: string; // User display name
   status: 'active' | 'recovered' | 'claimed';
   verificationStatus?: 'pending' | 'verified' | 'rejected';
-  claimedBy?: string; // Firebase UID
+  claimedBy?: { email: string; name: string; date: Date };
   claimedAt?: Date;
   recoveredBy?: { email: string; name: string; date: Date };
   metadata?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const ItemSchema = new Schema<IItem>(
@@ -51,7 +53,11 @@ const ItemSchema = new Schema<IItem>(
       enum: ['pending', 'verified', 'rejected'],
       default: 'pending',
     },
-    claimedBy: { type: String },
+    claimedBy: {
+      email: { type: String },
+      name: { type: String },
+      date: { type: Date },
+    },
     claimedAt: { type: Date },
     recoveredBy: {
       email: { type: String },

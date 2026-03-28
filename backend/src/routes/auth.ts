@@ -154,8 +154,8 @@ router.put('/local/password', localAuthMiddleware, [
  */
 router.post('/register', authMiddleware, [
   body('email').isEmail(),
-  body('displayName').optional().isString().trim(),
-  body('photoURL').optional().isURL(),
+  body('displayName').optional({ checkFalsy: true }).isString().trim(),
+  body('photoURL').optional({ checkFalsy: true }).isURL(),
 ], async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {

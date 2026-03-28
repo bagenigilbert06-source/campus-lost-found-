@@ -1,12 +1,20 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model } from 'mongoose';
 
-export interface IUser extends Document {
+export interface IUser {
   _id: string;
   email: string;
   displayName: string;
   passwordHash?: string; // Only for local auth users
   profileImage?: string;
   location?: string;
+  phone?: string;
+  studentId?: string;
+  department?: string;
+  address?: string;
+  dateOfBirth?: Date;
+  emergency_contact?: string;
+  emergency_phone?: string;
+  bio?: string;
   role: 'student' | 'admin';
   authProvider: 'local' | 'google';
   firebaseUid?: string; // Only for Google auth users
@@ -43,6 +51,14 @@ const UserSchema = new Schema<IUser>(
     passwordHash: { type: String }, // Only set for local auth
     profileImage: { type: String },
     location: { type: String },
+    phone: { type: String },
+    studentId: { type: String },
+    department: { type: String },
+    address: { type: String },
+    dateOfBirth: { type: Date },
+    emergency_contact: { type: String },
+    emergency_phone: { type: String },
+    bio: { type: String },
     role: { 
       type: String, 
       enum: ['student', 'admin'], 

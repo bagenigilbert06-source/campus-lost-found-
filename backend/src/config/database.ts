@@ -1,4 +1,7 @@
-import mongoose from 'mongoose';
+import mongoose, { Connection } from 'mongoose';
+import { initializeGridFS } from '../services/gridfsService.js';
+
+let mongooseConnection: Connection;
 
 export async function connectDB(): Promise<void> {
   const MONGODB_URI = process.env.MONGODB_URI;
@@ -25,8 +28,23 @@ export async function connectDB(): Promise<void> {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 5000,
     });
+    mongooseConnection = mongoose.connection;
     console.log('[Database] MongoDB connected successfully');
     console.log(`[Database] Database: ${mongoose.connection.name}`);
+    
+    // Initialize GridFS for image storage
+    try {
+      // Get the MongoDB database from mongoose connection
+      const db = mongoose.connection.db as any;
+      if (!db) {
+        throw new Error('MongoDB database object is not available');
+      }
+      initializeGridFS(db);
+      console.log('[Database] GridFS initialized successfully');
+    } catch (gridfsError: any) {
+      console.error('[Database] GridFS initialization error:', gridfsError.message);
+      throw gridfsError;
+    }
   } catch (error: any) {
     console.error('[Database] MongoDB connection error:', error.message);
     

@@ -241,7 +241,10 @@ router.get('/recovered', optionalAuthMiddleware, async (req: AuthRequest, res, n
     const { items } = await itemService.getItems({ status: 'recovered' });
     
     // Filter items by the email of the person who recovered them
-    const recoveredItems = items.filter(item => item.recoveredBy?.email === email || item.claimedBy?.email === email);
+    const recoveredItems = items.filter(item => 
+      (item.recoveredBy && item.recoveredBy.email === email) || 
+      (item.claimedBy && item.claimedBy.email === email)
+    );
     
     res.json({ 
       success: true, 

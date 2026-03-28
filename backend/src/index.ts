@@ -14,6 +14,10 @@ import searchRoutes from './routes/search.js';
 import matchRoutes from './routes/matches.js';
 import notificationRoutes from './routes/notifications.js';
 import messagesRoutes from './routes/messages.js';
+import bookmarkRoutes from './routes/bookmarks.js';
+import claimsRoutes from './routes/claims.js';
+import usersRoutes from './routes/users.js';
+import imagesRoutes from './routes/images.js';
 
 // Get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -48,6 +52,10 @@ app.use('/api/search', searchRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api/claims', claimsRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/images', imagesRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

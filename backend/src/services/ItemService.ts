@@ -26,7 +26,7 @@ export class ItemService {
   async getItems(filters: any = {}, page: number = 1, limit: number = 10): Promise<{ items: IItem[]; total: number }> {
     const skip = (page - 1) * limit;
 
-    const query: any = { status: 'active' };
+    const query: any = { status: filters.status || 'active' };
 
     if (filters.category) query.category = filters.category;
     if (filters.location) query.location = new RegExp(filters.location, 'i');
