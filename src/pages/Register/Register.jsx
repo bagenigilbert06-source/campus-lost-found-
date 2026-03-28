@@ -1,41 +1,57 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Lottie from 'lottie-react';
 import registerAnimation from '../../assets/signup.json';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
+import useAuthRedirect from '../../hooks/useAuthRedirect';
 
 const Register = () => {
-  const { createUser, signInWithGoogle, user, loading } = useContext(AuthContext);
+  const { createUser, signInWithGoogle, user, loading, userRole } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
 
-  // Effect: Redirect after successful authentication
-  useEffect(() => {
-    if (user && !loading && !isLoading) {
-      const isAdminEmail = schoolConfig.adminEmails.includes(user?.email?.toLowerCase());
-      const redirectPath = isAdminEmail ? '/admin' : '/app/dashboard';
-      
-      // Small delay to ensure auth state is fully settled
-      const timer = setTimeout(() => {
-        navigate(redirectPath, { replace: true });
-      }, 100);
-      
-      return () => clearTimeout(timer);
+  // Handle redirect after successful authentication
+  useAuthRedirect(user, loading, userRole);
+
+  // Handle photo file selection
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file is an image
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+
+      setPhotoFile(file);
+
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
-  }, [user, loading, isLoading, navigate]);
+  };
 
   const handleSignUp = async (e) => {
     e.preventDefault();
     const name = e.target.name.value;
     const email = e.target.email.value;
     const password = e.target.password.value;
-    const photo = e.target.photo.value;
 
     const isValidPassword =
       password.length >= 6 && /[A-Z]/.test(password) && /[a-z]/.test(password);
@@ -47,14 +63,18 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      // Create user with Firebase (AuthProvider handles backend registration)
-      await createUser(email, password, name, photo);
+      // Pass photo file to createUser function
+      // It will handle upload after user creation with proper Firebase UID
+      await createUser(email, password, name, photoFile);
       
       toast.success('Successfully registered! Redirecting...');
-      // Don't redirect here - let useEffect handle it when user state updates
+      // Reset photo after successful registration
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      // Don't redirect here - useAuthRedirect hook handles it when user state updates
     } catch (error) {
       setIsLoading(false);
-      console.error('[v0] Registration error:', error);
+      console.error('[Register] Error:', error);
       
       // Handle Firebase-specific error codes
       const errorMap = {
@@ -65,6 +85,12 @@ const Register = () => {
         'auth/too-many-requests': 'Too many registration attempts. Please try again later.',
       };
       
+      // Check if error is from storage upload
+      if (error.message && error.message.includes('Failed to upload photo')) {
+        toast.error(error.message);
+        return;
+      }
+      
       const userFriendlyMessage = errorMap[error.code] || error.message || "Registration failed. Please try again.";
       toast.error(userFriendlyMessage);
     }
@@ -73,26 +99,17 @@ const Register = () => {
   const handleGoogleSignIn = () => {
     setIsLoading(true);
     signInWithGoogle()
-      .then(() => {
-        toast.success('Successfully signed up with Google! Redirecting...');
-        // Don't redirect here - let useEffect handle it when user state updates
-      })
       .catch((error) => {
         setIsLoading(false);
-        console.error('[v0] Google Sign-Up error code:', error.code);
-        console.error('[v0] Google Sign-Up error:', error.message);
+        console.error('[Google Sign-Up] Error code:', error.code);
+        console.error('[Google Sign-Up] Error message:', error.message);
         
-        // Handle specific errors gracefully
-        if (error.code === 'auth/popup-blocked') {
-          toast.error('Popup was blocked. Please allow popups and try again.');
-        } else if (error.code === 'auth/popup-closed-by-user') {
-          toast.error('Sign-up cancelled.');
-        } else if (error.code === 'auth/configuration-not-found') {
-          toast.error('Google Sign-Up not available. Try email/password instead.');
-        } else {
-          toast.error(error.message || "Cannot sign up with Google. Try email/password.");
-        }
+        // Use user-friendly error message
+        const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign up with Google. Try email/password.";
+        toast.error(errorMessage);
       });
+    // Note: On success, the useAuthRedirect hook will handle navigation.
+    // If redirect flow is used, user will be redirected to Google then back to app.
   };
 
   return (
@@ -163,13 +180,29 @@ const Register = () => {
             </button>
           </div>
           <div>
-            <input
-              type="text"
-              name="photo"
-              placeholder="Photo URL"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200"
-              required
-            />
+            <label htmlFor="photo" className="block text-sm font-bold text-gray-800 mb-2">
+              Profile Photo (Optional)
+            </label>
+            <div className="flex gap-3 items-start">
+              <div className="flex-1">
+                <input
+                  type="file"
+                  id="photo"
+                  name="photo"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-zetech-primary focus:border-transparent transition duration-200 cursor-pointer"
+                />
+                <p className="text-xs text-gray-500 mt-1">Max size: 5MB (JPG, PNG, GIF)</p>
+              </div>
+              {photoPreview && (
+                <img
+                  src={photoPreview}
+                  alt="Preview"
+                  className="w-16 h-16 rounded-lg object-cover border border-emerald-200"
+                />
+              )}
+            </div>
           </div>
           
           <button 

@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
+import { FaBars, FaTimes } from "react-icons/fa";
 
 const PublicNavbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -42,162 +43,151 @@ const PublicNavbar = () => {
 
   const navLinkClass = useCallback(
     ({ isActive }) =>
-      ["navbar-link", isActive ? "navbar-link-active" : "navbar-link-inactive"].join(" "),
+      [
+        "inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium",
+        isActive
+          ? "bg-emerald-50 text-emerald-700"
+          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+      ].join(" "),
     []
   );
 
   const mobileNavLinkClass = useCallback(
     ({ isActive }) =>
       [
-        "mobile-navbar-link",
-        isActive ? "mobile-navbar-link-active" : "mobile-navbar-link-inactive",
+        "flex items-center rounded-xl px-3 py-3 text-sm font-medium",
+        isActive
+          ? "bg-emerald-50 text-emerald-700"
+          : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
       ].join(" "),
     []
   );
 
   const mainLinks = useMemo(
-    () => (
-      <>
-        <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
-        <li><NavLink to="/features" className={navLinkClass}>Features</NavLink></li>
-        <li><NavLink to="/services" className={navLinkClass}>Services</NavLink></li>
-        <li><NavLink to="/faq" className={navLinkClass}>FAQ</NavLink></li>
-        <li><NavLink to="/contact" className={navLinkClass}>Contact</NavLink></li>
-      </>
-    ),
-    [navLinkClass]
-  );
-
-  const mobileMainLinks = useMemo(
-    () => (
-      <>
-        <li><NavLink to="/" className={mobileNavLinkClass} onClick={closeMenu}>Home</NavLink></li>
-        <li><NavLink to="/features" className={mobileNavLinkClass} onClick={closeMenu}>Features</NavLink></li>
-        <li><NavLink to="/services" className={mobileNavLinkClass} onClick={closeMenu}>Services</NavLink></li>
-        <li><NavLink to="/faq" className={mobileNavLinkClass} onClick={closeMenu}>FAQ</NavLink></li>
-        <li><NavLink to="/contact" className={mobileNavLinkClass} onClick={closeMenu}>Contact</NavLink></li>
-      </>
-    ),
-    [mobileNavLinkClass, closeMenu]
+    () => [
+      { label: "Home", to: "/" },
+      { label: "Features", to: "/features" },
+      { label: "Services", to: "/services" },
+      { label: "FAQ", to: "/faq" },
+      { label: "Contact", to: "/contact" },
+    ],
+    []
   );
 
   return (
-    <header className="sticky top-0 z-50 px-3 pt-3 sm:px-4 lg:px-6">
-      <div className="navbar-shell mx-auto max-w-7xl">
-        <div className="navbar-glass border border-emerald-100/60 shadow-[0_10px_30px_rgba(16,185,129,0.08)]">
-          <div className="mx-auto flex min-h-[68px] items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
-            {/* Logo */}
-            <div
-              className="flex min-w-0 cursor-pointer items-center gap-3"
-              onClick={() => navigate("/")}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") navigate("/");
-              }}
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+          {/* Brand */}
+          <div
+            className="flex min-w-0 cursor-pointer items-center gap-3"
+            onClick={() => navigate("/")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") navigate("/");
+            }}
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-sm font-bold text-white">
+              Z
+            </div>
+
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold text-slate-900">
+                Zetech Lost &amp; Found
+              </h1>
+              <p className="hidden truncate text-xs text-slate-500 sm:block">
+                Find, report, and recover items easily
+              </p>
+            </div>
+          </div>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex lg:flex-1 lg:justify-center">
+            <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+              {mainLinks.map((link) => (
+                <NavLink key={link.to} to={link.to} className={navLinkClass}>
+                  {link.label}
+                </NavLink>
+              ))}
+            </div>
+          </nav>
+
+          {/* Desktop Auth Buttons */}
+          <div className="hidden lg:flex items-center gap-3">
+            <Link
+              to="/signin"
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
             >
-              <div className="brand-logo-shell flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-400 to-green-600 shadow-[0_8px_18px_rgba(16,185,129,0.22)]">
-                <span className="text-2xl font-bold text-white">Z</span>
-              </div>
+              Sign In
+            </Link>
+            <Link
+              to="/register"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white"
+            >
+              Sign Up
+            </Link>
+          </div>
 
-              <div className="min-w-0 brand-text-wrap">
-                <h1 className="brand-title">Zetech Lost &amp; Found</h1>
-                <p className="brand-subtitle">Find, report, and recover items easily</p>
-              </div>
-            </div>
+          {/* Mobile menu button */}
+          <div className="lg:hidden">
+            <button
+              ref={buttonRef}
+              onClick={toggleMenu}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700"
+              aria-label="Toggle navigation menu"
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-menu"
+              type="button"
+            >
+              {isMenuOpen ? <FaTimes className="h-4 w-4" /> : <FaBars className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:block">
-              <div className="nav-pill border border-emerald-100/70 bg-white/70 backdrop-blur-xl">
-                <ul className="flex items-center gap-1">{mainLinks}</ul>
-              </div>
-            </nav>
+        {/* Mobile Menu */}
+        {isMenuOpen && (
+          <div
+            id="mobile-menu"
+            ref={menuRef}
+            className="border-t border-slate-200 bg-white py-4 lg:hidden"
+          >
+            <div className="space-y-4">
+              <ul className="space-y-1">
+                {mainLinks.map((link) => (
+                  <li key={link.to}>
+                    <NavLink
+                      to={link.to}
+                      className={mobileNavLinkClass}
+                      onClick={closeMenu}
+                    >
+                      {link.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
 
-            {/* Desktop Auth Buttons */}
-            <div className="hidden lg:flex items-center gap-3">
-              <Link to="/signin" className="apple-btn apple-btn-secondary">
-                Sign In
-              </Link>
-              <Link to="/register" className="apple-btn apple-btn-primary">
-                Sign Up
-              </Link>
-            </div>
+              <div className="h-px bg-slate-200" />
 
-            {/* Mobile Menu Button */}
-            <div className="relative lg:hidden">
-              <button
-                ref={buttonRef}
-                onClick={toggleMenu}
-                className="mobile-icon-btn"
-                aria-label="Toggle navigation menu"
-                aria-expanded={isMenuOpen}
-                aria-controls="mobile-menu"
-                type="button"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="2.2"
-                  stroke="currentColor"
-                  className="h-5 w-5 text-slate-800"
+              <div className="flex flex-col gap-3">
+                <Link
+                  to="/signin"
+                  onClick={closeMenu}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
                 >
-                  {isMenuOpen ? (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  ) : (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M4 6h16M4 12h16m-16 6h16"
-                    />
-                  )}
-                </svg>
-              </button>
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={closeMenu}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white"
+                >
+                  Sign Up
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      <div
-        className={`relative overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out lg:hidden ${
-          isMenuOpen
-            ? "max-h-[480px] opacity-100 translate-y-0"
-            : "max-h-0 opacity-0 -translate-y-1 pointer-events-none"
-        }`}
-      >
-        <div
-          id="mobile-menu"
-          ref={menuRef}
-          className="mobile-menu-glass mx-1 mt-3 rounded-2xl border border-emerald-100/60 p-4 shadow-xl"
-        >
-          <div className="space-y-4">
-            <ul className="space-y-1">{mobileMainLinks}</ul>
-
-            <div className="h-px bg-black/5 dark:bg-white/10" />
-
-            <div className="flex flex-col gap-3">
-              <Link
-                to="/signin"
-                onClick={closeMenu}
-                className="apple-btn apple-btn-secondary w-full justify-center"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                onClick={closeMenu}
-                className="apple-btn apple-btn-primary w-full justify-center"
-              >
-                Sign Up
-              </Link>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </header>
   );

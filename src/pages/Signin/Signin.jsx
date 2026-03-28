@@ -1,5 +1,5 @@
-import React, { useContext, useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useContext, useState } from 'react';
+import { Link } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
@@ -8,27 +8,15 @@ import Lottie from 'lottie-react';
 import loginAnimation from '../../assets/login.json';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
+import useAuthRedirect from '../../hooks/useAuthRedirect';
 
 const Signin = () => {
-    const { singInUser, signInWithGoogle, user, loading } = useContext(AuthContext);
-    const navigate = useNavigate();
+    const { singInUser, signInWithGoogle, user, loading, userRole } = useContext(AuthContext);
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Effect: Redirect after successful authentication
-    useEffect(() => {
-      if (user && !loading && !isLoading) {
-        const isAdminEmail = schoolConfig.adminEmails.includes(user?.email?.toLowerCase());
-        const redirectPath = isAdminEmail ? '/admin' : '/app/dashboard';
-        
-        // Small delay to ensure auth state is fully settled
-        const timer = setTimeout(() => {
-          navigate(redirectPath, { replace: true });
-        }, 100);
-        
-        return () => clearTimeout(timer);
-      }
-    }, [user, loading, isLoading, navigate]);
+    // Handle redirect after successful authentication
+    useAuthRedirect(user, loading, userRole);
 
     const handleSignin = (e) => {
         e.preventDefault();
@@ -40,12 +28,12 @@ const Signin = () => {
         singInUser(email, password)
             .then(() => {
                 toast.success('Successfully signed in! Redirecting...');
-                // Don't redirect here - let useEffect handle it when user state updates
+                // Don't redirect here - useAuthRedirect hook handles it when user state updates
             })
             .catch((error) => {
                 setIsLoading(false);
-                console.error('[v0] Signin error code:', error.code);
-                console.error('[v0] Signin error message:', error.message);
+                console.error('[Signin] Error code:', error.code);
+                console.error('[Signin] Error message:', error.message);
                 
                 // Handle Firebase-specific error codes
                 const errorMap = {
@@ -66,19 +54,17 @@ const Signin = () => {
     const handleGoogleSignIn = () => {
         setIsLoading(true);
         signInWithGoogle()
-            .then(() => {
-                toast.success('Successfully signed in with Google! Redirecting...');
-                // Don't redirect here - let useEffect handle it when user state updates
-            })
             .catch((error) => {
                 setIsLoading(false);
-                console.error('[v0] Google Sign-In error code:', error.code);
-                console.error('[v0] Google Sign-In error:', error.message);
+                console.error('[Google Sign-In] Error code:', error.code);
+                console.error('[Google Sign-In] Error message:', error.message);
                 
                 // Use the user-friendly message from the provider if available
                 const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.";
                 toast.error(errorMessage);
             });
+        // Note: On success, the useAuthRedirect hook will handle navigation.
+        // If redirect flow is used, user will be redirected to Google then back to app.
     };
 
     return (

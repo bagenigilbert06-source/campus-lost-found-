@@ -2,10 +2,8 @@ import React, { useEffect, useState } from 'react';
 import AuthContext from './AuthContext';
 import { 
   createUserWithEmailAndPassword, 
-  GoogleAuthProvider, 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
-  signInWithPopup, 
   signOut, 
   updateProfile,
   getIdToken 
@@ -13,6 +11,18 @@ import {
 import auth from '../../firebase/firebase.init';
 import { schoolConfig } from '../../config/schoolConfig';
 import axios from 'axios';
+import {
+  signInWithGoogleSmartFlow,
+  handleGoogleSignInRedirectResult,
+  getGoogleAuthErrorMessage,
+  clearRedirectState,
+} from '../../utils/googleAuthUtils';
+import { uploadProfilePhoto } from '../../utils/storageUtils';
+import { 
+  getIntendedPath, 
+  clearIntendedPath,
+  getFinalRedirectPath 
+} from '../../utils/authRedirectManager';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -22,50 +32,63 @@ const AuthProvider = ({ children }) => {
     const [userRole, setUserRole] = useState(null);
 
     // Create user with Firebase, then register profile in MongoDB
-    const createUser = async (email, password, displayName, photoURL) => {
+    const createUser = async (email, password, displayName, photoFile) => {
         setLoading(true);
         try {
-            console.log("[v0] Starting Firebase user creation for:", email);
-            // Create Firebase user
+            // Step 1: Create Firebase user
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const firebaseUser = userCredential.user;
-            console.log("[v0] Firebase user created successfully:", firebaseUser.uid);
+            const firebaseUid = firebaseUser.uid;
 
-            // Update Firebase profile
+            console.log('Firebase user created with UID:', firebaseUid);
+
+            // Step 2: Upload photo to Firebase Storage if provided
+            let photoURL = '';
+            if (photoFile && photoFile instanceof File) {
+                try {
+                    console.log('Uploading profile photo...');
+                    photoURL = await uploadProfilePhoto(photoFile, firebaseUid);
+                    console.log('Photo uploaded successfully:', photoURL);
+                } catch (uploadError) {
+                    console.warn('Photo upload failed, continuing without photo:', uploadError.message);
+                    // Don't fail registration if photo upload fails
+                    photoURL = '';
+                }
+            }
+
+            // Step 3: Update Firebase profile with photo URL
             await updateProfile(firebaseUser, {
                 displayName: displayName,
-                photoURL: photoURL,
+                photoURL: photoURL || '',
             });
-            console.log("[v0] Firebase profile updated");
 
-            // Get Firebase ID token
+            // Step 4: Get Firebase ID token
             const token = await getIdToken(firebaseUser);
-            console.log("[v0] Firebase ID token obtained");
             localStorage.setItem('firebaseToken', token);
 
-            // Register user profile in MongoDB
+            // Step 5: Register user profile in MongoDB
             try {
-                console.log("[v0] Registering user in MongoDB");
                 await axios.post(`${API_URL}/auth/register`, {
                     email: firebaseUser.email,
                     displayName: displayName,
-                    photoURL: photoURL,
+                    photoURL: photoURL || '',
                 }, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
                 });
-                console.log("[v0] MongoDB registration successful");
             } catch (mongoErr) {
-                console.warn('[v0] MongoDB registration warning:', mongoErr.response?.status === 409 ? 'User already exists' : mongoErr.message);
                 // Don't fail if user already exists in MongoDB
+                if (mongoErr.response?.status !== 409) {
+                    console.error('MongoDB registration error:', mongoErr.message);
+                }
             }
 
             setLoading(false);
             return firebaseUser;
         } catch (error) {
-            console.error('[v0] Firebase user creation error:', error.code, error.message);
+            console.error('Firebase user creation error:', error.code, error.message);
             setLoading(false);
             throw error;
         }
@@ -75,17 +98,19 @@ const AuthProvider = ({ children }) => {
     const singInUser = async (email, password) => {
         setLoading(true);
         try {
-            console.log("[v0] Firebase sign-in attempt for:", email);
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            console.log("[v0] Firebase sign-in successful for user:", userCredential.user.email);
             const token = await getIdToken(userCredential.user);
-            console.log("[v0] Firebase token obtained successfully");
             localStorage.setItem('firebaseToken', token);
+            
+            // Sync user to MongoDB to ensure database record exists
+            await syncUserProfileToDatabase(userCredential.user).catch(err => 
+              console.warn('Profile sync error:', err.message)
+            );
+            
             setLoading(false);
             return userCredential;
         } catch (error) {
-            console.error('[v0] Firebase sign-in error code:', error.code);
-            console.error('[v0] Firebase sign-in error message:', error.message);
+            console.error('Firebase sign-in error:', error.code, error.message);
             setLoading(false);
             throw error;
         }
@@ -98,63 +123,51 @@ const AuthProvider = ({ children }) => {
         return signOut(auth);
     };
 
-    // Sign in with Google
+    // Sign in with Google - Smart popup/redirect with automatic fallback
     const signInWithGoogle = async () => {
-        const googleProvider = new GoogleAuthProvider();
-        
-        // Configure Google provider for popup
-        googleProvider.setCustomParameters({
-            'prompt': 'select_account',
-            'login_hint': ''
-        });
-        
         setLoading(true);
-        let userCredential = null;
         
         try {
-            console.log("[v0] Attempting Google Sign-In with popup");
-            userCredential = await signInWithPopup(auth, googleProvider);
-            const firebaseUser = userCredential.user;
-            console.log("[v0] Google Sign-In successful for user:", firebaseUser.email);
-            
-            const token = await getIdToken(firebaseUser);
-            console.log("[v0] Firebase token obtained for Google user");
-            localStorage.setItem('firebaseToken', token);
+            // Use smart flow: tries popup on desktop, redirect on mobile, fallback from popup to redirect
+            const result = await signInWithGoogleSmartFlow(
+                auth,
+                () => {
+                  // Callback when redirect is used
+                  // Don't set loading to false - auth state listener will handle it
+                  console.log('Google sign-in: redirect flow initiated...');
+                }
+            );
 
-            // Sync Google user profile to MongoDB
-            try {
-                console.log("[v0] Syncing Google user to MongoDB");
-                await axios.post(`${API_URL}/auth/register`, {
-                    email: firebaseUser.email,
-                    displayName: firebaseUser.displayName,
-                    photoURL: firebaseUser.photoURL,
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                console.log("[v0] MongoDB sync successful");
-            } catch (mongoErr) {
-                console.warn('[v0] MongoDB sync warning (user may already exist):', mongoErr.response?.status === 409 ? 'User already exists' : mongoErr.message);
-                // Continue even if sync fails - user is authenticated in Firebase
+            // If popup succeeded, result will contain user
+            if (result) {
+                // Popup succeeded - get and store token
+                const token = await getIdToken(result.user);
+                localStorage.setItem('firebaseToken', token);
+                
+                // Sync with database in background (don't await to prevent blocking redirect)
+                syncUserProfileToDatabase(result.user).catch(err => 
+                  console.warn('Background sync error:', err.message)
+                );
+                
+                // Auth state listener will handle the rest
+                return result;
             }
 
-            setLoading(false);
-            return userCredential;
+            // Redirect flow was used - user will be redirected to Google
+            // Loading state will be updated by auth state listener when user returns
+            return null;
         } catch (error) {
-            console.error('[v0] Google Sign-In error:', error.code, error.message);
+            console.error('Google Sign-In failed:', {
+                code: error.code,
+                message: error.message,
+                type: error.constructor.name,
+                fullError: error
+            });
             setLoading(false);
+            clearRedirectState();
             
-            // Re-throw with more context
-            const errorMap = {
-                'auth/popup-blocked': 'Popup was blocked by your browser. Please check your popup blocker settings.',
-                'auth/popup-closed-by-user': 'Sign-in was cancelled.',
-                'auth/configuration-not-found': 'Google Sign-In is not properly configured. Please contact support.',
-                'auth/cancelled-popup-request': 'Another sign-in is already in progress.',
-            };
-            
-            error.userFriendlyMessage = errorMap[error.code] || 'Failed to sign in with Google. Please try again.';
+            // Add user-friendly error message
+            error.userFriendlyMessage = getGoogleAuthErrorMessage(error.code);
             throw error;
         }
     };
@@ -168,46 +181,125 @@ const AuthProvider = ({ children }) => {
         return 'student';
     };
 
-    // Monitor Firebase authentication state
-    useEffect(() => {
-        console.log("[v0] AuthProvider mounted - setting up auth state listener");
-        const unSubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            console.log("[v0] Auth state changed:", currentUser ? currentUser.email : "No user");
-            setUser(currentUser);
+    // Sync user profile with MongoDB after auth
+    const syncUserProfileToDatabase = async (firebaseUser) => {
+        if (!firebaseUser?.email) return;
+
+        try {
+            const token = await getIdToken(firebaseUser);
             
-            if (currentUser?.email) {
+            await axios.post(`${API_URL}/auth/register`, {
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || '',
+                photoURL: firebaseUser.photoURL || '',
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+        } catch (mongoErr) {
+            // Don't fail auth if sync fails - user is authenticated in Firebase
+            if (mongoErr.response?.status !== 409) {
+                console.warn('MongoDB profile sync error:', mongoErr.message);
+            }
+        }
+    };
+
+    // Monitor Firebase authentication state and handle redirects
+    useEffect(() => {
+        let unsubscribe;
+        let isComponentMounted = true;
+        let redirectResultHandled = false;
+
+        const initializeAuth = async () => {
+            try {
+                // Step 1: Check if user is returning from Google sign-in redirect
                 try {
-                    // Get and store Firebase ID token
-                    const token = await getIdToken(currentUser);
-                    console.log("[v0] Token obtained for user:", currentUser.email);
-                    localStorage.setItem('firebaseToken', token);
+                    const redirectResult = await handleGoogleSignInRedirectResult(auth);
+                    
+                    if (redirectResult && redirectResult.user && isComponentMounted) {
+                        // User successfully signed in via redirect
+                        const firebaseUser = redirectResult.user;
+                        redirectResultHandled = true;
+                        
+                        // Store token
+                        const token = await getIdToken(firebaseUser);
+                        localStorage.setItem('firebaseToken', token);
+                        
+                        // Sync with database in background (don't block auth state update)
+                        syncUserProfileToDatabase(firebaseUser).catch(err => 
+                          console.warn('Background sync error:', err.message)
+                        );
+                    }
+                } catch (redirectError) {
+                    console.error('Handling redirect result:', redirectError.code, redirectError.message);
+                    // Continue - auth state listener will verify user state
+                } finally {
+                    // Clear redirect state flag after handling
+                    clearRedirectState();
+                }
 
-                    // Set axios default header for API requests
-                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                // Step 2: Set up auth state listener
+                // This runs AFTER redirect result check, ensuring no auth flicker
+                if (isComponentMounted) {
+                    unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+                        if (!isComponentMounted) return;
 
-                    // Determine user role
-                    const role = determineUserRole(currentUser.email);
-                    console.log("[v0] User role determined:", role);
-                    setUserRole(role);
+                        try {
+                            if (currentUser?.email) {
+                                // User is authenticated
+                                const token = await getIdToken(currentUser);
+                                localStorage.setItem('firebaseToken', token);
 
-                    setLoading(false);
-                } catch (err) {
-                    console.error('[v0] Token retrieval error:', err);
+                                // Set axios default header for all API requests
+                                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+                                // Sync user to MongoDB to ensure database record exists
+                                await syncUserProfileToDatabase(currentUser).catch(err => 
+                                  console.warn('Background sync error:', err.message)
+                                );
+
+                                // Determine user role
+                                const role = determineUserRole(currentUser.email);
+                                
+                                // Update state with user and role
+                                setUser(currentUser);
+                                setUserRole(role);
+                            } else {
+                                // User is logged out
+                                setUser(null);
+                                setUserRole(null);
+                                localStorage.removeItem('firebaseToken');
+                                delete axios.defaults.headers.common['Authorization'];
+                            }
+                        } catch (err) {
+                            console.error('Auth state update error:', err.message);
+                        } finally {
+                            // Finish loading once auth state is settled
+                            if (isComponentMounted) {
+                                setLoading(false);
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Auth initialization error:', error.message);
+                if (isComponentMounted) {
                     setLoading(false);
                 }
-            } else {
-                // Clear data on logout
-                console.log("[v0] Clearing auth data");
-                setUserRole(null);
-                localStorage.removeItem('firebaseToken');
-                delete axios.defaults.headers.common['Authorization'];
-                setLoading(false);
             }
-        });
+        };
 
+        // Start auth initialization
+        initializeAuth();
+
+        // Cleanup function
         return () => {
-            console.log("[v0] Cleaning up auth state listener");
-            unSubscribe();
+            isComponentMounted = false;
+            if (unsubscribe) {
+                unsubscribe();
+            }
         };
     }, []);
 

@@ -5,6 +5,8 @@ import { FaRegBookmark } from 'react-icons/fa';
 import AuthContext from '../context/Authcontext/AuthContext';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { getIdToken } from 'firebase/auth';
+import auth from '../firebase/firebase.init';
 
 const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
   const { user } = useContext(AuthContext);
@@ -23,6 +25,19 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
     lg: 'p-3',
   };
 
+  // Get the Firebase ID token
+  const getFirebaseToken = async () => {
+    try {
+      if (user) {
+        const token = await getIdToken(user);
+        return token;
+      }
+    } catch (error) {
+      console.error('Error getting Firebase token:', error);
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (user && itemId) {
       checkBookmarkStatus();
@@ -31,9 +46,12 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
 
   const checkBookmarkStatus = async () => {
     try {
+      const token = await getFirebaseToken();
+      if (!token) return;
+
       const response = await axios.get(
         `http://localhost:3001/api/bookmarks/check/${itemId}`,
-        { headers: { Authorization: `Bearer ${user.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setIsBookmarked(response.data.isBookmarked);
     } catch (error) {
@@ -56,16 +74,21 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
 
     setIsLoading(true);
     try {
+      const token = await getFirebaseToken();
+      if (!token) {
+        throw new Error('Failed to get authentication token');
+      }
+
       if (isBookmarked) {
         await axios.delete(
           `http://localhost:3001/api/bookmarks/${itemId}`,
-          { headers: { Authorization: `Bearer ${user.token}` } }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
         await axios.post(
           `http://localhost:3001/api/bookmarks`,
           { itemId },
-          { headers: { Authorization: `Bearer ${user.token}` } }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
       }
       setIsBookmarked(!isBookmarked);

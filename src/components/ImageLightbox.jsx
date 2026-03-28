@@ -5,18 +5,18 @@ import { FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 const ImageLightbox = ({ images, initialIndex = 0, isOpen, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
-  if (!images || images.length === 0) return null;
-
-  const currentImage = images[currentIndex];
-
   const handlePrevious = (e) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    if (images && images.length > 0) {
+      setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    }
   };
 
   const handleNext = (e) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    if (images && images.length > 0) {
+      setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -30,7 +30,11 @@ const ImageLightbox = ({ images, initialIndex = 0, isOpen, onClose }) => {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen, currentIndex]);
+  }, [isOpen, currentIndex, handlePrevious, handleNext, handleKeyDown, onClose]);
+
+  if (!images || images.length === 0) return null;
+
+  const currentImage = images[currentIndex];
 
   return (
     <AnimatePresence>

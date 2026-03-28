@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { NavLink, Link } from "react-router-dom";
+import React, { useContext, useMemo } from "react";
+import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaHome,
   FaSearch,
@@ -9,9 +9,16 @@ import {
   FaBox,
   FaComment,
   FaLifeRing,
+  FaSignOutAlt,
 } from "react-icons/fa";
+import toast from "react-hot-toast";
+import AuthContext from "../../context/Authcontext/AuthContext";
 
 const DashboardSidebar = ({ isOpen, onClose }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { signOutUser } = useContext(AuthContext);
+
   const menuItems = useMemo(
     () => [
       {
@@ -24,37 +31,37 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
         label: "Search Items",
         path: "/app/search",
         icon: FaSearch,
-        description: "Find items",
+        description: "Find lost and found items",
       },
       {
         label: "Post Item",
         path: "/app/post-item",
         icon: FaPlus,
-        description: "Report lost/found",
+        description: "Report a lost or found item",
       },
       {
         label: "My Items",
         path: "/app/my-items",
         icon: FaBox,
-        description: "Your postings",
+        description: "Manage your posted items",
       },
       {
         label: "Messages",
         path: "/app/messages",
         icon: FaComment,
-        description: "Inbox",
+        description: "Check conversations",
       },
       {
         label: "Activity",
         path: "/app/activity",
         icon: FaHistory,
-        description: "Recent activity",
+        description: "Recent account activity",
       },
       {
         label: "Profile",
         path: "/app/profile",
         icon: FaUser,
-        description: "Account settings",
+        description: "Account and personal details",
       },
     ],
     []
@@ -62,17 +69,28 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
 
   const navLinkClass = ({ isActive }) =>
     [
-      "group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm transition-colors duration-200",
+      "group flex items-start gap-3 rounded-2xl px-3 py-2.5",
       isActive
-        ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-800 ring-1 ring-emerald-200 shadow-sm"
-        : "text-gray-600 hover:bg-emerald-50/70 hover:text-gray-900",
+        ? "bg-emerald-50 text-emerald-900"
+        : "text-slate-600 hover:bg-white hover:text-slate-900",
     ].join(" ");
+
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      toast.success("Logged out successfully");
+      onClose?.();
+      navigate("/");
+    } catch (error) {
+      toast.error("Failed to log out. Please try again.");
+    }
+  };
 
   return (
     <>
       {/* Mobile Overlay */}
       <div
-        className={`fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-[1.5px] transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 z-30 bg-slate-900/30 lg:hidden ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={onClose}
@@ -81,110 +99,150 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-16 z-40 h-[calc(100vh-64px)] w-72 overflow-y-auto border-r border-emerald-100 bg-white/95 backdrop-blur-md transition-transform duration-300 ease-out will-change-transform lg:sticky lg:top-16 lg:z-20 lg:h-[calc(100vh-64px)] lg:translate-x-0 ${
+        className={`fixed left-0 top-16 z-40 h-[calc(100vh-64px)] w-72 border-r border-slate-200 bg-[#f8faf8] lg:sticky lg:top-16 lg:z-20 lg:h-[calc(100vh-64px)] ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } lg:translate-x-0`}
       >
-        <div className="flex min-h-full flex-col">
-          {/* Close button for mobile */}
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 rounded-xl border border-transparent p-2 text-gray-500 transition-colors duration-200 hover:border-emerald-100 hover:bg-emerald-50 hover:text-emerald-700 lg:hidden"
-            aria-label="Close sidebar"
-            type="button"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        <div className="flex h-full flex-col">
+          {/* Header */}
+          <div className="relative shrink-0 border-b border-slate-200 px-4 pb-3 pt-4">
+            <button
+              onClick={onClose}
+              className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+              aria-label="Close sidebar"
+              type="button"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
 
-          {/* Brand / Header */}
-          <div className="border-b border-emerald-100 px-5 pb-4 pt-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-lg font-bold text-white shadow-[0_8px_18px_rgba(16,185,129,0.22)]">
+            <Link
+              to="/app/dashboard"
+              onClick={onClose}
+              className="flex items-center gap-3"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-sm font-bold text-white">
                 Z
               </div>
+
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-bold text-gray-900">
-                  Student Dashboard
+                <h2 className="truncate text-sm font-semibold text-slate-900">
+                  Zetech Lost &amp; Found
                 </h2>
-                <p className="truncate text-xs font-medium text-emerald-700">
-                  Lost &amp; Found Portal
+                <p className="truncate text-xs text-slate-500">
+                  Student workspace
                 </p>
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1.5 px-4 py-4">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
+          <div className="min-h-0 flex-1 px-3 py-3">
+            <div className="mb-2 px-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Main Navigation
+              </p>
+            </div>
 
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={navLinkClass}
-                  onClick={onClose}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <div
-                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors duration-200 ${
-                          isActive
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-gray-100 text-gray-500 group-hover:bg-emerald-100 group-hover:text-emerald-700"
-                        }`}
-                      >
-                        <Icon className="h-[17px] w-[17px]" />
-                      </div>
+            <nav className="space-y-1.5">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
 
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold leading-5">
-                          {item.label}
-                        </div>
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={navLinkClass}
+                    onClick={onClose}
+                  >
+                    {({ isActive }) => (
+                      <>
                         <div
-                          className={`truncate text-xs leading-5 ${
-                            isActive ? "text-emerald-700/80" : "text-gray-500"
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                            isActive
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-white text-slate-500 ring-1 ring-slate-200 group-hover:text-emerald-700"
                           }`}
                         >
-                          {item.description}
+                          <Icon className="h-4 w-4" />
                         </div>
-                      </div>
-                    </>
-                  )}
-                </NavLink>
-              );
-            })}
-          </nav>
 
-          {/* Bottom Section */}
-          <div className="border-t border-emerald-100 p-4">
-            <Link
-              to="/contact"
-              className="group flex items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-3 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100 transition-colors duration-200 hover:from-emerald-100 hover:to-green-100"
-              onClick={onClose}
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm">
-                <FaLifeRing className="h-[17px] w-[17px]" />
-              </div>
-              <div className="min-w-0">
-                <div>Help &amp; Support</div>
-                <div className="text-xs font-medium text-emerald-700/80 leading-5">
-                  Contact our team
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold leading-5">
+                            {item.label}
+                          </div>
+                          <div
+                            className={`mt-0.5 truncate text-[12px] leading-4 ${
+                              isActive ? "text-emerald-700/80" : "text-slate-500"
+                            }`}
+                          >
+                            {item.description}
+                          </div>
+                        </div>
+
+                        {isActive ? (
+                          <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                        ) : null}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Bottom actions */}
+          <div className="shrink-0 border-t border-slate-200 bg-white p-3">
+            <div className="space-y-2">
+              <Link
+                to="/contact"
+                onClick={onClose}
+                className="group flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2.5"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 ring-1 ring-emerald-100">
+                  <FaLifeRing className="h-4 w-4" />
                 </div>
-              </div>
-            </Link>
+
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-emerald-900">
+                    Help &amp; Support
+                  </div>
+                  <div className="mt-0.5 text-xs leading-4 text-emerald-700/80">
+                    Get help from our support team.
+                  </div>
+                </div>
+              </Link>
+
+              <button
+                onClick={handleLogout}
+                type="button"
+                className="flex w-full items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-left"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-rose-600 ring-1 ring-rose-100">
+                  <FaSignOutAlt className="h-4 w-4" />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-rose-900">
+                    Logout
+                  </div>
+                  <div className="mt-0.5 text-xs leading-4 text-rose-700/80">
+                    Sign out of your account safely.
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </aside>

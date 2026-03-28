@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
@@ -8,12 +8,15 @@ import Lottie from 'lottie-react';
 import loginAnimation from '../../assets/login.json';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
+import useAuthRedirect from '../../hooks/useAuthRedirect';
 
 const AdminLogin = () => {
-    const { singInUser, signInWithGoogle } = useContext(AuthContext);
-    const navigate = useNavigate();
+    const { singInUser, signInWithGoogle, user, loading, userRole } = useContext(AuthContext);
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Handle redirect after successful authentication
+    useAuthRedirect(user, loading, userRole);
 
     // Check if email is in admin list
     const isAdminEmail = (email) => {
@@ -35,13 +38,13 @@ const AdminLogin = () => {
         setIsLoading(true);
         singInUser(email, password)
             .then(() => {
-                toast.success('Admin signed in successfully!');
-                navigate('/admin');
-                setIsLoading(false);
+                toast.success('Admin signed in successfully! Redirecting...');
+                // Don't redirect here - useAuthRedirect hook handles it when user state updates
             })
             .catch((error) => {
-                console.error('[v0] Admin signin error code:', error.code);
-                console.error('[v0] Admin signin error message:', error.message);
+                setIsLoading(false);
+                console.error('[AdminLogin] Error code:', error.code);
+                console.error('[AdminLogin] Error message:', error.message);
                 
                 // Handle Firebase-specific error codes
                 const errorMap = {
@@ -56,31 +59,21 @@ const AdminLogin = () => {
                 
                 const userFriendlyMessage = errorMap[error.code] || error.message || "Admin sign in failed. Please try again.";
                 toast.error(userFriendlyMessage);
-                setIsLoading(false);
             });
     };
 
     const handleGoogleSignIn = () => {
         setIsLoading(true);
         signInWithGoogle()
-            .then((result) => {
-                const userEmail = result?.user?.email;
-                
-                // Check if signed-in user is admin
-                if (!isAdminEmail(userEmail)) {
-                    toast.error('Your account does not have admin privileges');
-                    navigate('/');
-                    return;
-                }
-                
-                toast.success('Admin signed in with Google!');
-                navigate('/admin');
-            })
             .catch((error) => {
-                console.error('[v0] Admin Google Sign-In error:', error);
-                toast.error(error.message || "Cannot sign in with Google. Try email/password.");
-            })
-            .finally(() => setIsLoading(false));
+                setIsLoading(false);
+                console.error('[Admin Google Sign-In] Error:', error);
+                
+                const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.";
+                toast.error(errorMessage);
+            });
+        // Note: useAuthRedirect hook will handle role validation and navigation.
+        // Non-admin users will be redirected to student dashboard automatically.
     };
 
     return (

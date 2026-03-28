@@ -1,10 +1,14 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Swal from 'sweetalert2';
-import Lottie from 'react-lottie';
 import { Helmet } from 'react-helmet-async';
-import animationData from '../../assets/contact.json';
 import { schoolConfig } from '../../config/schoolConfig';
-import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
+import {
+  FaPhone,
+  FaEnvelope,
+  FaMapMarkerAlt,
+  FaClock,
+  FaHeadset,
+} from 'react-icons/fa';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -59,136 +63,111 @@ const Contact = () => {
     [formData]
   );
 
-  const lottieOptions = useMemo(
-    () => ({
-      loop: true,
-      autoplay: true,
-      animationData,
-      rendererSettings: {
-        preserveAspectRatio: 'xMidYMid meet',
-      },
-    }),
-    []
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zetech-light via-white to-emerald-50/40">
+    <div className="min-h-screen bg-[#f7f8fa]">
       <Helmet>
         <title>{`Contact Us - ${schoolConfig.name} Lost & Found`}</title>
       </Helmet>
 
-      <div className="container mx-auto px-4 sm:px-6 py-10 md:py-14">
-        {/* Header / Intro */}
-        <div className="mx-auto max-w-6xl mb-10 md:mb-14">
-          <div className="rounded-3xl border border-emerald-100 bg-white/90 backdrop-blur-sm shadow-[0_10px_40px_rgba(16,185,129,0.08)] px-6 py-8 md:px-10 md:py-10">
-            <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
-              <div className="flex-shrink-0">
-                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-100/70 p-3 shadow-inner">
-                  <Lottie options={lottieOptions} height={140} width={140} />
-                </div>
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        {/* Hero */}
+        <section className="mb-6 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-green-50 to-lime-50 p-5 shadow-sm sm:mb-8 sm:p-6 lg:p-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="mb-3 inline-flex items-center rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700">
+                Contact Support
               </div>
 
-              <div className="text-center md:text-left">
-                <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 mb-4">
-                  Contact Support
-                </div>
+              <h1 className="text-2xl font-bold tracking-tight text-emerald-950 sm:text-3xl">
+                Contact Lost &amp; Found Office
+              </h1>
 
-                <h2 className="text-3xl md:text-4xl font-extrabold text-zetech-primary leading-tight mb-3">
-                  Contact Lost &amp; Found Office
-                </h2>
+              <p className="mt-2 text-sm leading-6 text-emerald-900/80 sm:text-base">
+                Have questions, need help with a claim, or want support with a lost
+                or found item? Reach out and our team will assist you as quickly as
+                possible.
+              </p>
+            </div>
 
-                <p className="text-sm md:text-base font-medium text-gray-600 max-w-2xl leading-7">
-                  Have questions, need help with a claim, or want support with a lost or found item?
-                  Reach out to our office and we&apos;ll assist you as quickly as possible.
-                </p>
-              </div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-emerald-700 ring-1 ring-emerald-200">
+              <FaHeadset className="h-7 w-7" />
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Main Content */}
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-10 max-w-6xl mx-auto">
-          {/* Contact Info Cards */}
-          <div className="space-y-5">
-            <div className="group bg-white p-7 md:p-8 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all duration-300">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 p-3.5 rounded-xl bg-emerald-100/80 text-zetech-primary shadow-sm">
-                  <FaMapMarkerAlt className="text-2xl" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-gray-800 mb-2">Office Location</h3>
-                  <p className="text-gray-700 text-sm font-semibold leading-relaxed">
-                    Administration Building, Ground Floor
-                  </p>
-                  <p className="text-gray-600 text-sm leading-7 mt-1">
-                    {schoolConfig.contact.address}
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* Main content */}
+        <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
+          {/* Contact info */}
+          <div className="space-y-4">
+            <InfoCard
+              icon={FaMapMarkerAlt}
+              title="Office Location"
+              accent="emerald"
+            >
+              <p className="text-sm font-semibold text-slate-800">
+                Administration Building, Ground Floor
+              </p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {schoolConfig.contact.address}
+              </p>
+            </InfoCard>
 
-            <div className="group bg-white p-7 md:p-8 rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all duration-300">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 p-3.5 rounded-xl bg-green-100/80 text-green-700 shadow-sm">
-                  <FaClock className="text-2xl" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-gray-800 mb-2">Office Hours</h3>
-                  <p className="text-gray-700 text-sm font-semibold leading-relaxed">
-                    Monday - Friday: 8:00 AM - 5:00 PM
-                  </p>
-                  <p className="text-gray-600 text-sm leading-7 mt-1">
-                    Saturday: 9:00 AM - 1:00 PM
-                  </p>
-                </div>
-              </div>
-            </div>
+            <InfoCard icon={FaClock} title="Office Hours" accent="green">
+              <p className="text-sm font-semibold text-slate-800">
+                Monday - Friday: 8:00 AM - 5:00 PM
+              </p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Saturday: 9:00 AM - 1:00 PM
+              </p>
+            </InfoCard>
 
-            <div className="group bg-white p-7 md:p-8 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all duration-300">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 p-3.5 rounded-xl bg-emerald-100/80 text-emerald-700 shadow-sm">
-                  <FaPhone className="text-2xl" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-gray-800 mb-2">Phone &amp; Email</h3>
-                  <p className="text-gray-700 text-sm font-semibold leading-relaxed">
-                    {schoolConfig.contact.phone}
-                  </p>
-                  <p className="text-gray-600 text-sm leading-7 mt-1">
-                    {schoolConfig.contact.email}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <InfoCard icon={FaPhone} title="Phone &amp; Email" accent="emerald">
+              <p className="text-sm font-semibold text-slate-800">
+                {schoolConfig.contact.phone}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {schoolConfig.contact.email}
+              </p>
+            </InfoCard>
 
-            <div className="group bg-gradient-to-r from-zetech-primary to-emerald-600 rounded-2xl p-7 md:p-8 text-white shadow-[0_10px_30px_rgba(16,185,129,0.18)]">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 p-3.5 rounded-xl bg-white/15 text-white">
-                  <FaEnvelope className="text-2xl" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+                  <FaEnvelope className="h-5 w-5" />
                 </div>
+
                 <div>
-                  <h3 className="text-lg font-extrabold mb-2">Quick Help</h3>
-                  <p className="text-sm leading-7 text-emerald-50">
-                    For urgent questions about claims, verification, or item recovery,
-                    contact the Lost &amp; Found office during working hours for immediate support.
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Quick Help
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    For urgent questions about claims, verification, or item
+                    recovery, contact the Lost &amp; Found office during working
+                    hours for faster support.
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Contact Form */}
-          <div className="bg-white rounded-3xl border border-emerald-100 shadow-[0_10px_40px_rgba(16,185,129,0.08)] p-7 md:p-8 lg:p-9">
+          {/* Contact form */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7 lg:p-8">
             <div className="mb-6">
-              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">Send us a Message</h3>
-              <p className="text-gray-600 text-sm leading-7">
-                Fill in the form below and our team will get back to you as soon as possible.
+              <h2 className="text-2xl font-bold text-slate-900">
+                Send us a Message
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Fill in the form below and our team will get back to you as soon as
+                possible.
               </p>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div className="mb-5">
-                <label htmlFor="name" className="block text-sm font-bold text-gray-800 mb-2">
+                <label
+                  htmlFor="name"
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
                   Name
                 </label>
                 <input
@@ -197,14 +176,17 @@ const Contact = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-4 py-3.5 border border-emerald-100 rounded-xl bg-emerald-50/40 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 focus:bg-white transition-colors duration-200"
+                  className="h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-emerald-500"
                   placeholder="Your full name"
                   required
                 />
               </div>
 
               <div className="mb-5">
-                <label htmlFor="email" className="block text-sm font-bold text-gray-800 mb-2">
+                <label
+                  htmlFor="email"
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
                   Email
                 </label>
                 <input
@@ -213,14 +195,17 @@ const Contact = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-4 py-3.5 border border-emerald-100 rounded-xl bg-emerald-50/40 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 focus:bg-white transition-colors duration-200"
+                  className="h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-emerald-500"
                   placeholder="your.email@zetech.ac.ke"
                   required
                 />
               </div>
 
               <div className="mb-6">
-                <label htmlFor="message" className="block text-sm font-bold text-gray-800 mb-2">
+                <label
+                  htmlFor="message"
+                  className="mb-2 block text-sm font-semibold text-slate-700"
+                >
                   Message
                 </label>
                 <textarea
@@ -228,8 +213,8 @@ const Contact = () => {
                   name="message"
                   value={formData.message}
                   onChange={handleChange}
-                  rows="5"
-                  className="w-full px-4 py-3.5 border border-emerald-100 rounded-xl bg-emerald-50/40 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 focus:bg-white transition-colors duration-200 resize-none"
+                  rows="6"
+                  className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
                   placeholder="Describe your inquiry..."
                   required
                 />
@@ -237,11 +222,7 @@ const Contact = () => {
 
               <button
                 type="submit"
-                className="w-full rounded-2xl px-6 py-3.5 text-white font-extrabold tracking-wide transition-all duration-200 hover:brightness-105 active:scale-[0.99] shadow-[0_10px_25px_rgba(16,185,129,0.22)]"
-                style={{
-                  background: 'linear-gradient(135deg, #059669 0%, #10b981 55%, #34d399 100%)',
-                  border: '1px solid rgba(16,185,129,0.35)',
-                }}
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white"
               >
                 Send Message
               </button>
@@ -252,5 +233,45 @@ const Contact = () => {
     </div>
   );
 };
+
+function InfoCard({ icon: Icon, title, children, accent = 'emerald' }) {
+  const accentStyles = {
+    emerald: {
+      iconWrap: 'bg-emerald-50',
+      iconColor: 'text-emerald-700',
+    },
+    green: {
+      iconWrap: 'bg-green-50',
+      iconColor: 'text-green-700',
+    },
+    blue: {
+      iconWrap: 'bg-blue-50',
+      iconColor: 'text-blue-700',
+    },
+    slate: {
+      iconWrap: 'bg-slate-100',
+      iconColor: 'text-slate-700',
+    },
+  };
+
+  const styles = accentStyles[accent] || accentStyles.emerald;
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-start gap-4">
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${styles.iconWrap} ${styles.iconColor}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+          <div className="mt-2">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default Contact;

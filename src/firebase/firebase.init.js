@@ -1,6 +1,7 @@
 // Firebase Configuration and Initialization
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -38,4 +39,7 @@ const app = initializeApp(firebaseConfig);
 // Get Firebase Auth instance
 const auth = getAuth(app);
 
-export default auth;
+// Get Firebase Storage instance
+const storage = getStorage(app);
+
+export { auth as default, storage };

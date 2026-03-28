@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBell, FaTimes, FaCheck } from 'react-icons/fa';
-import axios from 'axios';
 import AuthContext from '../context/Authcontext/AuthContext';
+import { notificationService } from '../services/apiService';
 
 const NotificationsDropdown = () => {
   const { user } = useContext(AuthContext);
@@ -37,13 +37,11 @@ const NotificationsDropdown = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3001/api/notifications', {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
-      setNotifications(response.data.notifications || []);
-      setUnreadCount(response.data.unreadCount || 0);
+      const data = await notificationService.getNotifications();
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
     } catch (error) {
-      console.error('[v0] Error fetching notifications:', error);
+      console.error('[NotificationsDropdown] Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
@@ -51,39 +49,28 @@ const NotificationsDropdown = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      await axios.patch(
-        `http://localhost:3001/api/notifications/${notificationId}/read`,
-        {},
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      await notificationService.markAsRead(notificationId);
       fetchNotifications();
     } catch (error) {
-      console.error('[v0] Error marking notification as read:', error);
+      console.error('[NotificationsDropdown] Error marking notification as read:', error);
     }
   };
 
   const deleteNotification = async (notificationId) => {
     try {
-      await axios.delete(
-        `http://localhost:3001/api/notifications/${notificationId}`,
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      await notificationService.deleteNotification(notificationId);
       fetchNotifications();
     } catch (error) {
-      console.error('[v0] Error deleting notification:', error);
+      console.error('[NotificationsDropdown] Error deleting notification:', error);
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      await axios.post(
-        'http://localhost:3001/api/notifications/mark-all-read',
-        {},
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      await notificationService.markAllAsRead();
       fetchNotifications();
     } catch (error) {
-      console.error('[v0] Error marking all as read:', error);
+      console.error('[NotificationsDropdown] Error marking all as read:', error);
     }
   };
 
