@@ -1,4 +1,8 @@
 import React, { memo, useMemo, useState, useCallback } from 'react';
+<<<<<<< HEAD
+=======
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
 import {
   FaChevronDown,
   FaShieldAlt,
@@ -11,6 +15,10 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const FAQPage = memo(function FAQPage() {
+<<<<<<< HEAD
+=======
+  const shouldReduceMotion = useReducedMotion();
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
   const [activeCategory, setActiveCategory] = useState('general');
   const [expandedItem, setExpandedItem] = useState(0);
 
@@ -119,8 +127,21 @@ const FAQPage = memo(function FAQPage() {
     setExpandedItem((prev) => (prev === index ? -1 : index));
   }, []);
 
+<<<<<<< HEAD
   return (
     <div className="min-h-screen bg-white text-slate-900">
+=======
+  const heroAnimation = shouldReduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+      };
+
+  return (
+    <div className="min-h-screen bg-white">
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
       <Helmet>
         <title>{`FAQ - ${schoolConfig.name} Lost & Found`}</title>
         <meta
@@ -129,6 +150,7 @@ const FAQPage = memo(function FAQPage() {
         />
       </Helmet>
 
+<<<<<<< HEAD
       {/* Hero / Banner */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-emerald-600 to-emerald-700 px-4 py-16 md:px-6 md:py-24">
         <div className="pointer-events-none absolute inset-0">
@@ -138,10 +160,22 @@ const FAQPage = memo(function FAQPage() {
 
         <div className="relative mx-auto max-w-6xl">
           <div className="mx-auto max-w-3xl text-center">
+=======
+      {/* Hero Section */}
+      <section className="relative overflow-hidden px-4 py-14 md:px-6 md:py-18 bg-gradient-to-br from-emerald-600 via-emerald-600 to-emerald-700">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-16 -left-16 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute right-0 bottom-0 h-60 w-60 rounded-full bg-emerald-300/10 blur-3xl" />
+        </div>
+
+        <div className="relative mx-auto max-w-6xl">
+          <motion.div className="mx-auto max-w-3xl text-center" {...heroAnimation}>
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
             <span className="mb-4 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-50 md:text-sm">
               Help Center
             </span>
 
+<<<<<<< HEAD
             <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
               Frequently Asked Questions
             </h1>
@@ -159,6 +193,31 @@ const FAQPage = memo(function FAQPage() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           {/* Tabs */}
           <div className="mb-8 flex flex-wrap justify-center gap-2.5 md:mb-10 md:gap-3">
+=======
+            <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl">
+              Frequently Asked Questions
+            </h1>
+
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-emerald-50/90 md:text-xl">
+              Everything you need to know about reporting, finding, claiming,
+              and managing items on our lost and found platform.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="px-4 py-16 md:px-6 md:py-24">
+        <div className="mx-auto max-w-5xl">
+          {/* Category Tabs */}
+          <motion.div
+            className="mb-10 flex flex-wrap justify-center gap-2.5 md:gap-3"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+            whileInView={shouldReduceMotion ? {} : { opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          >
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
             {categories.map((category) => {
               const Icon = category.icon;
               const isActive = activeCategory === category.id;
@@ -168,9 +227,15 @@ const FAQPage = memo(function FAQPage() {
                   key={category.id}
                   type="button"
                   onClick={() => handleCategoryChange(category.id)}
+<<<<<<< HEAD
                   className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors duration-200 md:px-5 ${
                     isActive
                       ? 'border border-emerald-600 bg-emerald-600 text-white'
+=======
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 md:px-5 ${
+                    isActive
+                      ? 'bg-emerald-600 text-white shadow-[0_10px_24px_rgba(16,185,129,0.18)]'
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
                       : 'border border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-700'
                   }`}
                 >
@@ -179,17 +244,37 @@ const FAQPage = memo(function FAQPage() {
                 </button>
               );
             })}
+<<<<<<< HEAD
           </div>
 
           {/* Items */}
+=======
+          </motion.div>
+
+          {/* FAQ Items */}
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
           <div className="space-y-3">
             {currentFaqs.map((item, index) => {
               const isOpen = expandedItem === index;
 
               return (
+<<<<<<< HEAD
                 <article
                   key={`${activeCategory}-${index}`}
                   className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+=======
+                <motion.div
+                  key={`${activeCategory}-${index}`}
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+                  whileInView={shouldReduceMotion ? {} : { opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.12 }}
+                  transition={{
+                    duration: 0.35,
+                    delay: shouldReduceMotion ? 0 : index * 0.04,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
                 >
                   <button
                     type="button"
@@ -198,8 +283,13 @@ const FAQPage = memo(function FAQPage() {
                     className="flex w-full items-start justify-between gap-4 px-5 py-5 text-left transition-colors duration-200 hover:bg-slate-50 md:px-6"
                   >
                     <div className="flex min-w-0 flex-1 items-start gap-3">
+<<<<<<< HEAD
                       <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                         <FaQuestion className="text-sm" />
+=======
+                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50">
+                        <FaQuestion className="text-sm text-emerald-600" />
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
                       </div>
 
                       <h3 className="text-base font-semibold leading-6 text-slate-900 md:text-lg">
@@ -207,6 +297,7 @@ const FAQPage = memo(function FAQPage() {
                       </h3>
                     </div>
 
+<<<<<<< HEAD
                     <div
                       className={`mt-1 shrink-0 text-emerald-600 transition-transform duration-200 ${
                         isOpen ? 'rotate-180' : 'rotate-0'
@@ -228,10 +319,39 @@ const FAQPage = memo(function FAQPage() {
                     </div>
                   </div>
                 </article>
+=======
+                    <motion.div
+                      animate={shouldReduceMotion ? {} : { rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-1 shrink-0 text-emerald-600"
+                    >
+                      <FaChevronDown className="text-base" />
+                    </motion.div>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        key="content"
+                        initial={shouldReduceMotion ? false : { height: 0, opacity: 0 }}
+                        animate={shouldReduceMotion ? {} : { height: 'auto', opacity: 1 }}
+                        exit={shouldReduceMotion ? {} : { height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-700 md:px-6">
+                          {item.answer}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
               );
             })}
           </div>
 
+<<<<<<< HEAD
           {/* CTA */}
           <div className="mt-12 rounded-3xl bg-emerald-600 px-6 py-10 text-center text-white sm:px-8 md:px-10 md:py-12">
             <h3 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -259,6 +379,48 @@ const FAQPage = memo(function FAQPage() {
               </a>
             </div>
           </div>
+=======
+          {/* Contact CTA */}
+          <motion.div
+            className="relative mt-12 overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-600 via-emerald-600 to-emerald-700 px-6 py-10 text-center text-white shadow-[0_16px_40px_rgba(16,185,129,0.12)] md:px-10 md:py-12"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
+            whileInView={shouldReduceMotion ? {} : { opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute -top-10 -left-8 h-36 w-36 rounded-full bg-white/10 blur-3xl" />
+              <div className="absolute right-0 bottom-0 h-44 w-44 rounded-full bg-emerald-300/10 blur-3xl" />
+            </div>
+
+            <div className="relative">
+              <h3 className="text-2xl font-bold tracking-tight md:text-3xl">
+                Didn&apos;t find your answer?
+              </h3>
+
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-emerald-50/90 md:text-base">
+                Our support team is here to help with any questions about lost
+                items, claims, privacy, or account support.
+              </p>
+
+              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                <a
+                  href="/contact"
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-emerald-600 transition-colors duration-200 hover:bg-emerald-50"
+                >
+                  Contact Support
+                </a>
+
+                <a
+                  href="mailto:support@zetech.ac.ke"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-white/30 px-6 text-sm font-semibold text-white transition-colors duration-200 hover:bg-white/10"
+                >
+                  Email Us
+                </a>
+              </div>
+            </div>
+          </motion.div>
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
         </div>
       </section>
     </div>

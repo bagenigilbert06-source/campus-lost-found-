@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "name": "b10a11-client-side-noorjahan220",
+=======
+  "name": "lost-found",
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,6 +17,7 @@
     "setup": "npm run validate-config && npm run dev:backend & npm run dev"
   },
   "dependencies": {
+<<<<<<< HEAD
     "@types/bcrypt": "^6.0.0",
     "axios": "^1.7.9",
     "bcrypt": "^6.0.0",
@@ -26,15 +31,27 @@
     "framer-motion": "^12.4.2",
     "gsap": "^3.12.7",
     "helmet": "^8.1.0",
+=======
+    "axios": "^1.7.9",
+    "bcryptjs": "^3.0.3",
+    "firebase": "^11.1.0",
+    "framer-motion": "^12.4.2",
+    "gsap": "^3.12.7",
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
     "jsonwebtoken": "^9.0.3",
     "localforage": "^1.10.0",
     "lottie-react": "^2.4.0",
     "lottie-web": "^5.12.2",
+<<<<<<< HEAD
     "match-sorter": "^8.0.0",
     "mongodb": "^7.1.0",
     "mongoose": "^9.3.0",
     "motion": "^11.15.0",
     "nodemailer": "^8.0.2",
+=======
+    "lucide-react": "^1.7.0",
+    "match-sorter": "^8.0.0",
+>>>>>>> 9c6a2abaae33a2f4aff6f73fabb000acc11acafe
     "react": "^18.3.1",
     "react-datepicker": "^7.5.0",
     "react-dom": "^18.3.1",
