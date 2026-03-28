@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -10,20 +10,25 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const Signin = () => {
-    const { singInUser, signInWithGoogle } = useContext(AuthContext);
+    const { singInUser, signInWithGoogle, user, loading } = useContext(AuthContext);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Check if email is admin and redirect accordingly
-    const redirectBasedOnEmail = (email) => {
-        const isAdminEmail = schoolConfig.adminEmails.includes(email?.toLowerCase());
-        if (isAdminEmail) {
-            navigate('/admin');
-        } else {
-            navigate('/app/dashboard');
-        }
-    };
+    // Effect: Redirect after successful authentication
+    useEffect(() => {
+      if (user && !loading && !isLoading) {
+        const isAdminEmail = schoolConfig.adminEmails.includes(user?.email?.toLowerCase());
+        const redirectPath = isAdminEmail ? '/admin' : '/app/dashboard';
+        
+        // Small delay to ensure auth state is fully settled
+        const timer = setTimeout(() => {
+          navigate(redirectPath, { replace: true });
+        }, 100);
+        
+        return () => clearTimeout(timer);
+      }
+    }, [user, loading, isLoading, navigate]);
 
     const handleSignin = (e) => {
         e.preventDefault();
@@ -33,12 +38,12 @@ const Signin = () => {
 
         setIsLoading(true);
         singInUser(email, password)
-            .then((result) => {
-                toast.success('Successfully signed in!');
-                // Redirect based on email (role is determined by email in schoolConfig)
-                redirectBasedOnEmail(result?.user?.email || email);
+            .then(() => {
+                toast.success('Successfully signed in! Redirecting...');
+                // Don't redirect here - let useEffect handle it when user state updates
             })
             .catch((error) => {
+                setIsLoading(false);
                 console.error('[v0] Signin error code:', error.code);
                 console.error('[v0] Signin error message:', error.message);
                 
@@ -55,27 +60,25 @@ const Signin = () => {
                 
                 const userFriendlyMessage = errorMap[error.code] || error.message || "Sign in failed. Please try again.";
                 toast.error(userFriendlyMessage);
-            })
-            .finally(() => setIsLoading(false));
+            });
     };
 
     const handleGoogleSignIn = () => {
         setIsLoading(true);
         signInWithGoogle()
-            .then((result) => {
-                toast.success('Successfully signed in with Google!');
-                // Redirect based on email
-                redirectBasedOnEmail(result?.user?.email);
+            .then(() => {
+                toast.success('Successfully signed in with Google! Redirecting...');
+                // Don't redirect here - let useEffect handle it when user state updates
             })
             .catch((error) => {
+                setIsLoading(false);
                 console.error('[v0] Google Sign-In error code:', error.code);
                 console.error('[v0] Google Sign-In error:', error.message);
                 
                 // Use the user-friendly message from the provider if available
                 const errorMessage = error.userFriendlyMessage || error.message || "Cannot sign in with Google. Try email/password.";
                 toast.error(errorMessage);
-            })
-            .finally(() => setIsLoading(false));
+            });
     };
 
     return (

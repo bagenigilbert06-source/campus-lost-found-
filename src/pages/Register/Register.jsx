@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
@@ -10,20 +10,25 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 
 const Register = () => {
-  const { createUser, signInWithGoogle } = useContext(AuthContext);
+  const { createUser, signInWithGoogle, user, loading } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Check if email is admin and redirect accordingly
-  const redirectBasedOnEmail = (email) => {
-    const isAdminEmail = schoolConfig.adminEmails.includes(email?.toLowerCase());
-    if (isAdminEmail) {
-      navigate('/admin');
-    } else {
-      navigate('/app/dashboard');
+  // Effect: Redirect after successful authentication
+  useEffect(() => {
+    if (user && !loading && !isLoading) {
+      const isAdminEmail = schoolConfig.adminEmails.includes(user?.email?.toLowerCase());
+      const redirectPath = isAdminEmail ? '/admin' : '/app/dashboard';
+      
+      // Small delay to ensure auth state is fully settled
+      const timer = setTimeout(() => {
+        navigate(redirectPath, { replace: true });
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  };
+  }, [user, loading, isLoading, navigate]);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -45,9 +50,8 @@ const Register = () => {
       // Create user with Firebase (AuthProvider handles backend registration)
       await createUser(email, password, name, photo);
       
-      toast.success('Successfully registered!');
-      // Redirect based on email (role is determined by email in schoolConfig)
-      redirectBasedOnEmail(email);
+      toast.success('Successfully registered! Redirecting...');
+      // Don't redirect here - let useEffect handle it when user state updates
     } catch (error) {
       setIsLoading(false);
       console.error('[v0] Registration error:', error);
@@ -69,12 +73,12 @@ const Register = () => {
   const handleGoogleSignIn = () => {
     setIsLoading(true);
     signInWithGoogle()
-      .then((result) => {
-        toast.success('Successfully signed up with Google!');
-        // Redirect based on email
-        redirectBasedOnEmail(result?.user?.email);
+      .then(() => {
+        toast.success('Successfully signed up with Google! Redirecting...');
+        // Don't redirect here - let useEffect handle it when user state updates
       })
       .catch((error) => {
+        setIsLoading(false);
         console.error('[v0] Google Sign-Up error code:', error.code);
         console.error('[v0] Google Sign-Up error:', error.message);
         
@@ -88,8 +92,7 @@ const Register = () => {
         } else {
           toast.error(error.message || "Cannot sign up with Google. Try email/password.");
         }
-      })
-      .finally(() => setIsLoading(false));
+      });
   };
 
   return (

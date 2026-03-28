@@ -6,7 +6,7 @@ import { schoolConfig } from '../config/schoolConfig';
 // AuthGuard - Prevents authenticated users from accessing auth pages
 // Redirects logged-in users to their appropriate dashboard
 const AuthGuard = ({ children }) => {
-    const { user, loading, isAdmin } = useContext(AuthContext);
+    const { user, loading } = useContext(AuthContext);
 
     if (loading) {
         return (
@@ -19,11 +19,8 @@ const AuthGuard = ({ children }) => {
     // If user is already logged in, redirect to appropriate dashboard
     if (user) {
         const isAdminUser = schoolConfig.adminEmails.includes(user?.email?.toLowerCase());
-        if (isAdminUser) {
-            return <Navigate to="/admin" replace />;
-        } else {
-            return <Navigate to="/app/dashboard" replace />;
-        }
+        const redirectPath = isAdminUser ? '/admin' : '/app/dashboard';
+        return <Navigate to={redirectPath} replace />;
     }
 
     // Not logged in - allow access to auth page
