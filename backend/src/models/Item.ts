@@ -1,0 +1,71 @@
+import { Schema, model, Document, Types } from 'mongoose';
+
+export interface IItem extends Document {
+  itemType: 'Lost' | 'Found' | 'Recovered';
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  dateLost: Date;
+  uploadedAt: Date;
+  images: string[];
+  userId?: string; // Firebase UID
+  email?: string; // User email
+  name?: string; // User display name
+  status: 'active' | 'recovered' | 'claimed';
+  verificationStatus?: 'pending' | 'verified' | 'rejected';
+  claimedBy?: string; // Firebase UID
+  claimedAt?: Date;
+  recoveredBy?: { email: string; name: string; date: Date };
+  metadata?: Record<string, any>;
+}
+
+const ItemSchema = new Schema<IItem>(
+  {
+    itemType: { type: String, enum: ['Lost', 'Found', 'Recovered'], required: true },
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    category: { type: String, required: true, index: true },
+    location: { type: String, required: true, index: true },
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    dateLost: { type: Date, required: true },
+    images: [{ type: String }],
+    userId: { type: String, index: true },
+    email: { type: String, index: true },
+    name: { type: String },
+    status: {
+      type: String,
+      enum: ['active', 'recovered', 'claimed'],
+      default: 'active',
+      index: true,
+    },
+    verificationStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected'],
+      default: 'pending',
+    },
+    claimedBy: { type: String },
+    claimedAt: { type: Date },
+    recoveredBy: {
+      email: { type: String },
+      name: { type: String },
+      date: { type: Date },
+    },
+    metadata: { type: Schema.Types.Mixed },
+  },
+  { timestamps: true }
+);
+
+// Compound index for efficient queries
+ItemSchema.index({ userId: 1, status: 1 });
+ItemSchema.index({ category: 1, location: 1 });
+ItemSchema.index({ itemType: 1, status: 1 });
+
+export const Item = model<IItem>('Item', ItemSchema);

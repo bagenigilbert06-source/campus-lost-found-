@@ -1,0 +1,565 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light Theme Only - Global Styles */
+@layer base {
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.68);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    --glass-blur: 10px;
+
+    /* Accent system - Greenish branding */
+    --accent-primary: #10b981;
+    --accent-primary-hover: #059669;
+    --accent-primary-soft: rgba(16, 185, 129, 0.12);
+    --accent-primary-ring: rgba(16, 185, 129, 0.12);
+    --accent-primary-border: rgba(16, 185, 129, 0.28);
+
+    /* Text system */
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+
+    /* Body background */
+    --body-light-bg:
+      radial-gradient(circle at top left, rgba(139, 92, 246, 0.12), transparent 35%),
+      radial-gradient(circle at top right, rgba(16, 185, 129, 0.10), transparent 30%),
+      linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease,
+      background 0.25s ease;
+    min-height: 100vh;
+    background: var(--body-light-bg);
+    color: var(--text-primary);
+  }
+}
+
+/* Theme-Aware Glass Components - Light Only */
+@layer components {
+  .glass-surface {
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  /* Glass Card Variants */
+  .glass-card-default {
+    @apply rounded-2xl border transition-all duration-300;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background-color: rgba(255, 255, 255, 0.68);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .glass-card-elevated {
+    @apply glass-card-default p-6;
+  }
+
+  .glass-card-elevated:hover {
+    background-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+    transform: translateY(-2px);
+  }
+
+  .glass-card-interactive {
+    @apply glass-card-default p-6 cursor-pointer;
+  }
+
+  .glass-card-interactive:hover {
+    background-color: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    transform: translateY(-3px);
+  }
+
+  /* Glass Button Variants */
+  .glass-button-primary {
+    @apply font-semibold transition-all duration-300 rounded-2xl;
+    background: #10b981;
+    color: #ffffff;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    text-shadow: none;
+    letter-spacing: 0.3px;
+  }
+
+  .glass-button-primary:hover:not(:disabled) {
+    background: #059669;
+    border-color: rgba(16, 185, 129, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .glass-button-primary:active:not(:disabled) {
+    transform: translateY(0);
+    background: #047857;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .glass-button-secondary {
+    @apply font-semibold transition-all duration-300 rounded-lg;
+    background: rgba(255, 255, 255, 0.72);
+    color: #047857;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .glass-button-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.86);
+    transform: translateY(-1px);
+  }
+
+  .glass-button-outline {
+    @apply font-semibold transition-all duration-300 rounded-lg;
+    background: transparent;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    color: #047857;
+  }
+
+  .glass-button-outline:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.08);
+  }
+
+  /* Glass Input Styles */
+  .glass-input {
+    @apply w-full px-4 py-2 rounded-lg border transition-all duration-300;
+    background-color: rgba(255, 255, 255, 0.74);
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #000;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .glass-input:focus {
+    @apply outline-none;
+    border-color: rgba(16, 185, 129, 0.28);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+    background-color: rgba(255, 255, 255, 0.88);
+  }
+
+  /* Glass Search Bar */
+  .glass-search-bar {
+    @apply px-4 py-3 rounded-full border transition-all duration-300;
+    background-color: rgba(255, 255, 255, 0.76);
+    border-color: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .glass-search-bar:focus-within {
+    border-color: rgba(16, 185, 129, 0.24);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+  }
+
+  .glass-search-input {
+    @apply placeholder-slate-400 bg-transparent outline-none;
+  }
+
+  /* Dropdown */
+  .glass-dropdown {
+    background-color: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  }
+
+  /* Glass Modal */
+  .glass-modal {
+    background-color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+    border-radius: 20px;
+  }
+
+  /* Glass Navbar */
+  .glass-navbar {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+  }
+
+  .glass-mobile-menu {
+    background-color: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Glass Bottom Action Bar */
+  .glass-bottom-action-bar {
+    background-color: rgba(255, 255, 255, 0.86);
+    border-top: 1px solid rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.08);
+    border-radius: 24px 24px 0 0;
+  }
+
+  /* Liquid Glass Premium */
+  .glass-liquid-premium {
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+    background-color: rgba(255, 255, 255, 0.74);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  /* Glass Card Premium */
+  .glass-card-premium {
+    @apply glass-liquid-premium p-8 transition-all duration-500;
+  }
+
+  .glass-card-premium:hover {
+    background-color: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    transform: translateY(-2px);
+  }
+
+  /* Standard Glass Morphism */
+  .glass-morphism {
+    @apply backdrop-blur-lg border rounded-2xl;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-color: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  }
+
+  .glass-morphism-dark {
+    @apply backdrop-blur-lg border rounded-2xl;
+    background-color: rgba(255, 255, 255, 0.76);
+    border-color: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  }
+
+  .glass-morphism-card {
+    @apply glass-morphism p-6 transition-all duration-300;
+  }
+
+  .glass-morphism-card:hover {
+    background-color: rgba(255, 255, 255, 0.82);
+    transform: translateY(-2px);
+  }
+
+  /* Glass Button (Legacy) */
+  .glass-button {
+    @apply px-6 py-2 rounded-lg font-semibold transition-all duration-300;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.22);
+  }
+
+  .glass-button:hover {
+    box-shadow: 0 8px 18px rgba(16, 185, 129, 0.26);
+    transform: translateY(-1px);
+  }
+
+  .glass-button:active {
+    transform: translateY(0);
+  }
+
+  /* Glass Badge */
+  .glass-badge {
+    @apply glass-morphism px-4 py-1 text-sm font-medium inline-block;
+    color: #0f172a;
+  }
+
+  /* Gradient Text */
+  .gradient-text-green {
+    @apply bg-gradient-to-r from-emerald-900 via-emerald-600 to-emerald-400 bg-clip-text text-transparent;
+  }
+
+  /* Navbar-specific helpers */
+  .navbar-shell {
+    border-radius: 20px;
+  }
+
+  .navbar-glass {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  .brand-logo-shell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 72px;
+    width: 72px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .brand-logo-image {
+    height: 64px;
+    width: 64px;
+    border-radius: 9999px;
+    object-fit: cover;
+  }
+
+  .brand-text-wrap {
+    min-width: 0;
+  }
+
+  .brand-title {
+    margin: 0;
+    font-size: 1.1rem;
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .brand-subtitle {
+    margin: 0.15rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    font-weight: 500;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (min-width: 640px) {
+    .brand-title {
+      font-size: 1.25rem;
+    }
+
+    .brand-subtitle {
+      font-size: 0.85rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .brand-title {
+      font-size: 1.85rem;
+    }
+
+    .brand-subtitle {
+      font-size: 0.88rem;
+    }
+  }
+
+  .nav-pill {
+    display: flex;
+    align-items: center;
+    padding: 0.22rem;
+    border-radius: 9999px;
+    background: rgba(243, 244, 246, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .navbar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 1rem;
+    border-radius: 9999px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .navbar-link-inactive {
+    color: #5b6472;
+  }
+
+  .navbar-link-inactive:hover {
+    color: #111827;
+    background: rgba(255, 255, 255, 0.45);
+  }
+
+  .navbar-link-active {
+    color: #059669;
+    background: rgba(16, 185, 129, 0.12);
+  }
+
+  .apple-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 1.2rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .apple-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .apple-btn-primary {
+    color: white;
+    background: #10b981;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.22);
+  }
+
+  .apple-btn-primary:hover {
+    background: #059669;
+    box-shadow: 0 8px 18px rgba(16, 185, 129, 0.26);
+  }
+
+  .apple-btn-secondary {
+    color: #047857;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .apple-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.88);
+  }
+
+  .apple-profile-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 42px;
+    padding: 0.15rem 0.5rem 0.15rem 0.15rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    color: #0f172a;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .mobile-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    width: 40px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    transition: all 0.2s ease;
+  }
+
+  .mobile-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.88);
+  }
+
+  /* Mobile Navbar Links */
+  .mobile-navbar-link {
+    @apply py-2 px-4 rounded-lg text-sm transition font-medium;
+  }
+
+  .mobile-navbar-link-inactive {
+    @apply text-gray-600 hover:text-gray-900 hover:bg-gray-100;
+  }
+
+  .mobile-navbar-link-inactive:hover {
+    background: rgba(255, 255, 255, 0.45);
+  }
+
+  .mobile-navbar-link-active {
+    @apply text-teal-700 bg-teal-100;
+  }
+
+  /* Animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  /* Responsive utilities */
+  @media (max-width: 768px) {
+    .navbar-link {
+      padding: 0 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    .apple-btn {
+      min-height: 36px;
+      padding: 0 1rem;
+      font-size: 0.9rem;
+    }
+  }
+
+  /* Focus states for accessibility */
+  .glass-button:focus-visible,
+  .glass-button-primary:focus-visible,
+  .glass-button-secondary:focus-visible,
+  .glass-input:focus-visible {
+    @apply outline-none ring-2 ring-offset-2;
+    ring-color: rgba(16, 185, 129, 0.4);
+  }
+
+  /* Smooth transitions */
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply transition-all duration-200;
+  }
+}
