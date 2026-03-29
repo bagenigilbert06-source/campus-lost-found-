@@ -152,30 +152,26 @@ router.put('/local/password', localAuthMiddleware, [
  * POST /auth/register
  * Register or sync Firebase/Google user to MongoDB
  */
-router.post('/register', authMiddleware, [
-  body('email').isEmail(),
-  body('displayName').optional({ checkFalsy: true }).isString().trim(),
-  body('photoURL').optional({ checkFalsy: true }).isURL(),
-], async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/register', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'User not authenticated' });
       return;
     }
 
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      throw BadRequest('Invalid input fields');
+    const { email: bodyEmail, displayName, photoURL, role } = req.body || {};
+    const emailToUse = (bodyEmail || req.user.email || '').trim();
+
+    if (!emailToUse) {
+      throw BadRequest('Email is required to register or sync user profile.');
     }
 
-    const { email, displayName, photoURL, role } = req.body;
-    
     // Get or create user in MongoDB
     const user = await userService.getOrCreateUser(
       req.user.uid,
-      email || req.user.email || '',
-      displayName || req.user.displayName || 'User',
-      photoURL || req.user.photoURL || '',
+      emailToUse,
+      (displayName || req.user.displayName || 'User').trim(),
+      (photoURL || req.user.photoURL || '').trim(),
       role // Pass role for Google users
     );
 

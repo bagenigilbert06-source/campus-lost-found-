@@ -104,15 +104,13 @@ const UserProfile = () => {
 
         if (profileData.profileImage) {
           setProfileImage(profileData.profileImage);
-          if (updateUserProfile) {
-            updateUserProfile({ photoURL: profileData.profileImage });
-          }
         }
 
         if (profileData.displayName) {
-          if (updateUserProfile) {
-            updateUserProfile({ displayName: profileData.displayName });
-          }
+          setPersonalData((prev) => ({
+            ...prev,
+            fullName: profileData.displayName,
+          }));
         }
 
         if (profileData.settings) {

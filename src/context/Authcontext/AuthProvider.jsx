@@ -262,9 +262,29 @@ const AuthProvider = ({ children }) => {
 
                                 // Determine user role
                                 const role = determineUserRole(currentUser.email);
-                                
+
+                                // Fetch profile from backend to ensure latest persisted photo and name are loaded
+                                let mergedUser = { ...currentUser };
+                                try {
+                                    const profileRes = await axios.get(`${API_URL}/users/profile`, {
+                                        params: { email: currentUser.email },
+                                        withCredentials: true,
+                                    });
+                                    const profileData = profileRes.data?.data;
+                                    if (profileData) {
+                                        if (profileData.profileImage) {
+                                            mergedUser.photoURL = profileData.profileImage;
+                                        }
+                                        if (profileData.displayName) {
+                                            mergedUser.displayName = profileData.displayName;
+                                        }
+                                    }
+                                } catch (fetchProfileError) {
+                                    console.warn('Failed to load backend user profile after login:', fetchProfileError.message);
+                                }
+
                                 // Update state with user and role
-                                setUser(currentUser);
+                                setUser(mergedUser);
                                 setUserRole(role);
                             } else {
                                 // User is logged out
@@ -306,10 +326,27 @@ const AuthProvider = ({ children }) => {
     const updateUserProfile = (updates) => {
         setUser((prevUser) => {
             if (!prevUser) return prevUser;
-            return {
+
+            const normalizedPrev = {
+                displayName: prevUser.displayName || '',
+                photoURL: prevUser.photoURL || '',
                 ...prevUser,
+            };
+
+            const normalizedNext = {
+                ...normalizedPrev,
                 ...updates,
             };
+
+            // No-op when nothing changes to avoid refresh loops
+            if (
+                normalizedPrev.displayName === normalizedNext.displayName &&
+                normalizedPrev.photoURL === normalizedNext.photoURL
+            ) {
+                return prevUser;
+            }
+
+            return normalizedNext;
         });
     };
 
