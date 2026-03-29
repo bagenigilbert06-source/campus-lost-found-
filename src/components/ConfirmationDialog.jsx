@@ -1,114 +1,155 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrash, FaExclamationTriangle } from 'react-icons/fa';
+import React, { useEffect } from "react";
+import {
+  FaTrash,
+  FaExclamationTriangle,
+  FaTimes,
+  FaCheckCircle,
+} from "react-icons/fa";
 
 const ConfirmationDialog = ({
   isOpen = false,
-  title = 'Confirm Action',
-  message = 'Are you sure you want to proceed?',
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  title = "Confirm Action",
+  message = "Are you sure you want to proceed?",
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   onConfirm = () => {},
   onCancel = () => {},
   isDangerous = false,
-  isLoading = false
+  isLoading = false,
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape" && !isLoading) {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, isLoading, onCancel]);
+
+  if (!isOpen) return null;
+
+  const styles = isDangerous
+    ? {
+        softBg: "bg-red-50",
+        softBorder: "border-red-200",
+        iconWrap: "bg-red-100",
+        iconColor: "text-red-600",
+        confirmBtn: "bg-red-600 text-white hover:bg-red-700",
+        badge: "bg-red-50 text-red-700 border-red-200",
+      }
+    : {
+        softBg: "bg-emerald-50",
+        softBorder: "border-emerald-200",
+        iconWrap: "bg-emerald-100",
+        iconColor: "text-emerald-700",
+        confirmBtn: "bg-emerald-600 text-white hover:bg-emerald-700",
+        badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
+
+  const Icon = isDangerous ? FaExclamationTriangle : FaCheckCircle;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onCancel}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-          />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      {/* Backdrop click */}
+      <button
+        type="button"
+        aria-label="Close dialog"
+        onClick={() => {
+          if (!isLoading) onCancel();
+        }}
+        className="absolute inset-0 cursor-default"
+      />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-full mx-4 z-50"
-          >
-            {/* Modal Container */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-200/50 dark:border-slate-700/50">
-              {/* Icon Section */}
-              <div className={`flex items-center justify-center pt-6 ${isDangerous ? 'text-red-500' : 'text-blue-500'}`}>
-                {isDangerous ? (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                    className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full"
-                  >
-                    <FaExclamationTriangle size={32} />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                    className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full"
-                  >
-                    <FaTrash size={32} />
-                  </motion.div>
-                )}
+      {/* Modal */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirmation-dialog-title"
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+      >
+        {/* Header */}
+        <div className="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div
+                className={`mb-3 inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${styles.badge}`}
+              >
+                {isDangerous ? "Important Action" : "Confirmation"}
               </div>
 
-              {/* Content */}
-              <div className="p-6 text-center">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                  {title}
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-                  {message}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="px-6 pb-6 flex gap-3">
-                <motion.button
-                  onClick={onCancel}
-                  disabled={isLoading}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg font-medium transition-colors hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50"
-                >
-                  {cancelText}
-                </motion.button>
-                <motion.button
-                  onClick={onConfirm}
-                  disabled={isLoading}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`flex-1 px-4 py-3 rounded-lg font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
-                    isDangerous
-                      ? 'bg-red-500 hover:bg-red-600'
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  }`}
-                >
-                  {isLoading && (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                      className="inline-block"
-                    >
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
-                    </motion.div>
-                  )}
-                  {confirmText}
-                </motion.button>
-              </div>
+              <h3
+                id="confirmation-dialog-title"
+                className="text-xl font-bold tracking-tight text-slate-900"
+              >
+                {title}
+              </h3>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+
+            <button
+              onClick={onCancel}
+              disabled={isLoading}
+              type="button"
+              aria-label="Close dialog"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 disabled:opacity-50"
+            >
+              <FaTimes size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-col items-center text-center">
+            <div
+              className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${styles.iconWrap}`}
+            >
+              <Icon className={`h-7 w-7 ${styles.iconColor}`} />
+            </div>
+
+            <p className="max-w-sm text-sm leading-7 text-slate-600 sm:text-[15px]">
+              {message}
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              onClick={onCancel}
+              disabled={isLoading}
+              type="button"
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:min-w-[130px]"
+            >
+              {cancelText}
+            </button>
+
+            <button
+              onClick={onConfirm}
+              disabled={isLoading}
+              type="button"
+              className={`inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-semibold disabled:opacity-50 sm:min-w-[150px] ${styles.confirmBtn}`}
+            >
+              {isLoading ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Processing...
+                </>
+              ) : (
+                confirmText
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

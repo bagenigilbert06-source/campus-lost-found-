@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import PublicNavbar from '../pages/common/PublicNavbar';
 import Footer from '../pages/Footer/Footer';
+import GeminiChatbot from '../components/GeminiChatbot';
 import { Toaster } from 'react-hot-toast';
 
 // Public Layout - For unauthenticated users
@@ -15,6 +16,7 @@ const PublicLayout = () => {
                 <Outlet />
             </main>
             <Footer />
+            <GeminiChatbot isAuthenticated={false} context="You are on a public page of the campus lost and found platform. The user is not authenticated yet." />
         </div>
     );
 };

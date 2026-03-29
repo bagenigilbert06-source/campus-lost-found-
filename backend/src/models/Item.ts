@@ -2,6 +2,8 @@ import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IItem extends Document {
   itemType: 'Lost' | 'Found' | 'Recovered';
+  postType?: 'Lost' | 'Found' | 'Recovered';
+  subType?: string;
   title: string;
   description: string;
   category: string;
@@ -28,11 +30,14 @@ export interface IItem extends Document {
 
 const ItemSchema = new Schema<IItem>(
   {
-    itemType: { type: String, enum: ['Lost', 'Found', 'Recovered'], required: true },
+    itemType: { type: String, enum: ['Lost', 'Found', 'Recovered'], required: true, index: true },
+    subType: { type: String },
     title: { type: String, required: true },
     description: { type: String, required: true },
     category: { type: String, required: true, index: true },
     location: { type: String, required: true, index: true },
+    // deprecated: postType just for compatibility
+    postType: { type: String, enum: ['Lost', 'Found', 'Recovered'], default: undefined },
     coordinates: {
       lat: { type: Number },
       lng: { type: Number },
@@ -73,5 +78,6 @@ const ItemSchema = new Schema<IItem>(
 ItemSchema.index({ userId: 1, status: 1 });
 ItemSchema.index({ category: 1, location: 1 });
 ItemSchema.index({ itemType: 1, status: 1 });
+ItemSchema.index({ postType: 1, status: 1 });
 
 export const Item = model<IItem>('Item', ItemSchema);

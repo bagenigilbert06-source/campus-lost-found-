@@ -189,7 +189,7 @@ const AllItems = () => {
                 viewport={{ once: true }}
                 transition={{ delay: 0.4 }}
             >
-                <Link to="/addItems">
+                <Link to="/app/post-item">
                     <GlassButton
                         variant="primary"
                         size="lg"

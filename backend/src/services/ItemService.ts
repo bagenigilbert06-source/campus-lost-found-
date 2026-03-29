@@ -4,10 +4,19 @@ import { userService } from './UserService.js';
 
 export class ItemService {
   async createItem(data: Partial<IItem>, userId: string): Promise<IItem> {
+    const props = data as any;
+    const itemType = (props.itemType || props.postType || 'Lost') as 'Lost' | 'Found' | 'Recovered';
+
+    if (!['Lost', 'Found', 'Recovered'].includes(itemType)) {
+      throw BadRequest('Invalid post type');
+    }
+
     const item = new Item({
       ...data,
       userId,
       status: 'active',
+      itemType,
+      postType: itemType,
     });
 
     await item.save();
@@ -26,12 +35,26 @@ export class ItemService {
   async getItems(filters: any = {}, page: number = 1, limit: number = 10): Promise<{ items: IItem[]; total: number }> {
     const skip = (page - 1) * limit;
 
-    const query: any = { status: filters.status || 'active' };
+    const query: any = {};
+    
+    // Only filter by status if explicitly provided.
+    // For public search (no specific user) default to active items only,
+    // but for user-specific queries we should include all statuses.
+    if (filters.status !== undefined) {
+      query.status = filters.status;
+    } else if (!filters.userId && !filters.userEmail) {
+      query.status = 'active'; // Default to showing only active items for public listings
+    }
 
     if (filters.category) query.category = filters.category;
     if (filters.location) query.location = new RegExp(filters.location, 'i');
+    // post type (Lost/Found/Recovered) alias:
+    if (filters.postType) query.itemType = filters.postType;
     if (filters.itemType) query.itemType = filters.itemType;
+    if (filters.subType) query.subType = filters.subType;
     if (filters.userId) query.userId = filters.userId;
+    if (filters.email) query.email = filters.email.toLowerCase();
+    if (filters.userEmail) query.email = filters.userEmail.toLowerCase();
 
     const [items, total] = await Promise.all([
       Item.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -50,6 +73,20 @@ export class ItemService {
 
     if (item.userId !== userId) {
       throw new Error('Unauthorized to update this item');
+    }
+
+    const patch = data as any;
+    if (patch.postType || patch.itemType) {
+      const resolvedType = patch.postType || patch.itemType;
+      if (!['Lost', 'Found', 'Recovered'].includes(resolvedType as string)) {
+        throw BadRequest('Invalid post type');
+      }
+      item.itemType = resolvedType as 'Lost' | 'Found' | 'Recovered';
+      (item as any).postType = resolvedType as 'Lost' | 'Found' | 'Recovered';
+    }
+
+    if (patch.subType) {
+      item.subType = patch.subType;
     }
 
     Object.assign(item, data);

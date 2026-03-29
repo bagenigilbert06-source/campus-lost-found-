@@ -30,9 +30,16 @@ const DashboardMessages = () => {
       const res = await axios.get('http://localhost:3001/api/messages', {
         params: { recipientEmail: user?.email },
         withCredentials: true
-      }).catch(() => ({ data: [] }));
+      }).catch(() => ({ data: { data: [] } }));
 
-      const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      let data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      // Sort messages with unread first
+      data = data.sort((a, b) => {
+        if (a.isRead === b.isRead) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        return a.isRead ? 1 : -1;
+      });
       setMessages(data);
     } catch (error) {
       console.error('[v0] Error fetching messages:', error);

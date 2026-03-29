@@ -1,9 +1,10 @@
+import './setup.js'; // Load environment variables first
+
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 import { connectDB } from './config/database.js';
 import { initializeFirebase } from './config/firebase.js';
 import { requestLogger } from './middleware/logger.js';
@@ -18,14 +19,11 @@ import bookmarkRoutes from './routes/bookmarks.js';
 import claimsRoutes from './routes/claims.js';
 import usersRoutes from './routes/users.js';
 import imagesRoutes from './routes/images.js';
+import geminiRoutes from './routes/gemini.js';
 
 // Get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Load .env.local for development, .env for production
-const envFile = process.env.NODE_ENV === 'production' ? '.env' : '.env.local';
-dotenv.config({ path: path.resolve(__dirname, '..', envFile) });
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
@@ -72,6 +70,7 @@ app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/claims', claimsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/images', imagesRoutes);
+app.use('/api/gemini', geminiRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

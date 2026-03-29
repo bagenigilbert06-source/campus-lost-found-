@@ -160,11 +160,42 @@ export class NotificationService {
   }
 
   /**
+   * Create a generic notification
+   */
+  async createNotification(data: {
+    userId: string;
+    type: string;
+    itemId: string;
+    title: string;
+    message: string;
+    relatedUserId?: string;
+    relatedItemId?: string;
+    relatedMessageId?: string;
+  }): Promise<INotification> {
+    const notification = new Notification({
+      userId: data.userId,
+      type: data.type,
+      itemId: data.itemId,
+      title: data.title,
+      message: data.message,
+      relatedUserId: data.relatedUserId,
+      relatedItemId: data.relatedItemId,
+      relatedMessageId: data.relatedMessageId,
+      status: 'sent',
+      isRead: false,
+      sentAt: new Date(),
+    });
+
+    await notification.save();
+    return notification;
+  }
+
+  /**
    * Save notification to database
    */
   private async saveNotification(
     userId: string,
-    type: 'match' | 'recovery' | 'verification' | 'digest',
+    type: 'match' | 'recovery' | 'verification' | 'digest' | 'claim_submitted' | 'claim_approved' | 'claim_rejected',
     itemId: string,
     title: string,
     message: string

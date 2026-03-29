@@ -1,254 +1,572 @@
-import React, { useContext, useState } from 'react';
-import { useLoaderData, useNavigate} from 'react-router-dom';
-import AuthContext from '../../context/Authcontext/AuthContext';
-import toast from 'react-hot-toast';
-import { Helmet } from 'react-helmet-async';
-import { schoolConfig } from '../../config/schoolConfig';
+import React, { useContext, useMemo, useState } from "react";
+import { useLoaderData, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import toast from "react-hot-toast";
+import {
+  FaArrowLeft,
+  FaImage,
+  FaSave,
+  FaTrash,
+  FaSpinner,
+  FaInfoCircle,
+} from "react-icons/fa";
+
+import AuthContext from "../../context/Authcontext/AuthContext";
+import { schoolConfig } from "../../config/schoolConfig";
+import { itemsService } from "../../services/apiService";
+
+const categories = [
+  "Electronics",
+  "IDs",
+  "Keys",
+  "Wallets",
+  "Phones",
+  "Laptops",
+  "Bags",
+  "Clothing",
+  "Books",
+  "Other",
+];
+
+const itemTypes = [
+  "Student ID",
+  "Passport",
+  "Phone",
+  "Laptop",
+  "Wallet",
+  "Keys",
+  "Backpack",
+  "Watch",
+  "Other",
+];
+
+const locations = [
+  "Gate 1",
+  "Gate 2",
+  "Main Building",
+  "Library",
+  "Cafeteria",
+  "Sports Complex",
+  "Hostel",
+  "Parking",
+  "Security Office",
+  "Classroom Building",
+  "Other",
+];
+
+const MAX_IMAGES = 5;
 
 const UpdateItems = () => {
-    const item = useLoaderData();
-    const { _id, itemType, title, description, category, location, dateLost, images, image } = item;
-    const { user } = useContext(AuthContext);
-    const navigate = useNavigate();
-    const [imageUrls, setImageUrls] = useState(images && images.length > 0 ? images : (image ? [image] : []));
-    const [imageInput, setImageInput] = useState('');
+  const item = useLoaderData();
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
-    const handleAddImageUrl = () => {
-        if (!imageInput.trim()) {
-            toast.error('Please enter a valid image URL');
-            return;
-        }
-        setImageUrls([...imageUrls, imageInput]);
-        setImageInput('');
+  const {
+    _id,
+    itemType: initialItemType = "Lost",
+    subType: initialSubType = "",
+    title: initialTitle = "",
+    description: initialDescription = "",
+    category: initialCategory = "Other",
+    location: initialLocation = "Other",
+    dateLost: initialDateLost = new Date().toISOString().split("T")[0],
+    images,
+    image,
+    distinguishingFeatures: initialFeatures = "",
+    status: initialStatus = "active",
+    verificationStatus: initialVerificationStatus = "pending",
+  } = item || {};
+
+  const initialImageUrls = useMemo(() => {
+    if (Array.isArray(images) && images.length > 0) return images;
+    if (image) return [image];
+    return [];
+  }, [images, image]);
+
+  const [formData, setFormData] = useState({
+    itemType: initialItemType,
+    subType: initialSubType,
+    title: initialTitle,
+    description: initialDescription,
+    category: initialCategory,
+    location: initialLocation,
+    dateLost: new Date(initialDateLost).toISOString().split("T")[0],
+    distinguishingFeatures: initialFeatures,
+    status: initialStatus,
+    verificationStatus: initialVerificationStatus,
+  });
+
+  const [imageUrls, setImageUrls] = useState(initialImageUrls);
+  const [imageInput, setImageInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const isValidImageUrl = (url) => {
+    try {
+      const parsed = new URL(url);
+      return /^https?:$/.test(parsed.protocol);
+    } catch {
+      return false;
+    }
+  };
+
+  const handleAddImageUrl = () => {
+    const trimmed = imageInput.trim();
+
+    if (!trimmed) {
+      toast.error("Please enter an image URL");
+      return;
+    }
+
+    if (!isValidImageUrl(trimmed)) {
+      toast.error("Please enter a valid image URL");
+      return;
+    }
+
+    if (imageUrls.includes(trimmed)) {
+      toast.error("This image has already been added");
+      return;
+    }
+
+    if (imageUrls.length >= MAX_IMAGES) {
+      toast.error(`Maximum ${MAX_IMAGES} images allowed`);
+      return;
+    }
+
+    setImageUrls((prev) => [...prev, trimmed]);
+    setImageInput("");
+  };
+
+  const handleRemoveImage = (index) => {
+    setImageUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    if (!formData.title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      toast.error("Description is required");
+      return;
+    }
+
+    if (!formData.location.trim()) {
+      toast.error("Location is required");
+      return;
+    }
+
+    if (imageUrls.length === 0) {
+      toast.error("Please add at least one image");
+      return;
+    }
+
+    const updatedItem = {
+      itemType: formData.itemType,
+      subType: formData.subType,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      category: formData.category,
+      location: formData.location.trim(),
+      dateLost: formData.dateLost,
+      distinguishingFeatures: formData.distinguishingFeatures.trim(),
+      images: imageUrls,
+      email: user?.email?.toLowerCase() || "",
+      name: user?.displayName || "",
+      status: formData.status,
+      verificationStatus: formData.verificationStatus,
     };
 
-    const handleRemoveImage = (index) => {
-        setImageUrls(imageUrls.filter((_, i) => i !== index));
-    };
+    try {
+      setLoading(true);
 
-    const handleUpdate = e => {
-        e.preventDefault();
-        
-        if (imageUrls.length === 0) {
-            toast.error('Please add at least one image');
-            return;
-        }
+      const updated = await itemsService.updateItem(_id, updatedItem);
+      console.log("[UpdateItems] Update response:", updated);
 
-        const form = e.target;
-        const itemType = form.itemType.value;
-        const title = form.title.value;
-        const description = form.description.value;
-        const category = form.category.value;
-        const location = form.location.value;
-        const dateLost = form.dateLost.value;
+      if (updated?.success || updated?._id || updated?.modifiedCount > 0) {
+        toast.success("Item updated successfully!");
+        navigate("/app/my-items");
+      } else {
+        toast.error("Item update failed");
+      }
+    } catch (error) {
+      console.error("[UpdateItems] Update request error:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          "Error updating item. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const newItem = {
-            itemType,
-            title,
-            description,
-            category,
-            location,
-            dateLost,
-            images: imageUrls,
-            email: user.email,
-            name: user.displayName,
-        };
+  return (
+    <div className="min-h-screen bg-base-200 px-4 py-6 md:py-10">
+      <Helmet>
+        <title>{`Update Item - ${schoolConfig.name}`}</title>
+      </Helmet>
 
-        fetch(`http://localhost:3001/api/items/${_id}`, {
-            method: 'PUT',
-            headers: {
-                'content-type': 'application/json',
-            },
-            body: JSON.stringify(newItem),
-        })
-            .then(res => res.json())
-            .then(data => {
-                console.log("[v0] Update response:", data);
-                if (data.modifiedCount > 0 || data.success || data._id) {
-                    toast.success("Item updated successfully!");
-                    navigate('/app/my-items')
+      <div className="mx-auto max-w-5xl">
+        <button
+          type="button"
+          onClick={() => navigate("/app/my-items")}
+          className="btn btn-ghost btn-sm mb-4 gap-2"
+        >
+          <FaArrowLeft />
+          Back
+        </button>
 
-                } else {
-                    toast.error("Item update failed.");
-                }
-            });
-    };
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+            Update Item Details
+          </h1>
+          <p className="mt-2 text-sm text-base-content/70 md:text-base">
+            Edit the item information and keep the details accurate.
+          </p>
+        </div>
 
-    return (
-        <div className="container mx-auto w-[70%] mb-10 mt-10 bg-white rounded-lg shadow-lg space-y-8">
-             <Helmet>
-                <title>{`Update Item - ${schoolConfig.name}`}</title>
-             </Helmet>
-            <h2 className="text-3xl font-bold text-zetech-primary mb-6 text-center pt-6" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Update Item Details
-            </h2>
-            <form className="space-y-6 p-8 " onSubmit={handleUpdate}>
-                {/* Post Type */}
-                <div className="form-control">
-                    <label htmlFor="postType" className="block text-sm font-medium text-zetech-primary">
-                        Post Type
+        <form
+          onSubmit={handleUpdate}
+          className="rounded-3xl border border-base-300 bg-base-100 shadow-sm"
+        >
+          <div className="grid gap-0 lg:grid-cols-3">
+            <div className="border-b border-base-300 p-5 lg:col-span-2 lg:border-b-0 lg:border-r lg:p-7">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-semibold">Post Type</span>
                     </label>
                     <select
-                        id="postType"
-                        name="itemType"
-                        defaultValue={itemType}
-                        className="select select-bordered w-full mt-2"
+                      name="itemType"
+                      value={formData.itemType}
+                      onChange={handleChange}
+                      className="select select-bordered w-full"
                     >
-                        <option value="Lost">Lost</option>
-                        <option value="Found">Found</option>
-                        <option value="Recovered">Recovered</option>
+                      <option value="Lost">Lost</option>
+                      <option value="Found">Found</option>
+                      <option value="Recovered">Recovered</option>
                     </select>
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-semibold">Category</span>
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      className="select select-bordered w-full"
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                {/* Image URLs */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-semibold">
+                        Item Sub-Type
+                      </span>
+                    </label>
+                    <select
+                      name="subType"
+                      value={formData.subType}
+                      onChange={handleChange}
+                      className="select select-bordered w-full"
+                    >
+                      <option value="">Select subtype</option>
+                      {itemTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-semibold">Date Lost</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="dateLost"
+                      value={formData.dateLost}
+                      onChange={handleChange}
+                      className="input input-bordered w-full"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Images</label>
-                    <div className="flex gap-2 mt-2 mb-2">
-                        <input
-                            type="url"
-                            placeholder="Enter Image URL"
-                            className="input input-bordered w-full"
-                            value={imageInput}
-                            onChange={(e) => setImageInput(e.target.value)}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddImageUrl();
-                                }
-                            }}
-                        />
-                        <button
-                            type="button"
-                            onClick={handleAddImageUrl}
-                            className="btn btn-primary text-white px-6"
+                  <label className="label">
+                    <span className="label-text font-semibold">Title</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="Enter item title"
+                    className="input input-bordered w-full"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-semibold">Location</span>
+                    </label>
+                    <select
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      className="select select-bordered w-full"
+                    >
+                      {locations.map((loc) => (
+                        <option key={loc} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-semibold">Status</span>
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      className="select select-bordered w-full"
+                    >
+                      <option value="active">Active</option>
+                      <option value="claimed">Claimed</option>
+                      <option value="recovered">Recovered</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">Description</span>
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Describe the item clearly"
+                    className="textarea textarea-bordered min-h-[120px] w-full"
+                    required
+                  />
+                </div>
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">
+                      Distinguishing Features
+                    </span>
+                  </label>
+                  <textarea
+                    name="distinguishingFeatures"
+                    value={formData.distinguishingFeatures}
+                    onChange={handleChange}
+                    placeholder="Unique marks, serial number, color details, sticker, scratches..."
+                    className="textarea textarea-bordered min-h-[100px] w-full"
+                  />
+                </div>
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">
+                      Verification Status
+                    </span>
+                  </label>
+                  <select
+                    name="verificationStatus"
+                    value={formData.verificationStatus}
+                    onChange={handleChange}
+                    className="select select-bordered w-full"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="verified">Verified</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+
+                <div className="rounded-2xl border border-base-300 bg-base-200/60 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <FaImage className="text-base-content/70" />
+                    <p className="font-semibold">Images</p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                      type="url"
+                      placeholder="Enter image URL"
+                      className="input input-bordered flex-1"
+                      value={imageInput}
+                      onChange={(e) => setImageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddImageUrl();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddImageUrl}
+                      className="btn btn-primary"
+                    >
+                      Add Image
+                    </button>
+                  </div>
+
+                  {imageUrls.length > 0 ? (
+                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                      {imageUrls.map((url, index) => (
+                        <div
+                          key={`${url}-${index}`}
+                          className="overflow-hidden rounded-2xl border border-base-300 bg-base-100"
                         >
-                            Add
-                        </button>
+                          <img
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            className="h-24 w-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src =
+                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23e2e8f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10"%3EInvalid%3C/text%3E%3C/svg%3E';
+                            }}
+                          />
+                          <div className="flex items-center justify-between p-2">
+                            <span className="truncate text-xs text-base-content/70">
+                              Image {index + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(index)}
+                              className="btn btn-ghost btn-xs text-error"
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border border-dashed border-base-300 bg-base-100 p-6 text-center text-sm text-base-content/50">
+                      No images added yet
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 lg:p-7">
+              <div className="sticky top-6 space-y-5">
+                <div className="rounded-2xl border border-base-300 bg-base-200/60 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <FaInfoCircle className="text-base-content/70" />
+                    <h3 className="font-semibold">Account Info</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                        Email
+                      </p>
+                      <input
+                        type="text"
+                        value={user?.email || ""}
+                        readOnly
+                        className="input input-bordered w-full"
+                      />
                     </div>
 
-                    {/* Image Preview Grid */}
-                    {imageUrls.length > 0 && (
-                        <div className="mt-4">
-                            <p className="text-sm font-semibold mb-2">Images ({imageUrls.length})</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                {imageUrls.map((url, index) => (
-                                    <div key={index} className="relative group">
-                                        <img
-                                            src={url}
-                                            alt={`Preview ${index + 1}`}
-                                            className="w-full h-20 object-cover rounded-lg border-2 border-zetech-primary"
-                                            onError={(e) => {
-                                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2364748b" font-size="10">Invalid</text></svg>';
-                                            }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveImage(index)}
-                                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Title */}
-                <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Title</label>
-                    <input
+                    <div>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                        Name
+                      </p>
+                      <input
                         type="text"
-                        name="title"
-                        defaultValue={title}
-                        placeholder="Title"
-                        className="input input-bordered w-full mt-2"
-                        required
-                    />
-                </div>
-
-                {/* Description */}
-                <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Description</label>
-                    <textarea
-                        className="textarea textarea-bordered w-full mt-2"
-                        placeholder="Description"
-                        name="description"
-                        defaultValue={description}
-                        required
-                    ></textarea>
-                </div>
-
-                {/* Category */}
-                <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Category</label>
-                    <select
-                        defaultValue={category}
-                        name="category"
-                        className="select select-bordered w-full mt-2"
-                    >
-                        <option>Pets</option>
-                        <option>Documents</option>
-                        <option>Gadgets</option>
-                    </select>
-                </div>
-
-                {/* Location */}
-                <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Location</label>
-                    <input
-                        type="text"
-                        name="location"
-                        defaultValue={location}
-                        placeholder="Where was the item lost?"
-                        className="input input-bordered w-full mt-2"
-                        required
-                    />
-                </div>
-
-                {/* Date Lost */}
-                <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Date Lost</label>
-                    <input
-                        type="date"
-                        name="dateLost"
-                        defaultValue={dateLost}
-                        className="input input-bordered w-full mt-2"
-                        required
-                    />
-                </div>
-
-                {/* User Info */}
-                <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Email</label>
-                    <input
-                        type="text"
-                        defaultValue={user.email}
+                        value={user?.displayName || ""}
                         readOnly
-                        className="input input-bordered w-full mt-2"
-                    />
+                        className="input input-bordered w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="form-control">
-                    <label className="block text-sm font-medium text-zetech-primary">Name</label>
-                    <input
-                        type="text"
-                        defaultValue={user.displayName}
-                        readOnly
-                        className="input input-bordered w-full mt-2"
-                    />
+                <div className="rounded-2xl border border-base-300 bg-base-100 p-4">
+                  <h3 className="mb-4 font-semibold">Quick Summary</h3>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-base-content/60">Post Type</span>
+                      <span className="font-medium">{formData.itemType}</span>
+                    </div>
+
+                    <div className="flex justify-between gap-3">
+                      <span className="text-base-content/60">Category</span>
+                      <span className="font-medium">{formData.category}</span>
+                    </div>
+
+                    <div className="flex justify-between gap-3">
+                      <span className="text-base-content/60">Images</span>
+                      <span className="font-medium">{imageUrls.length}</span>
+                    </div>
+
+                    <div className="flex justify-between gap-3">
+                      <span className="text-base-content/60">Status</span>
+                      <span className="font-medium">{formData.status}</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Update Button */}
-                <div className="form-control mt-6">
-                    <button className="bg-zetech-primary text-white w-40 mx-auto py-2 px-4 rounded-lg shadow hover:bg-zetech-accent hover:shadow-md hover:scale-105 transition">
-                        Update Item
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn btn-primary w-full"
+                >
+                  {loading ? (
+                    <>
+                      <FaSpinner className="animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <FaSave />
+                      Update Item
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 };
 
 export default UpdateItems;

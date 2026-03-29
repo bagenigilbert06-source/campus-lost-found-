@@ -6,6 +6,7 @@ import { FaMapMarkerAlt, FaBuilding, FaSearch, FaPhone, FaEnvelope, FaClock } fr
 const CampusDirectory = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
+    const [contactMode, setContactMode] = useState('locations'); // 'locations' or 'support'
 
     // Campus locations organized by category
     const campusLocations = [

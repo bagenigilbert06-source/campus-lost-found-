@@ -4,7 +4,8 @@ import AuthContext from "../../context/Authcontext/AuthContext";
 import { Helmet } from "react-helmet-async";
 import { schoolConfig } from "../../config/schoolConfig";
 import toast from "react-hot-toast";
-import { itemsService, claimsService } from "../../services/apiService";
+import axios from "axios";
+import { itemsService, claimsService, notificationService } from "../../services/apiService";
 import {
   FaHistory,
   FaBox,
@@ -30,38 +31,58 @@ const DashboardActivity = () => {
   }, [user, navigate]);
 
   const fetchActivity = async () => {
+    const API_BASE = 'http://localhost:3001/api';
+
     try {
       setLoading(true);
 
-      const [itemsRes, claimsRes] = await Promise.all([
-        itemsService
-          .getAllItems({ userEmail: user?.email })
+      const [itemsRes, claimsRes, messagesRes, notificationsRes] = await Promise.all([
+        itemsService.getUserItems(user?.uid).catch((error) => {
+          console.error('[DashboardActivity] Error fetching items:', error);
+          return [];
+        }),
+        claimsService.getClaims(user?.email).catch((error) => {
+          console.error('[DashboardActivity] Error fetching claims:', error);
+          return [];
+        }),
+        axios
+          .get(`${API_BASE}/messages`, {
+            params: { recipientEmail: user?.email },
+            withCredentials: true,
+          })
           .catch((error) => {
-            console.error('[DashboardActivity] Error fetching items:', error);
+            console.error('[DashboardActivity] Error fetching messages:', error);
             return { data: [] };
           }),
-        claimsService
-          .getClaims(user?.email)
-          .catch((error) => {
-            console.error('[DashboardActivity] Error fetching claims:', error);
-            return { data: [] };
-          }),
+        notificationService.getNotifications().catch((error) => {
+          console.error('[DashboardActivity] Error fetching notifications:', error);
+          return { notifications: [] };
+        }),
       ]);
+
 
       const items = Array.isArray(itemsRes)
         ? itemsRes
         : itemsRes?.data || [];
 
-      const claims = Array.isArray(claimsRes)
-        ? claimsRes
-        : claimsRes?.data || [];
+      const claims = Array.isArray(claimsRes.data)
+        ? claimsRes.data
+        : claimsRes.data?.data || [];
+
+      const messages = Array.isArray(messagesRes.data)
+        ? messagesRes.data
+        : messagesRes.data?.data || [];
+
+      const notifications = Array.isArray(notificationsRes.notifications)
+        ? notificationsRes.notifications
+        : notificationsRes.data?.notifications || [];
 
       const allActivities = [
         ...items.map((item) => ({
           id: item._id,
           type: "item",
           title: item.title || "Item posted",
-          description: `Posted ${item.itemType || "item"} item`,
+          description: `Posted ${item.itemType || "item"} ${item.subType ? `(${item.subType})` : ""} in ${item.category || ""}`,
           icon: FaBox,
           tone: "emerald",
           date: item.createdAt,
@@ -81,6 +102,26 @@ const DashboardActivity = () => {
               : "amber",
           date: claim.createdAt,
           details: `Status: ${claim.status || "Pending"}`,
+        })),
+        ...messages.map((message) => ({
+          id: message._id,
+          type: "message",
+          title: message.senderName || "New message",
+          description: `Message from ${message.senderName || message.senderEmail}`,
+          icon: FaComments,
+          tone: message.isRead ? "slate" : "blue",
+          date: message.createdAt,
+          details: message.content ? message.content.substring(0, 50) + "..." : "New message",
+        })),
+        ...notifications.map((notif) => ({
+          id: notif._id,
+          type: "notification",
+          title: notif.title || "Notification",
+          description: notif.message,
+          icon: FaInbox,
+          tone: "blue",
+          date: notif.createdAt,
+          details: notif.type ? `Type: ${notif.type}` : "Update",
         })),
       ].sort((a, b) => new Date(b.date) - new Date(a.date));
 

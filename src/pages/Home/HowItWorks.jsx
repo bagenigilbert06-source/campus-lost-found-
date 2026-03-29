@@ -1,6 +1,6 @@
-import React, { memo, useMemo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { FaPen, FaBell, FaCheckCircle, FaHandshake } from 'react-icons/fa';
+import React, { memo, useMemo } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { FaPen, FaBell, FaCheckCircle, FaHandshake } from "react-icons/fa";
 
 const HowItWorks = memo(function HowItWorks() {
   const shouldReduceMotion = useReducedMotion();
@@ -10,46 +10,46 @@ const HowItWorks = memo(function HowItWorks() {
       {
         id: 1,
         icon: FaPen,
-        number: '01',
-        title: 'Report an Item',
+        number: "01",
+        title: "Report an Item",
         description:
-          'Sign in and report your lost or found item with important details such as photos, location, and date.',
+          "Sign in and submit clear details about the lost or found item, including photos, location, and date.",
       },
       {
         id: 2,
         icon: FaBell,
-        number: '02',
-        title: 'Get Notified',
+        number: "02",
+        title: "Get Notified",
         description:
-          'Receive timely notifications when matching items are found or when someone responds to your report.',
+          "Receive updates when similar items appear or when someone responds to your report.",
       },
       {
         id: 3,
         icon: FaCheckCircle,
-        number: '03',
-        title: 'Verification',
+        number: "03",
+        title: "Verification",
         description:
-          'A clear verification process helps confirm ownership and protects users from fraud.',
+          "Ownership is reviewed carefully to help prevent false claims and improve trust.",
       },
       {
         id: 4,
         icon: FaHandshake,
-        number: '04',
-        title: 'Recovery',
+        number: "04",
+        title: "Recovery",
         description:
-          'Coordinate with the finder or collect your item safely from the campus lost and found office.',
+          "Arrange safe collection with the finder or through the campus lost and found office.",
       },
     ],
     []
   );
 
-  const headerAnimation = shouldReduceMotion
+  const headerMotion = shouldReduceMotion
     ? {}
     : {
-      initial: { opacity: 0, y: 20 },
-      whileInView: { opacity: 1, y: 0 },
-      transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
-    };
+        initial: { opacity: 0, y: 16 },
+        whileInView: { opacity: 1, y: 0 },
+        transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+      };
 
   const containerVariants = {
     hidden: {},
@@ -57,52 +57,50 @@ const HowItWorks = memo(function HowItWorks() {
       transition: shouldReduceMotion
         ? {}
         : {
-          staggerChildren: 0.08,
-          delayChildren: 0.04,
-        },
+            staggerChildren: 0.08,
+            delayChildren: 0.04,
+          },
     },
   };
 
   const itemVariants = {
-    hidden: shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 18 },
+    hidden: shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 16 },
     show: shouldReduceMotion
       ? { opacity: 1 }
       : {
-        opacity: 1,
-        y: 0,
-        transition: {
-          duration: 0.45,
-          ease: [0.22, 1, 0.36, 1],
+          opacity: 1,
+          y: 0,
+          transition: {
+            duration: 0.4,
+            ease: [0.22, 1, 0.36, 1],
+          },
         },
-      },
   };
 
   return (
-    <section className="bg-slate-50 px-4 py-16 md:px-6 md:py-24">
+    <section className="bg-base-100 px-4 py-14 md:px-6 md:py-20">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
         <motion.div
-          className="mx-auto mb-14 max-w-3xl text-center md:mb-16"
+          className="mx-auto mb-12 max-w-3xl text-center md:mb-14"
           viewport={{ once: true, amount: 0.25 }}
-          {...headerAnimation}
+          {...headerMotion}
         >
-          <span className="mb-4 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 md:text-sm">
+          <span className="badge badge-outline badge-success mb-4 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em]">
             Simple Process
           </span>
 
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl lg:text-5xl">
+          <h2 className="text-3xl font-bold tracking-tight text-base-content md:text-4xl">
             How It Works
           </h2>
 
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600 md:text-lg">
-            A simple four-step process designed to help students and staff
-            report, verify, and recover lost belongings with confidence.
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-base-content/70 md:text-base">
+            A simple four-step process that helps students and staff report,
+            verify, and recover lost belongings more easily.
           </p>
         </motion.div>
 
-        {/* Steps */}
         <motion.div
-          className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4"
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.15 }}
@@ -115,39 +113,35 @@ const HowItWorks = memo(function HowItWorks() {
               <motion.div
                 key={step.id}
                 variants={itemVariants}
-                className="relative"
+                className="relative h-full"
               >
-                <article className="relative h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-all duration-300 hover:border-emerald-200 hover:shadow-[0_16px_40px_rgba(16,185,129,0.08)] md:p-7">
-                  {/* Number badge */}
-                  <div className="mb-6 flex items-center justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-base font-bold text-white shadow-[0_10px_25px_rgba(16,185,129,0.20)]">
+                <article className="h-full rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm">
+                  <div className="mb-5 flex items-start justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-content">
                       {step.number}
                     </div>
 
-                    <div className="hidden text-sm font-semibold text-emerald-600 lg:block">
+                    <span className="text-xs font-medium uppercase tracking-wide text-base-content/40">
                       Step {index + 1}
-                    </div>
+                    </span>
                   </div>
 
-                  {/* Icon */}
-                  <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50">
-                    <Icon className="text-xl text-emerald-600" />
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Icon className="text-lg" />
                   </div>
 
-                  {/* Content */}
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-lg font-semibold text-base-content">
                     {step.title}
                   </h3>
 
-                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                  <p className="mt-2 text-sm leading-7 text-base-content/70">
                     {step.description}
                   </p>
                 </article>
 
-                {/* Connector */}
                 {index < steps.length - 1 && (
-                  <div className="pointer-events-none absolute top-1/2 -right-3 hidden -translate-y-1/2 lg:flex">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-100 bg-white text-lg text-emerald-300 shadow-sm">
+                  <div className="pointer-events-none absolute top-1/2 -right-2 hidden -translate-y-1/2 xl:flex">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-base-300 bg-base-100 text-sm text-base-content/30">
                       →
                     </div>
                   </div>

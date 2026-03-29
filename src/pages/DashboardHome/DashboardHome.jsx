@@ -17,6 +17,7 @@ import {
 
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { schoolConfig } from '../../config/schoolConfig';
+import { notificationService, claimsService, itemsService } from '../../services/apiService';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -300,25 +301,16 @@ const DashboardHome = () => {
     try {
       setLoading(true);
 
-      const [claimsRes, itemsRes, messagesRes] = await Promise.all([
-        axios
-          .get(`${API_BASE}/claims`, {
-            params: { studentEmail: user.email },
-            withCredentials: true,
-          })
-          .catch(() => ({ data: [] })),
-        axios
-          .get(`${API_BASE}/items`, {
-            params: { userEmail: user.email },
-            withCredentials: true,
-          })
-          .catch(() => ({ data: [] })),
+      const [claimsRes, itemsRes, messagesRes, notificationsRes] = await Promise.all([
+        claimsService.getClaims(user.email),
+        itemsService.getAllItems({ userEmail: user.email }),
         axios
           .get(`${API_BASE}/messages`, {
             params: { recipientEmail: user.email },
             withCredentials: true,
           })
           .catch(() => ({ data: [] })),
+        notificationService.getNotifications(),
       ]);
 
       const claimsData = Array.isArray(claimsRes.data)
@@ -332,6 +324,8 @@ const DashboardHome = () => {
       const messagesData = Array.isArray(messagesRes.data)
         ? messagesRes.data
         : messagesRes.data?.data || [];
+
+      const notificationsData = notificationsRes.notifications || notificationsRes.data || [];
 
       const approved = claimsData.filter((claim) => claim.status === 'approved').length;
       const pending = claimsData.filter((claim) => claim.status === 'pending').length;
@@ -347,26 +341,35 @@ const DashboardHome = () => {
         unreadMessages: unread,
       });
 
-      const activity = [
-        ...itemsData.slice(0, 3).map((item) => ({
+      // Build activity from multiple sources
+      const allActivities = [
+        ...itemsData.map((item) => ({
           type: 'item',
           title: item.title || 'Item posted',
-          description: `Posted ${item.itemType || 'item'}`,
+          description: `Posted ${item.itemType || 'item'} ${item.subType ? `(${item.subType})` : ''} in ${item.category}`,
           date: item.createdAt,
           icon: FaBox,
         })),
-        ...claimsData.slice(0, 2).map((claim) => ({
+
+        ...claimsData.map((claim) => ({
           type: 'claim',
           title: claim.itemTitle || 'Claim submitted',
-          description: `Claim ${claim.status || 'updated'}`,
+          description: `Claim ${claim.status || 'pending'}`,
           date: claim.createdAt,
           icon: FaCheckCircle,
+        })),
+        ...notificationsData.slice(0, 3).map((notif) => ({
+          type: 'notification',
+          title: notif.title || 'New notification',
+          description: notif.message,
+          date: notif.createdAt,
+          icon: FaComments,
         })),
       ]
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 5);
 
-      setRecentActivity(activity);
+      setRecentActivity(allActivities);
     } catch (error) {
       console.error('[DashboardHome] Error fetching dashboard data:', error);
       toast.error('Failed to load dashboard data');

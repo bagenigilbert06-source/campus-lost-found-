@@ -133,7 +133,7 @@ const Navbar = () => {
               {user ? (
                 <>
                   <div className="hidden lg:flex items-center gap-3">
-                    <Link to="/addItems" className="apple-btn apple-btn-secondary">
+                    <Link to="/app/post-item" className="apple-btn apple-btn-secondary">
                       Add Item
                     </Link>
 
@@ -194,7 +194,7 @@ const Navbar = () => {
                                 My Dashboard
                               </Link>
                             </li>
-                            <li><Link to="/addItems">Add Lost &amp; Found Item</Link></li>
+                            <li><Link to="/app/post-item">Add Lost &amp; Found Item</Link></li>
                             <li><Link to="/allRecovered">All Recovered Items</Link></li>
                             <li><Link to="/myItems">Manage My Items</Link></li>
                           </>
@@ -350,7 +350,7 @@ const Navbar = () => {
                 ) : (
                   <>
                     <li><NavLink to="/dashboard" className="mobile-navbar-link mobile-navbar-link-active bg-emerald-100 dark:bg-emerald-900" onClick={closeMenu}>My Dashboard</NavLink></li>
-                    <li><NavLink to="/addItems" className={mobileNavLinkClass} onClick={closeMenu}>Add Lost &amp; Found Item</NavLink></li>
+                    <li><NavLink to="/app/post-item" className={mobileNavLinkClass} onClick={closeMenu}>Add Lost &amp; Found Item</NavLink></li>
                     <li><NavLink to="/allRecovered" className={mobileNavLinkClass} onClick={closeMenu}>All Recovered Items</NavLink></li>
                     <li><NavLink to="/myItems" className={mobileNavLinkClass} onClick={closeMenu}>Manage My Items</NavLink></li>
                   </>

@@ -28,8 +28,9 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
   // Get the Firebase ID token
   const getFirebaseToken = async () => {
     try {
-      if (user) {
-        const token = await getIdToken(user);
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const token = await getIdToken(currentUser);
         return token;
       }
     } catch (error) {

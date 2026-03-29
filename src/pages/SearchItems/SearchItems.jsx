@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { schoolConfig } from "../../config/schoolConfig";
+import SmartSearchHelper from "../../components/SmartSearchHelper";
 import {
   FaSearch,
   FaFilter,
@@ -247,14 +248,11 @@ const SearchItems = () => {
 
         <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:mb-8 sm:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-            <div className="relative flex-1">
-              <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
+            <div className="flex-1">
+              <SmartSearchHelper
+                onSearchSubmit={(query) => setSearchQuery(query)}
                 placeholder="Search by title, description, or category..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-12 w-full rounded-2xl border border-slate-300 bg-white pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                showSuggestions={true}
               />
             </div>
 

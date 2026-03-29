@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { authMiddleware, optionalAuthMiddleware, AuthRequest } from '../middleware/auth.js';
 import { User } from '../models/User.js';
 import { Item } from '../models/Item.js';
+import { Claim } from '../models/Claim.js';
+import { Message } from '../models/Message.js';
+import { notificationService } from '../services/NotificationService.js';
 
 const router: import('express').Router = Router();
 
@@ -16,45 +19,121 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
       return;
     }
 
-    // Find user by email to get their Firebase UID
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-
-    if (!user) {
-      // User not found, return empty array
-      res.json({
-        success: true,
-        data: [],
-        message: 'No user found with this email',
-      });
-      return;
-    }
-
-    // Get all items claimed by this user
-    const claims = await Item.find({
-      claimedBy: user.firebaseUid || user._id,
+    // Get all claims for this student
+    const claims = await Claim.find({
+      studentEmail: email.toLowerCase().trim(),
     })
-      .sort({ claimedAt: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .lean();
-
-    // Map items to claim format
-    const formattedClaims = claims.map((item) => ({
-      _id: item._id,
-      itemTitle: item.title,
-      status: mapVerificationStatusToClaim(item.verificationStatus),
-      claimedAt: item.claimedAt,
-      createdAt: item.createdAt,
-      itemType: item.itemType,
-      category: item.category,
-      originalItemId: item._id,
-      verificationStatus: item.verificationStatus,
-    }));
 
     res.json({
       success: true,
-      data: formattedClaims,
-      total: formattedClaims.length,
+      data: claims,
+      total: claims.length,
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Submit a new claim
+router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
+
+    const {
+      itemId,
+      itemTitle,
+      claimantName,
+      claimantEmail,
+      claimantPhone,
+      claimantStudentId,
+      proofOfOwnership,
+      claimNotes,
+    } = req.body;
+
+    console.log('[Claims] Received claim data:', {
+      itemId,
+      itemTitle,
+      claimantName,
+      claimantEmail,
+      claimantPhone,
+      claimantStudentId,
+      proofOfOwnership: proofOfOwnership?.substring(0, 50) + '...',
+      claimNotes: claimNotes?.substring(0, 50) + '...',
+    });
+
+    if (!itemId || !itemTitle || !claimantName || !claimantEmail || !claimantPhone || !claimantStudentId || !proofOfOwnership) {
+      res.status(400).json({ message: 'Missing required claim fields' });
+      return;
+    }
+
+    // Create the claim
+    const claim = new Claim({
+      itemId,
+      itemTitle,
+      studentId: claimantStudentId,
+      studentEmail: claimantEmail.toLowerCase(),
+      studentName: claimantName,
+      studentPhone: claimantPhone,
+      studentUId: req.user.uid,
+      claimMessage: claimNotes || '',
+      proofOfOwnership,
+      status: 'pending',
+    });
+
+    console.log('[Claims] Saving claim...');
+    await claim.save();
+    console.log('[Claims] Claim saved successfully');
+
+    // Update item status to claimed if not already
+    console.log('[Claims] Updating item status...');
+    await Item.findByIdAndUpdate(itemId, { status: 'claimed' });
+    console.log('[Claims] Item status updated');
+
+    // Create a message thread for this claim (automatically notify admin)
+    console.log('[Claims] Creating message...');
+    const message = new Message({
+      conversationId: `claim-${claim._id}`,
+      itemId,
+      senderId: req.user.uid,
+      senderEmail: claimantEmail.toLowerCase(),
+      senderRole: 'student',
+      recipientId: 'admin',
+      recipientEmail: 'admin@zetech.ac.ke',
+      recipientRole: 'admin',
+      content: `New claim submitted for item "${itemTitle}". Student claims: ${proofOfOwnership}`,
+      isRead: false,
+    });
+
+    await message.save();
+    console.log('[Claims] Message saved');
+
+    // Notify admin about the new claim
+    try {
+      console.log('[Claims] Creating notification...');
+      await notificationService.createNotification({
+        userId: 'admin',
+        type: 'match',
+        itemId,
+        title: `New Claim Submitted`,
+        message: `${claimantName} has claimed "${itemTitle}". Review the claim details.`,
+      });
+      console.log('[Claims] Notification created');
+    } catch (notifError) {
+      console.warn('[v0] Notification creation failed:', notifError);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: claim,
+      message: 'Claim submitted successfully',
+    });
+  } catch (error) {
+    console.error('[Claims] Error creating claim:', error);
     next(error);
   }
 });
@@ -62,29 +141,16 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
 // Get specific claim by ID
 router.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const claim = await Item.findById(req.params.id).lean();
+    const claim = await Claim.findById(req.params.id).lean();
 
-    if (!claim || !claim.claimedBy) {
+    if (!claim) {
       res.status(404).json({ message: 'Claim not found' });
       return;
     }
 
-    const formattedClaim = {
-      _id: claim._id,
-      itemTitle: claim.title,
-      status: mapVerificationStatusToClaim(claim.verificationStatus),
-      claimedAt: claim.claimedAt,
-      createdAt: claim.createdAt,
-      itemType: claim.itemType,
-      category: claim.category,
-      description: claim.description,
-      claimedBy: claim.claimedBy,
-      verificationStatus: claim.verificationStatus,
-    };
-
     res.json({
       success: true,
-      data: formattedClaim,
+      data: claim,
     });
   } catch (error) {
     next(error);
@@ -94,54 +160,101 @@ router.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) =
 // Update claim status (for admin)
 router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { status } = req.body;
+    if (!req.user) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
 
-    if (!status || !['pending', 'verified', 'rejected'].includes(status)) {
+    const { status, adminNote } = req.body;
+
+    if (!status || !['pending', 'approved', 'rejected'].includes(status)) {
       res.status(400).json({ message: 'Invalid status value' });
       return;
     }
 
-    const updatedItem = await Item.findByIdAndUpdate(
+    const claim = await Claim.findByIdAndUpdate(
       req.params.id,
-      { verificationStatus: status },
+      {
+        status,
+        adminNote,
+        adminId: req.user.uid,
+        adminEmail: req.user.email || 'admin',
+        reviewedAt: new Date(),
+      },
       { new: true }
-    ).lean();
+    );
 
-    if (!updatedItem || !updatedItem.claimedBy) {
+    if (!claim) {
       res.status(404).json({ message: 'Claim not found' });
       return;
     }
 
-    const formattedClaim = {
-      _id: updatedItem._id,
-      itemTitle: updatedItem.title,
-      status: mapVerificationStatusToClaim(updatedItem.verificationStatus),
-      claimedAt: updatedItem.claimedAt,
-      createdAt: updatedItem.createdAt,
-      verificationStatus: updatedItem.verificationStatus,
-    };
+    // Update item status if claim is approved
+    if (status === 'approved') {
+      await Item.findByIdAndUpdate(claim.itemId, {
+        status: 'recovered',
+        claimedBy: {
+          email: claim.studentEmail,
+          name: claim.studentName,
+          date: new Date(),
+        },
+        claimedAt: new Date(),
+      });
+
+      // Notify student that their claim was approved
+      const message = new Message({
+        conversationId: `claim-${claim._id}`,
+        itemId: claim.itemId,
+        senderId: 'admin',
+        senderEmail: req.user.email || 'admin@zetech.ac.ke',
+        senderRole: 'admin',
+        recipientId: claim.studentUId,
+        recipientEmail: claim.studentEmail,
+        recipientRole: 'student',
+        content: `Your claim for "${claim.itemTitle}" has been APPROVED! Please come to the security office to collect the item. Note: ${adminNote || 'No additional notes'}`,
+        isRead: false,
+      });
+
+      await message.save();
+
+      // Create notification for student
+      try {
+        await notificationService.createNotification({
+          userId: claim.studentUId,
+          type: 'recovery',
+          itemId: claim.itemId,
+          title: 'Claim Approved',
+          message: `Your claim for "${claim.itemTitle}" has been approved! Come to security office to collect it.`,
+        });
+      } catch (notifError) {
+        console.warn('[v0] Student notification failed:', notifError);
+      }
+    } else if (status === 'rejected') {
+      // Notify student that their claim was rejected
+      const message = new Message({
+        conversationId: `claim-${claim._id}`,
+        itemId: claim.itemId,
+        senderId: 'admin',
+        senderEmail: req.user.email || 'admin@zetech.ac.ke',
+        senderRole: 'admin',
+        recipientId: claim.studentUId,
+        recipientEmail: claim.studentEmail,
+        recipientRole: 'student',
+        content: `Your claim for "${claim.itemTitle}" has been REJECTED. Reason: ${adminNote || 'Proof of ownership was insufficient'}`,
+        isRead: false,
+      });
+
+      await message.save();
+    }
 
     res.json({
       success: true,
-      data: formattedClaim,
-      message: 'Claim status updated',
+      data: claim,
+      message: `Claim status updated to ${status}`,
     });
   } catch (error) {
     next(error);
   }
 });
-
-// Helper function to map verification status to claim status
-function mapVerificationStatusToClaim(verificationStatus?: string): string {
-  switch (verificationStatus) {
-    case 'verified':
-      return 'approved';
-    case 'rejected':
-      return 'rejected';
-    case 'pending':
-    default:
-      return 'pending';
-  }
-}
 
 export default router;

@@ -30,6 +30,7 @@ router.get('/', hybridAuthMiddleware, async (req: AuthRequest, res, next) => {
 
     res.json({
       success: true,
+      data: notifications,
       notifications: notifications,
       unreadCount: unreadCount,
     });

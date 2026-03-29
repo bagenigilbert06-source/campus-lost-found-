@@ -17,6 +17,9 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
     if (req.query.location) filters.location = req.query.location;
     if (req.query.itemType) filters.itemType = req.query.itemType;
     if (req.query.userId) filters.userId = req.query.userId;
+    if (req.query.email) filters.email = req.query.email as string;
+    if (req.query.userEmail) filters.userEmail = req.query.userEmail as string;
+    if (req.query.status) filters.status = req.query.status as string;
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -56,8 +59,9 @@ router.get('/admin/dashboard', optionalAuthMiddleware, async (req: AuthRequest, 
       verifiedItems: allItems.filter(item => item.verificationStatus === 'verified').length,
       rejectedItems: allItems.filter(item => item.verificationStatus === 'rejected').length,
       totalUsers: new Set(allItems.map(item => item.userId).filter(Boolean)).size,
-      lostItems: allItems.filter(item => item.itemType === 'Lost').length,
-      foundItems: allItems.filter(item => item.itemType === 'Found').length,
+      lostItems: allItems.filter(item => item.itemType === 'Lost' || item.postType === 'Lost').length,
+      foundItems: allItems.filter(item => item.itemType === 'Found' || item.postType === 'Found').length,
+      recoveredItems: allItems.filter(item => item.itemType === 'Recovered' || item.postType === 'Recovered').length,
       unreadMessages: 0, // Placeholder for future implementation
     };
 
@@ -89,11 +93,47 @@ router.get('/admin/stats', optionalAuthMiddleware, async (req: AuthRequest, res,
       verifiedItems: allItems.filter(item => item.verificationStatus === 'verified').length,
       rejectedItems: allItems.filter(item => item.verificationStatus === 'rejected').length,
       totalUsers: new Set(allItems.map(item => item.userId).filter(Boolean)).size,
-      lostItems: allItems.filter(item => item.itemType === 'Lost').length,
-      foundItems: allItems.filter(item => item.itemType === 'Found').length,
+      lostItems: allItems.filter(item => item.itemType === 'Lost' || item.postType === 'Lost').length,
+      foundItems: allItems.filter(item => item.itemType === 'Found' || item.postType === 'Found').length,
     };
 
     res.json({ success: true, data: stats });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get recovered items by email
+router.get('/recovered', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const email = req.query.email as string;
+    if (!email) {
+      res.status(400).json({ success: false, message: 'Email parameter is required' });
+      return;
+    }
+
+    // Get recovered items only
+    const { items } = await itemService.getItems({ status: 'recovered' });
+    const recoveredItems = items.filter((item) => 
+      (item.recoveredBy && item.recoveredBy.email === email) ||
+      (item.claimedBy && item.claimedBy.email === email)
+    );
+
+    res.json({
+      success: true,
+      data: recoveredItems,
+      message: recoveredItems.length > 0 ? 'Recovered items found' : 'No recovered items found',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get user's items
+router.get('/user/:userId', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const { items } = await itemService.getItems({ userId: req.params.userId });
+    res.json({ success: true, data: items });
   } catch (error) {
     next(error);
   }
@@ -117,10 +157,29 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
       return;
     }
 
-    const { title, description, category, location, dateLost, images, itemType, coordinates } = req.body;
+    const {
+      title,
+      description,
+      category,
+      location,
+      dateLost,
+      images,
+      itemType: rawItemType,
+      postType,
+      subType,
+      coordinates,
+      email,
+      name,
+    } = req.body;
 
-    if (!title || !description || !category || !location || !dateLost || !itemType) {
+    const resolvedType = (postType || rawItemType || '').toString();
+
+    if (!title || !description || !category || !location || !dateLost || !resolvedType) {
       throw BadRequest('Missing required fields');
+    }
+
+    if (!['Lost', 'Found', 'Recovered'].includes(resolvedType)) {
+      throw BadRequest('Invalid post type');
     }
 
     const item = await itemService.createItem(
@@ -131,8 +190,12 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
         location,
         dateLost: new Date(dateLost),
         images: images || [],
-        itemType,
+        itemType: resolvedType,
+        postType: resolvedType,
+        subType,
         coordinates,
+        email: email ? email.toLowerCase() : req.user.email?.toLowerCase() || '',
+        name: name || req.user.displayName,
       },
       req.user.uid
     );
@@ -222,35 +285,6 @@ router.get('/user/:userId', optionalAuthMiddleware, async (req: AuthRequest, res
   try {
     const { items } = await itemService.getItems({ userId: req.params.userId });
     res.json({ success: true, data: items });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get recovered items by email
-router.get('/recovered', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
-  try {
-    const email = req.query.email as string;
-    
-    if (!email) {
-      res.status(400).json({ success: false, message: 'Email parameter is required' });
-      return;
-    }
-
-    // Get items where the current user has claimed/recovered them
-    const { items } = await itemService.getItems({ status: 'recovered' });
-    
-    // Filter items by the email of the person who recovered them
-    const recoveredItems = items.filter(item => 
-      (item.recoveredBy && item.recoveredBy.email === email) || 
-      (item.claimedBy && item.claimedBy.email === email)
-    );
-    
-    res.json({ 
-      success: true, 
-      data: recoveredItems,
-      message: recoveredItems.length > 0 ? 'Recovered items found' : 'No recovered items found'
-    });
   } catch (error) {
     next(error);
   }

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import DashboardNavbar from "../pages/common/DashboardNavbar";
 import DashboardSidebar from "../pages/common/DashboardSidebar";
+import GeminiChatbot from "../components/GeminiChatbot";
 import { Toaster } from "react-hot-toast";
 
 // Dashboard Layout - For authenticated users
@@ -36,6 +37,12 @@ const DashboardLayout = () => {
                     </div>
                 </main>
             </div>
+
+            {/* Gemini Chatbot */}
+            <GeminiChatbot 
+                isAuthenticated={true} 
+                context="User is in the dashboard. They can post items, view their claims, manage their dashboard, etc." 
+            />
         </div>
     );
 };

@@ -13,6 +13,7 @@
     "seed": "tsx src/scripts/seedDatabase.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",

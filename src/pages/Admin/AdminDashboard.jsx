@@ -243,7 +243,7 @@ const AdminDashboard = () => {
             <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
             <div className="space-y-3">
               <Link 
-                to="/addItems"
+                to="/app/post-item"
                 className="flex items-center gap-3 p-3 rounded-lg bg-zetech-primary/10 hover:bg-zetech-primary/20 transition"
               >
                 <FaPlus className="text-zetech-primary" />

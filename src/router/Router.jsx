@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // Layouts
 import PublicLayout from "../layout/PublicLayout";
@@ -31,7 +31,7 @@ import NotificationSettings from "../pages/Settings/NotificationSettings";
 import CampusDirectory from "../pages/Directory/CampusDirectory";
 import UserProfile from "../pages/UserProfile/UserProfile";
 import SearchItems from "../pages/SearchItems/SearchItems";
-import AddItems from "../pages/AddItems/AddItems";
+import PostLostItem from "../pages/PostLostItem/PostLostItem";
 import DashboardSearch from "../pages/DashboardSearch/DashboardSearch";
 import DashboardMessages from "../pages/DashboardMessages/DashboardMessages";
 import DashboardActivity from "../pages/DashboardActivity/DashboardActivity";
@@ -121,7 +121,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'post-item',
-        element: <UserRoute><AddItems /></UserRoute>,
+        element: <UserRoute><PostLostItem /></UserRoute>,
       },
       {
         path: 'search',
@@ -148,6 +148,16 @@ const router = createBrowserRouter([
         element: <UserRoute><UpdateItems /></UserRoute>,
         loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
           return Array.isArray(data) ? data[0] : data.data || data;
+        })
+      },
+      {
+        path: "items/:id",
+        element: <UserRoute><PostDetails /></UserRoute>,
+        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
+          return Array.isArray(data) ? data[0] : data.data || data;
+        }).catch(error => {
+          console.error('Error loading item:', error);
+          return null;
         })
       },
     ]
@@ -193,6 +203,10 @@ const router = createBrowserRouter([
       {
         path: '/search',
         element: <SearchItems />,
+      },
+      {
+        path: '/addItems',
+        element: <Navigate to="/app/post-item" replace />,
       },
 
       {

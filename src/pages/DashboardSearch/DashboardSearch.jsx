@@ -15,17 +15,23 @@ import {
   FaTag,
   FaSort,
   FaChevronRight,
-  FaSlidersH,
   FaBookmark,
 } from "react-icons/fa";
 import PaginationComponent from "../../components/PaginationComponent";
 import BookmarkButton from "../../components/BookmarkButton";
 import ImageLightbox from "../../components/ImageLightbox";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 
 const API_BASE = "http://localhost:3001/api";
 const ITEMS_PER_PAGE = 12;
+
+// Helper to safely extract string values from potentially problematic API data
+const getString = (value) => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value !== null) {
+    return value.name || value.title || value.label || String(value);
+  }
+  return String(value || '');
+};
 
 const DashboardSearch = () => {
   const { user } = useContext(AuthContext);
@@ -38,13 +44,12 @@ const DashboardSearch = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("recent");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedItemImages, setSelectedItemImages] = useState([]);
 
   const [filters, setFilters] = useState({
-    itemType: "all",
+    postType: "all",
     status: "all",
     category: "all",
     dateFrom: null,
@@ -64,7 +69,7 @@ const DashboardSearch = () => {
     []
   );
 
-  const itemTypes = useMemo(() => ["Lost", "Found"], []);
+  const postTypes = useMemo(() => ["Lost", "Found"], []);
   const statuses = useMemo(
     () => ["Pending", "Verified", "Recovered", "Unclaimed"],
     []
@@ -92,7 +97,11 @@ const DashboardSearch = () => {
         })
         .catch(() => ({ data: [] }));
 
-      const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      let data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      
+      // Filter to show only active items in student search (hide claimed/recovered)
+      data = data.filter(item => item.status === 'active' || !item.status);
+      
       setItems(data);
     } catch (error) {
       console.error("[DashboardSearch] Error fetching items:", error);
@@ -110,37 +119,37 @@ const DashboardSearch = () => {
       const lowered = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (item) =>
-          item.title?.toLowerCase().includes(lowered) ||
-          item.description?.toLowerCase().includes(lowered) ||
-          item.category?.toLowerCase().includes(lowered) ||
-          item.location?.toLowerCase().includes(lowered)
+          getString(item.title).toLowerCase().includes(lowered) ||
+          getString(item.description).toLowerCase().includes(lowered) ||
+          getString(item.category).toLowerCase().includes(lowered) ||
+          getString(item.location).toLowerCase().includes(lowered)
       );
     }
 
-    if (filters.itemType !== "all") {
-      filtered = filtered.filter(
-        (item) =>
-          item.itemType?.toLowerCase() === filters.itemType.toLowerCase()
-      );
+    if (filters.postType !== "all") {
+      filtered = filtered.filter((item) => {
+        const type = getString(item.postType || item.itemType).toLowerCase();
+        return type === filters.postType.toLowerCase();
+      });
     }
 
     if (filters.category !== "all") {
       filtered = filtered.filter(
         (item) =>
-          item.category?.toLowerCase() === filters.category.toLowerCase()
+          getString(item.category).toLowerCase() === filters.category.toLowerCase()
       );
     }
 
     if (filters.status !== "all") {
       filtered = filtered.filter(
-        (item) => item.status?.toLowerCase() === filters.status.toLowerCase()
+        (item) => getString(item.status).toLowerCase() === filters.status.toLowerCase()
       );
     }
 
     if (filters.condition !== "all") {
       filtered = filtered.filter(
         (item) =>
-          item.condition?.toLowerCase() === filters.condition.toLowerCase()
+          getString(item.condition).toLowerCase() === filters.condition.toLowerCase()
       );
     }
 
@@ -182,7 +191,6 @@ const DashboardSearch = () => {
   const clearAllFilters = () => {
     setSearchTerm("");
     setSortBy("recent");
-    setShowAdvancedFilters(false);
     setFilters({
       itemType: "all",
       status: "all",
@@ -191,6 +199,10 @@ const DashboardSearch = () => {
       dateTo: null,
       condition: "all",
     });
+  };
+
+  const handleViewDetails = (itemId) => {
+    navigate(`/app/items/${itemId}`);
   };
 
   const hasActiveFilters =
@@ -270,36 +282,15 @@ const DashboardSearch = () => {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowAdvancedFilters((prev) => !prev)}
-                type="button"
-                className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
-              >
-                <FaSlidersH className="text-sm" />
-                {showAdvancedFilters ? "Hide Filters" : "Show Filters"}
-              </button>
-
-              {hasActiveFilters && (
-                <button
-                  onClick={clearAllFilters}
-                  type="button"
-                  className="inline-flex h-12 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white"
-                >
-                  <FaTimes className="text-sm" />
-                  Clear All
-                </button>
-              )}
-            </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <FilterSelect
-              label="Item Type"
-              value={filters.itemType}
-              onChange={(value) => updateFilter("itemType", value)}
-              options={itemTypes}
-              allLabel="All Item Types"
+              label="Post Type"
+              value={filters.postType}
+              onChange={(value) => updateFilter("postType", value)}
+              options={postTypes}
+              allLabel="All"
               icon={<FaFilter className="h-3.5 w-3.5" />}
             />
 
@@ -308,7 +299,7 @@ const DashboardSearch = () => {
               value={filters.category}
               onChange={(value) => updateFilter("category", value)}
               options={categories}
-              allLabel="All Categories"
+              allLabel="All"
               icon={<FaTag className="h-3.5 w-3.5" />}
             />
 
@@ -317,7 +308,7 @@ const DashboardSearch = () => {
               value={filters.status}
               onChange={(value) => updateFilter("status", value)}
               options={statuses}
-              allLabel="All Statuses"
+              allLabel="All"
               icon={<FaFilter className="h-3.5 w-3.5" />}
             />
 
@@ -339,56 +330,6 @@ const DashboardSearch = () => {
             </div>
           </div>
 
-          {showAdvancedFilters && (
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <FaCalendarAlt className="text-sm text-emerald-700" />
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Advanced Filters
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Date From
-                  </label>
-                  <DatePicker
-                    selected={filters.dateFrom}
-                    onChange={(date) => updateFilter("dateFrom", date)}
-                    placeholderText="Select start date"
-                    className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Date To
-                  </label>
-                  <DatePicker
-                    selected={filters.dateTo}
-                    onChange={(date) => updateFilter("dateTo", date)}
-                    placeholderText="Select end date"
-                    className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <button
-                    onClick={() => {
-                      updateFilter("dateFrom", null);
-                      updateFilter("dateTo", null);
-                    }}
-                    className="inline-flex h-11 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700"
-                    type="button"
-                  >
-                    Clear Dates
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {hasActiveFilters && (
             <div className="mt-4 flex flex-wrap gap-2">
               {searchTerm && (
@@ -397,10 +338,10 @@ const DashboardSearch = () => {
                   onRemove={() => setSearchTerm("")}
                 />
               )}
-              {filters.itemType !== "all" && (
+              {filters.postType !== "all" && (
                 <ActiveTag
-                  label={`Type: ${filters.itemType}`}
-                  onRemove={() => updateFilter("itemType", "all")}
+                  label={`Type: ${filters.postType}`}
+                  onRemove={() => updateFilter("postType", "all")}
                 />
               )}
               {filters.category !== "all" && (
@@ -479,7 +420,7 @@ const DashboardSearch = () => {
                 <ItemCard
                   key={item._id}
                   item={item}
-                  onOpen={() => navigate(`/app/item-details/${item._id}`)}
+                  onOpen={() => handleViewDetails(item._id)}
                   onImageClick={handleImageClick}
                 />
               ))}
@@ -531,11 +472,14 @@ function FilterSelect({ label, value, onChange, options, allLabel, icon }) {
         className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
       >
         <option value="all">{allLabel}</option>
-        {options.map((option) => (
-          <option key={option} value={option.toLowerCase()}>
-            {option}
-          </option>
-        ))}
+        {options.map((option) => {
+          const optionStr = getString(option);
+          return (
+            <option key={optionStr} value={optionStr.toLowerCase()}>
+              {optionStr}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
@@ -580,8 +524,8 @@ function ItemCard({ item, onOpen, onImageClick }) {
     item.images && item.images[0] ? item.images[0] : item.image || null;
   const allImages = item.images || (item.image ? [item.image] : []);
 
-  const isLost = item.itemType?.toLowerCase() === "lost";
-  const status = item.status || "Unclaimed";
+  const isLost = getString(item.itemType).toLowerCase() === "lost";
+  const status = item.status ? getString(item.status) : "Unclaimed";
 
   return (
     <article
@@ -592,7 +536,7 @@ function ItemCard({ item, onOpen, onImageClick }) {
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt={item.title}
+            alt={getString(item.title)}
             className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
@@ -613,7 +557,7 @@ function ItemCard({ item, onOpen, onImageClick }) {
             isLost ? "bg-orange-500" : "bg-emerald-600"
           }`}
         >
-          {item.itemType || "Item"}
+          {getString(item.itemType) || "Item"}
         </div>
 
         <div
@@ -630,10 +574,10 @@ function ItemCard({ item, onOpen, onImageClick }) {
       <div className="p-4">
         <div className="mb-2">
           <h3 className="line-clamp-2 text-base font-semibold leading-6 text-slate-900">
-            {item.title}
+            {getString(item.title)}
           </h3>
           <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">
-            {item.description}
+            {getString(item.description)}
           </p>
         </div>
 
@@ -641,13 +585,13 @@ function ItemCard({ item, onOpen, onImageClick }) {
           {item.category && (
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
               <FaTag className="h-3 w-3" />
-              {item.category}
+              {getString(item.category)}
             </span>
           )}
 
           <span
             className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold ${
-              status.toLowerCase() === "recovered"
+              getString(status).toLowerCase() === "recovered"
                 ? "bg-green-100 text-green-700"
                 : "bg-slate-100 text-slate-700"
             }`}
@@ -661,7 +605,7 @@ function ItemCard({ item, onOpen, onImageClick }) {
           {item.location && (
             <div className="flex items-center gap-2">
               <FaMapPin className="h-3.5 w-3.5 text-slate-400" />
-              <span className="truncate">{item.location}</span>
+              <span className="truncate">{getString(item.location)}</span>
             </div>
           )}
 
