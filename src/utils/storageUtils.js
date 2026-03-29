@@ -80,8 +80,20 @@ export const uploadProfilePhoto = async (file, firebaseUid) => {
     console.log('Photo uploaded successfully');
     console.log('Download URL obtained:', data.url);
 
-    // Return the full download URL
-    return `${API_BASE}${data.url}`;
+    if (!data?.url) {
+      throw new Error('No URL returned by image upload API');
+    }
+
+    if (/^https?:\/\//i.test(data.url)) {
+      return data.url;
+    }
+
+    const base = API_BASE.replace(/\/+$/g, '');
+    if (data.url.startsWith('/')) {
+      return `${base}${data.url}`;
+    }
+
+    return `${base}/${data.url}`;
   } catch (error) {
     console.error('Error uploading profile photo:', error);
     throw new Error(`Failed to upload photo: ${error.message}`);
@@ -163,8 +175,20 @@ export const uploadItemPhoto = async (file, firebaseUid) => {
     console.log('Photo uploaded successfully');
     console.log('Download URL obtained:', data.url);
 
-    // Return the full download URL
-    return `${API_BASE}${data.url}`;
+    if (!data?.url) {
+      throw new Error('No URL returned by image upload API');
+    }
+
+    if (/^https?:\/\//i.test(data.url)) {
+      return data.url;
+    }
+
+    const base = API_BASE.replace(/\/+$/g, '');
+    if (data.url.startsWith('/')) {
+      return `${base}${data.url}`;
+    }
+
+    return `${base}/${data.url}`;
   } catch (error) {
     console.error('Error uploading item photo:', error);
     throw new Error(`Failed to upload photo: ${error.message}`);

@@ -1,6 +1,6 @@
 import express, { Router, Request, Response, NextFunction } from 'express';
 import multer, { Multer } from 'multer';
-import { ObjectId } from 'mongodb';
+import mongoose from 'mongoose';
 import { hybridAuthMiddleware } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { uploadFile, downloadFile, deleteFile, getFileInfo } from '../services/gridfsService.js';
@@ -46,19 +46,21 @@ router.post(
       const timestamp = Date.now();
       const filename = `profile-${userId}-${timestamp}`;
 
-      // Upload to GridFS
+      // Upload to GridFS with sanitized metadata
       const fileId = await uploadFile(filename, req.file.buffer, {
-        userId,
+        userId: String(userId),
         type: 'profilePhoto',
-        originalName: req.file.originalname,
-        uploadedAt: new Date().toISOString(), // Convert to ISO string to avoid BSON version issues
+        originalName: String(req.file.originalname),
+        uploadedAt: new Date().toISOString(),
+        mimeType: String(req.file.mimetype),
       });
 
+      const absoluteUrl = `${req.protocol}://${req.get('host')}/api/images/download/${fileId.toString()}`;
       res.json({
         success: true,
         fileId: fileId.toString(),
         filename,
-        url: `/api/images/download/${fileId.toString()}`,
+        url: absoluteUrl,
       });
     } catch (error) {
       console.error('[Images] Error uploading profile photo:', error);
@@ -100,19 +102,21 @@ router.post(
       const timestamp = Date.now();
       const filename = `item-${userId}-${timestamp}`;
 
-      // Upload to GridFS
+      // Upload to GridFS with sanitized metadata
       const fileId = await uploadFile(filename, req.file.buffer, {
-        userId,
+        userId: String(userId),
         type: 'itemPhoto',
-        originalName: req.file.originalname,
-        uploadedAt: new Date().toISOString(), // Convert to ISO string to avoid BSON version issues
+        originalName: String(req.file.originalname),
+        uploadedAt: new Date().toISOString(),
+        mimeType: String(req.file.mimetype),
       });
 
+      const absoluteUrl = `${req.protocol}://${req.get('host')}/api/images/download/${fileId.toString()}`;
       res.json({
         success: true,
         fileId: fileId.toString(),
         filename,
-        url: `/api/images/download/${fileId.toString()}`,
+        url: absoluteUrl,
       });
     } catch (error) {
       console.error('[Images] Error uploading item photo:', error);
@@ -143,7 +147,7 @@ router.get(
       const { fileId } = req.params;
 
       // Validate fileId format
-      if (!ObjectId.isValid(fileId)) {
+      if (!mongoose.Types.ObjectId.isValid(fileId)) {
         return res.status(400).json({ error: 'Invalid file ID' });
       }
 
@@ -157,6 +161,9 @@ router.get(
       res.set('Content-Type', (fileInfo as any).contentType || 'application/octet-stream');
       res.set('Content-Length', String((fileInfo as any).length || 0));
       res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
 
       // Stream the file
       const downloadStream = downloadFile(fileId);
@@ -193,7 +200,7 @@ router.delete(
       }
 
       // Validate fileId format
-      if (!ObjectId.isValid(fileId)) {
+      if (!mongoose.Types.ObjectId.isValid(fileId)) {
         return res.status(400).json({ error: 'Invalid file ID' });
       }
 

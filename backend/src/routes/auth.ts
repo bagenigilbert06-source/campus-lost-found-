@@ -20,7 +20,7 @@ router.post('/local/register', [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('displayName').trim().notEmpty().withMessage('Display name is required'),
   body('photoURL').optional().isURL(),
-], async (req, res: Response, next: NextFunction) => {
+], async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -54,7 +54,7 @@ router.post('/local/register', [
 router.post('/local/login', [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('password').notEmpty().withMessage('Password is required'),
-], async (req, res: Response, next: NextFunction) => {
+], async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

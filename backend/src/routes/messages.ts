@@ -1,8 +1,8 @@
 import express from 'express';
-import optionalAuthMiddleware from '../middleware/optionalAuth';
-import { AuthRequest } from '../types/auth';
+import optionalAuthMiddleware from '../middleware/optionalAuth.js';
+import { AuthRequest } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: import('express').Router = express.Router();
 
 // Get all messages (for admin)
 router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {

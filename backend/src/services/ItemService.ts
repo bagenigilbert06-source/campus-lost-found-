@@ -82,8 +82,15 @@ export class ItemService {
       throw BadRequest('Item is already claimed or recovered');
     }
 
+    // Get user details for claimedBy field
+    const user = await userService.getUserById(userId);
+
     item.status = 'claimed';
-    item.claimedBy = userId;
+    item.claimedBy = {
+      email: user.email,
+      name: user.displayName,
+      date: new Date(),
+    };
     item.claimedAt = new Date();
     await item.save();
 
