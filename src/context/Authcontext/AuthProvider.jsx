@@ -303,6 +303,16 @@ const AuthProvider = ({ children }) => {
         };
     }, []);
 
+    const updateUserProfile = (updates) => {
+        setUser((prevUser) => {
+            if (!prevUser) return prevUser;
+            return {
+                ...prevUser,
+                ...updates,
+            };
+        });
+    };
+
     const authInfo = {
         user,
         loading,
@@ -312,6 +322,7 @@ const AuthProvider = ({ children }) => {
         singInUser,
         signOutUser,
         signInWithGoogle,
+        updateUserProfile,
     };
 
     return (

@@ -1,5 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { updateProfile } from "firebase/auth";
+import auth from "../../firebase/firebase.init";
 import AuthContext from "../../context/Authcontext/AuthContext";
 import { Helmet } from "react-helmet-async";
 import { schoolConfig } from "../../config/schoolConfig";
@@ -24,7 +26,7 @@ import { uploadProfilePhoto } from "../../utils/storageUtils";
 const API_BASE = "http://localhost:3001/api";
 
 const UserProfile = () => {
-  const { user } = useContext(AuthContext);
+  const { user, updateUserProfile } = useContext(AuthContext);
   const navigate = useNavigate();
   const axiosSecure = UseAxiosSecure();
 
@@ -102,6 +104,15 @@ const UserProfile = () => {
 
         if (profileData.profileImage) {
           setProfileImage(profileData.profileImage);
+          if (updateUserProfile) {
+            updateUserProfile({ photoURL: profileData.profileImage });
+          }
+        }
+
+        if (profileData.displayName) {
+          if (updateUserProfile) {
+            updateUserProfile({ displayName: profileData.displayName });
+          }
         }
 
         if (profileData.settings) {
@@ -180,6 +191,14 @@ const UserProfile = () => {
       // Update local state
       setProfileImage(downloadURL);
 
+      // Update Firebase auth profile and app context
+      if (auth?.currentUser) {
+        await updateProfile(auth.currentUser, { photoURL: downloadURL });
+      }
+      if (updateUserProfile) {
+        updateUserProfile({ photoURL: downloadURL });
+      }
+
       // Save to database
       await axiosSecure.put(
         `/users/profile`,
@@ -230,6 +249,14 @@ const UserProfile = () => {
       );
 
       if (response.status === 200 || response.data.success) {
+        // Update Firebase auth profile and context with new display name
+        if (auth?.currentUser && personalData.fullName) {
+          await updateProfile(auth.currentUser, { displayName: personalData.fullName });
+        }
+        if (updateUserProfile) {
+          updateUserProfile({ displayName: personalData.fullName, photoURL: profileImage });
+        }
+
         toast.success("Profile updated successfully");
         setIsEditingPersonal(false);
       }
