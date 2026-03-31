@@ -74,7 +74,7 @@ const steps = [
 const initialFormData = {
   title: "",
   category: "",
-  postType: "Lost", // Lost, Found, Recovered
+  postType: "Lost", // Lost, Found (Recovered is admin-only in backend)
   itemType: "", // sub-type (e.g., Student ID, Passport)
   description: "",
   location: "",
@@ -164,8 +164,8 @@ const PostLostItem = () => {
       return false;
     }
 
-    if (!formData.postType) {
-      toast.error("Please select a post type");
+    if (!formData.postType || !['Lost', 'Found'].includes(formData.postType)) {
+      toast.error("Please select a valid post type (Lost or Found)");
       return false;
     }
 
@@ -232,15 +232,19 @@ const PostLostItem = () => {
       }
 
       const submitData = {
-        ...formData,
-        email: user?.email || "",
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        category: formData.category,
+        location: formData.location,
+        dateLost: formData.dateLost,
+        itemType: formData.postType, // Lost/Found
+        postType: formData.postType,
+        subType: formData.itemType,
+        distinguishingFeatures: formData.distinguishingFeatures?.trim(),
+        images: imageUrls,
+        email: user?.email?.toLowerCase() || "",
         name: user?.displayName || "",
         phone: user?.phoneNumber || "",
-        postType: formData.postType,
-        itemType: formData.postType, // maintain legacy itemType usage for post category
-        subType: formData.itemType, // selected subtype
-        images: imageUrls,
-        // let backend enforce status defaults (active/pending as needed)
       };
 
       const response = await axios.post(API_URL, submitData, {
@@ -346,7 +350,6 @@ const PostLostItem = () => {
               >
                 <option value="Lost">Lost</option>
                 <option value="Found">Found</option>
-                <option value="Recovered">Recovered</option>
               </select>
             </div>
 

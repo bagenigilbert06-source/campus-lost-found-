@@ -59,7 +59,9 @@ const MyItemsPage = () => {
         ? claimsRes.data
         : claimsRes.data?.data || [];
 
-      const recoveredItems = items.filter((item) => item.status === "recovered");
+      // Fetch recovered items from dedicated endpoint so approved claims from other people are included
+      const recoveredItemsApi = await itemsService.getRecoveredItems(user.email).catch(() => []);
+      const recoveredItems = Array.isArray(recoveredItemsApi) ? recoveredItemsApi : [];
 
       setPosts(items.filter((item) => item.status !== "recovered"));
       setClaims(claimsData);

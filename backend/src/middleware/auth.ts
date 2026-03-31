@@ -25,11 +25,16 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
     const token = req.headers.authorization?.split('Bearer ')[1];
 
     if (!token) {
+      console.warn('[Auth] No token provided in Authorization header');
       res.status(401).json({ message: 'No authorization token provided' });
       return;
     }
 
-    const decodedToken = await getFirebaseAuth().verifyIdToken(token);
+    console.debug('[Auth] Verifying Firebase token...');
+    const firebaseAuth = getFirebaseAuth();
+    const decodedToken = await firebaseAuth.verifyIdToken(token);
+    
+    console.debug('[Auth] Token verified successfully for user:', decodedToken.email);
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email,
@@ -40,8 +45,15 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
 
     next();
   } catch (error) {
-    console.error('[Auth] Firebase token verification failed:', error);
-    res.status(401).json({ message: 'Invalid or expired token' });
+    const err = error as any;
+    console.error('[Auth] Firebase token verification failed:');
+    console.error('  Error Type:', err.code || err.name);
+    console.error('  Message:', err.message);
+    console.error('  Details:', err.errorInfo || 'N/A');
+    res.status(401).json({ 
+      message: 'Invalid or expired token',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 }
 

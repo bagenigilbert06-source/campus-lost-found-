@@ -163,7 +163,7 @@ const PostDetails = () => {
     if (status === "active") {
       return "bg-green-100 text-green-700";
     }
-    if (status === "claimed") {
+    if (status === "claimed" || status === "claim_in_progress") {
       return "bg-amber-100 text-amber-700";
     }
     if (status === "recovered") {

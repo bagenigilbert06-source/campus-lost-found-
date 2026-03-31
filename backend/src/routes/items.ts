@@ -5,6 +5,10 @@ import { matchingService } from '../services/MatchingService.js';
 import { notificationService } from '../services/NotificationService.js';
 import { BadRequest } from '../middleware/errorHandler.js';
 import { Item } from '../models/Item.js';
+import { Claim } from '../models/Claim.js';
+import { Message } from '../models/Message.js';
+import { User } from '../models/User.js';
+
 
 const router: import('express').Router = Router();
 
@@ -20,6 +24,17 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
     if (req.query.email) filters.email = req.query.email as string;
     if (req.query.userEmail) filters.userEmail = req.query.userEmail as string;
     if (req.query.status) filters.status = req.query.status as string;
+
+    const isAdmin = req.user?.role === 'admin' || [
+      'admin@zetech.ac.ke',
+      'security@zetech.ac.ke',
+      'lost-and-found@zetech.ac.ke',
+      'bagenigilbert@zetech.ac.ke'
+    ].includes(req.user?.email?.toLowerCase() || '');
+
+    if (!filters.status && !filters.userId && !filters.userEmail && !isAdmin && req.query.includeInactive !== 'true') {
+      filters.status = 'active';
+    }
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -44,34 +59,38 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
 // Admin dashboard endpoint - get dashboard data including stats and pending items
 router.get('/admin/dashboard', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    // Get all items regardless of status (for admin)
     const allItems = await Item.find({}).sort({ createdAt: -1 }).lean();
-    
-    const pendingItems = allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').slice(0, 5);
+    const allClaims = await Claim.find({}).sort({ createdAt: -1 }).lean();
+    const openMessages = await Message.find({ recipientRole: 'admin', isRead: false }).lean();
     const recentActivity = allItems.slice(0, 5);
-    
+    const pendingItems = allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').slice(0, 5);
+
     const stats = {
       totalItems: allItems.length,
       activeItems: allItems.filter(item => item.status === 'active').length,
-      claimedItems: allItems.filter(item => item.status === 'claimed').length,
+      claimedItems: allItems.filter(item => item.status === 'claim_in_progress').length,
       recoveredItems: allItems.filter(item => item.status === 'recovered').length,
       pendingVerification: allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').length,
       verifiedItems: allItems.filter(item => item.verificationStatus === 'verified').length,
       rejectedItems: allItems.filter(item => item.verificationStatus === 'rejected').length,
-      totalUsers: new Set(allItems.map(item => item.userId).filter(Boolean)).size,
       lostItems: allItems.filter(item => item.itemType === 'Lost' || item.postType === 'Lost').length,
       foundItems: allItems.filter(item => item.itemType === 'Found' || item.postType === 'Found').length,
-      recoveredItems: allItems.filter(item => item.itemType === 'Recovered' || item.postType === 'Recovered').length,
-      unreadMessages: 0, // Placeholder for future implementation
+      recoveredItemsByType: allItems.filter(item => item.itemType === 'Recovered' || item.postType === 'Recovered').length,
+      totalUsers: await User.countDocuments({}),
+      pendingClaims: allClaims.filter(claim => claim.status === 'pending').length,
+      approvedClaims: allClaims.filter(claim => claim.status === 'approved').length,
+      rejectedClaims: allClaims.filter(claim => claim.status === 'rejected').length,
+      unreadMessages: openMessages.length,
+      activeConversations: await Message.distinct('conversationId', { recipientRole: 'admin' }).then((c) => c.length),
     };
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         stats,
         pendingItems,
-        recentActivity
-      }
+        recentActivity,
+      },
     });
   } catch (error) {
     next(error);
@@ -87,7 +106,7 @@ router.get('/admin/stats', optionalAuthMiddleware, async (req: AuthRequest, res,
     const stats = {
       totalItems: allItems.length,
       activeItems: allItems.filter(item => item.status === 'active').length,
-      claimedItems: allItems.filter(item => item.status === 'claimed').length,
+      claimedItems: allItems.filter(item => item.status === 'claim_in_progress').length,
       recoveredItems: allItems.filter(item => item.status === 'recovered').length,
       pendingVerification: allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').length,
       verifiedItems: allItems.filter(item => item.verificationStatus === 'verified').length,
@@ -103,21 +122,36 @@ router.get('/admin/stats', optionalAuthMiddleware, async (req: AuthRequest, res,
   }
 });
 
-// Get recovered items by email
+// Get recovered items by email (or all for admin)
 router.get('/recovered', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const email = req.query.email as string;
-    if (!email) {
-      res.status(400).json({ success: false, message: 'Email parameter is required' });
+    const email = (req.query.email as string || '').toLowerCase().trim();
+
+    const isAdmin = req.user?.role === 'admin' || [
+      'admin@zetech.ac.ke',
+      'security@zetech.ac.ke',
+      'lost-and-found@zetech.ac.ke',
+      'bagenigilbert@zetech.ac.ke'
+    ].includes(req.user?.email?.toLowerCase() || '');
+
+    if (!email && !isAdmin) {
+      res.status(400).json({ success: false, message: 'Email parameter is required for non-admin users' });
       return;
     }
 
     // Get recovered items only
     const { items } = await itemService.getItems({ status: 'recovered' });
-    const recoveredItems = items.filter((item) => 
-      (item.recoveredBy && item.recoveredBy.email === email) ||
-      (item.claimedBy && item.claimedBy.email === email)
-    );
+
+    const recoveredItems = items.filter((item) => {
+      if (!item || item.status !== 'recovered') return false;
+      if (isAdmin) return true;
+
+      const ownerEmail = item.email?.toLowerCase().trim() || '';
+      const claimedByEmail = item.claimedBy?.email?.toLowerCase().trim() || '';
+      const recoveredByEmail = item.recoveredBy?.email?.toLowerCase().trim() || '';
+
+      return [ownerEmail, claimedByEmail, recoveredByEmail].includes(email);
+    });
 
     res.json({
       success: true,
@@ -173,6 +207,12 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
     } = req.body;
 
     const resolvedType = (postType || rawItemType || '').toString();
+    const isAdmin = req.user.role === 'admin' || [
+      'admin@zetech.ac.ke',
+      'security@zetech.ac.ke',
+      'lost-and-found@zetech.ac.ke',
+      'bagenigilbert@zetech.ac.ke',
+    ].includes(req.user.email?.toLowerCase() || '');
 
     if (!title || !description || !category || !location || !dateLost || !resolvedType) {
       throw BadRequest('Missing required fields');
@@ -180,6 +220,10 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
 
     if (!['Lost', 'Found', 'Recovered'].includes(resolvedType)) {
       throw BadRequest('Invalid post type');
+    }
+
+    if (!isAdmin && !['Lost', 'Found'].includes(resolvedType)) {
+      throw BadRequest('Normal users can only create Lost or Found items');
     }
 
     const item = await itemService.createItem(
@@ -197,7 +241,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
         email: email ? email.toLowerCase() : req.user.email?.toLowerCase() || '',
         name: name || req.user.displayName,
       },
-      req.user.uid
+      req.user.uid,
+      isAdmin
     );
 
     res.status(201).json({ success: true, data: item });
@@ -214,24 +259,58 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
       return;
     }
 
-    const item = await itemService.updateItem(req.params.id, req.user.uid, req.body);
+    const isAdmin = req.user.role === 'admin' || [
+      'admin@zetech.ac.ke',
+      'security@zetech.ac.ke',
+      'lost-and-found@zetech.ac.ke',
+      'bagenigilbert@zetech.ac.ke',
+    ].includes(req.user.email?.toLowerCase() || '');
+
+    // Process date field if present
+    const updateData = { ...req.body };
+    if (updateData.dateLost && typeof updateData.dateLost === 'string') {
+      updateData.dateLost = new Date(updateData.dateLost);
+    }
+
+    const item = await itemService.updateItem(req.params.id, req.user.uid, updateData, isAdmin);
     res.json({ success: true, data: item });
   } catch (error) {
+    console.error('[Items PUT] Error updating item:', {
+      itemId: req.params.id,
+      userId: req.user?.uid,
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    if (error instanceof Error && error.message === 'Unauthorized to update this item') {
+      res.status(403).json({ success: false, message: error.message });
+      return;
+    }
+
     next(error);
   }
 });
 
 // Patch item (for partial updates like verification)
-router.patch('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+router.patch('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
+
     const { id } = req.params;
     const updateData = req.body;
+    const user = req.user;
 
-    const item = await Item.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
+    const isAdmin = user.role === 'admin' || [
+      'admin@zetech.ac.ke',
+      'security@zetech.ac.ke',
+      'lost-and-found@zetech.ac.ke',
+      'bagenigilbert@zetech.ac.ke'
+    ].includes(user.email?.toLowerCase() || '');
+
+    const item = await itemService.updateItem(id, user.uid, updateData, isAdmin);
 
     if (!item) {
       res.status(404).json({ success: false, message: 'Item not found' });
@@ -240,22 +319,44 @@ router.patch('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next)
 
     res.json({ success: true, data: item });
   } catch (error) {
+    console.error('[v0] Patch item error:', error);
+    if (error instanceof Error && error.message === 'Unauthorized to update this item') {
+      res.status(403).json({ success: false, message: error.message });
+      return;
+    }
     next(error);
   }
 });
 
 // Delete item
-router.delete('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { id } = req.params;
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
+    }
 
-    // Try to delete the item
-    const item = await Item.findByIdAndDelete(id);
-    
+    const { id } = req.params;
+    const item = await Item.findById(id);
+
     if (!item) {
       res.status(404).json({ success: false, message: 'Item not found' });
       return;
     }
+
+    const isAdmin = req.user.role === 'admin' || [
+      'admin@zetech.ac.ke',
+      'security@zetech.ac.ke',
+      'lost-and-found@zetech.ac.ke',
+      'bagenigilbert@zetech.ac.ke',
+    ].includes(req.user.email?.toLowerCase() || '');
+
+    if (!isAdmin && item.userId !== req.user.uid) {
+      res.status(403).json({ success: false, message: 'Unauthorized to delete this item' });
+      return;
+    }
+
+    await Item.findByIdAndDelete(id);
 
     console.log('[v0] Item deleted:', id);
     res.json({ success: true, message: 'Item deleted successfully', data: item });

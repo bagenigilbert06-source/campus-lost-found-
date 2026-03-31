@@ -2,13 +2,20 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
  * GeminiService - Reusable AI service for campus lost & found platform
- * Provides free-tier-friendly Gemini integration with safe defaults
+ * Production-ready version with:
+ * - consistent error handling
+ * - rate limit parsing
+ * - real timeout handling via Promise.race
+ * - shared JSON parsing helpers
+ * - shared text generation helper
  */
 
-interface GeminiResponse {
+export interface GeminiResponse {
   success: boolean;
   content?: string;
   error?: string;
+  provider: 'gemini' | 'fallback';
+  model: string;
   usage?: {
     inputTokens: number;
     outputTokens: number;
@@ -16,12 +23,13 @@ interface GeminiResponse {
   rateLimit?: {
     isLimited: boolean;
     resetTime?: string;
-    resetIn?: number; // seconds until reset
+    resetIn?: number;
     message?: string;
   };
+  code?: 'RATE_LIMIT' | 'TIMEOUT' | 'NOT_CONFIGURED' | 'INVALID_RESPONSE' | 'INTERNAL_ERROR';
 }
 
-const SYSTEM_PROMPT = `You are a helpful assistant for a campus lost and found platform. 
+const SYSTEM_PROMPT = `You are a helpful assistant for a campus lost and found platform.
 Your role is to:
 1. Help users understand how to use the website (reporting items, searching, claiming)
 2. Improve form content (better titles, descriptions, categories)
@@ -37,10 +45,18 @@ IMPORTANT RULES:
 - Keep responses under 150 words
 - Use simple, friendly language`;
 
+type RateLimitInfo = {
+  isLimited: boolean;
+  resetTime?: string;
+  resetIn?: number;
+  message?: string;
+};
+
 export class GeminiService {
   private client: GoogleGenerativeAI;
   private model: string;
   private requestTimeout: number;
+  private maxOutputTokens: number;
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -50,161 +66,289 @@ export class GeminiService {
 
     this.client = new GoogleGenerativeAI(apiKey || '');
     this.model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-    this.requestTimeout = parseInt(process.env.GEMINI_REQUEST_TIMEOUT || '30000');
+    this.requestTimeout = Number.parseInt(process.env.GEMINI_REQUEST_TIMEOUT || '30000', 10);
+    this.maxOutputTokens = Number.parseInt(process.env.GEMINI_MAX_TOKENS || '500', 10);
   }
 
   /**
-   * Parse rate limit error and extract reset time
+   * Public helper for routes to know if AI is configured
    */
-  private parseRateLimitError(error: any): { isLimited: boolean; resetTime?: string; resetIn?: number; message?: string } {
+  isConfigured(): boolean {
+    return !!process.env.GEMINI_API_KEY;
+  }
+
+  /**
+   * Parse Gemini/Google rate limit style errors
+   */
+  private parseRateLimitError(error: any): RateLimitInfo {
     if (!error) return { isLimited: false };
 
-    const errorMessage = error?.message || error?.response?.data?.error || '';
+    const errorMessage = String(
+      error?.message ||
+      error?.response?.data?.error ||
+      error?.error ||
+      ''
+    ).toLowerCase();
+
     const errorStatus = error?.status || error?.response?.status;
 
-    // Check for 429 or rate limit indicators
-    if (
+    const isQuotaError =
       errorStatus === 429 ||
-      errorMessage.toLowerCase().includes('resource has been exhausted') ||
-      errorMessage.toLowerCase().includes('quota') ||
-      (error?.response?.data?.code && error?.response?.data?.code === 429)
-    ) {
-      let resetIn = 60; // Fallback default seconds
-      let resetTime: string | undefined;
+      errorMessage.includes('resource has been exhausted') ||
+      errorMessage.includes('quota') ||
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('too many requests') ||
+      error?.response?.data?.code === 429;
 
-      // Prefer explicit Retry-After header
-      const retryAfterHeader = error?.response?.headers?.['retry-after'];
-      if (retryAfterHeader) {
-        const retryAfterSeconds = Number(retryAfterHeader);
-        if (!Number.isNaN(retryAfterSeconds) && retryAfterSeconds > 0) {
-          resetIn = Math.ceil(retryAfterSeconds);
-        }
+    if (!isQuotaError) {
+      return { isLimited: false };
+    }
+
+    let resetIn = 60;
+    let resetTime: string | undefined;
+
+    // Retry-After header
+    const retryAfterHeader = error?.response?.headers?.['retry-after'];
+    if (retryAfterHeader) {
+      const retryAfterSeconds = Number(retryAfterHeader);
+      if (!Number.isNaN(retryAfterSeconds) && retryAfterSeconds > 0) {
+        resetIn = Math.ceil(retryAfterSeconds);
       }
+    }
 
-      // Fallback from details
-      if (error?.details?.retryDelay) {
-        resetIn = Math.ceil((error.details.retryDelay.seconds || 0) + (error.details.retryDelay.nanos || 0) / 1e9);
+    // Google-style retryDelay from error details
+    const detailRetryDelay =
+      error?.details?.retryDelay ||
+      error?.errorDetails?.find?.(
+        (d: any) => d?.['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
+      )?.retryDelay;
+
+    if (typeof detailRetryDelay === 'string') {
+      // Example: "6s"
+      const match = detailRetryDelay.match(/^(\d+)\s*s$/i);
+      if (match) {
+        resetIn = Number(match[1]);
       }
+    } else if (detailRetryDelay?.seconds || detailRetryDelay?.nanos) {
+      resetIn = Math.ceil(
+        (detailRetryDelay.seconds || 0) + (detailRetryDelay.nanos || 0) / 1e9
+      );
+    }
 
-      // Optional from response payload
-      if (error?.response?.data?.retryAfter) {
-        const payloadRetry = Number(error.response.data.retryAfter);
-        if (!Number.isNaN(payloadRetry) && payloadRetry > 0) {
-          resetIn = Math.ceil(payloadRetry);
-        }
+    // Optional retryAfter in payload
+    if (error?.response?.data?.retryAfter) {
+      const payloadRetry = Number(error.response.data.retryAfter);
+      if (!Number.isNaN(payloadRetry) && payloadRetry > 0) {
+        resetIn = Math.ceil(payloadRetry);
       }
+    }
 
-      // Support ISO or timestamp
-      if (error?.response?.data?.resetTime) {
-        const maybeDate = new Date(error.response.data.resetTime);
-        if (!Number.isNaN(maybeDate.getTime())) {
-          resetTime = maybeDate.toLocaleTimeString();
-          resetIn = Math.ceil((maybeDate.getTime() - Date.now()) / 1000);
-        }
+    // Optional reset time
+    if (error?.response?.data?.resetTime) {
+      const maybeDate = new Date(error.response.data.resetTime);
+      if (!Number.isNaN(maybeDate.getTime())) {
+        resetTime = maybeDate.toLocaleTimeString();
+        resetIn = Math.max(1, Math.ceil((maybeDate.getTime() - Date.now()) / 1000));
       }
+    }
 
-      if (!resetTime) {
-        const resetDate = new Date(Date.now() + resetIn * 1000);
-        resetTime = resetDate.toLocaleTimeString();
-      }
+    if (!resetTime) {
+      const resetDate = new Date(Date.now() + resetIn * 1000);
+      resetTime = resetDate.toLocaleTimeString();
+    }
 
-      const until = resetIn > 0 ? `${Math.ceil(resetIn / 60)}m` : 'moment';
+    const until = resetIn > 0 ? `${Math.ceil(resetIn / 60)}m` : 'soon';
+    const isTomorrow = resetIn >= 24 * 60 * 60;
+    const baseMsg = isTomorrow
+      ? `Rate limit reached. Please try again tomorrow at ${resetTime}.`
+      : `Rate limit reached. Please try again at ${resetTime} (in ${until}).`;
+
+    return {
+      isLimited: true,
+      resetIn,
+      resetTime,
+      message: `${baseMsg} Upgrade billing or switch to a paid Gemini tier for higher limits.`,
+    };
+  }
+
+  /**
+   * Standardized error -> GeminiResponse
+   */
+  private buildErrorResponse(error: any, fallbackMessage = 'Unknown error occurred'): GeminiResponse {
+    const rateLimit = this.parseRateLimitError(error);
+    if (rateLimit.isLimited) {
       return {
-        isLimited: true,
-        resetIn,
-        resetTime,
-        message: `Rate limit reached. Please try again at ${resetTime} (about ${until}). Consider upgrading to Gemini Pro for higher throughput.`,
+        success: false,
+        provider: 'gemini',
+        model: this.model,
+        code: 'RATE_LIMIT',
+        error: rateLimit.message || `Google API rate limit reached. Please try again at ${rateLimit.resetTime}.`,
+        rateLimit,
       };
     }
 
-    return { isLimited: false };
+    if (error?.message === 'REQUEST_TIMEOUT') {
+      return {
+        success: false,
+        provider: 'gemini',
+        model: this.model,
+        code: 'TIMEOUT',
+        error: 'Request timeout - AI service took too long',
+      };
+    }
+
+    // Detect network errors
+    const errorMessage = error?.message || fallbackMessage;
+    const isNetworkError = 
+      errorMessage?.includes('fetch failed') ||
+      errorMessage?.includes('ECONNREFUSED') ||
+      errorMessage?.includes('ENOTFOUND') ||
+      errorMessage?.includes('ERR_HTTP2_');
+    
+    if (isNetworkError) {
+      console.error('[Gemini] Network error details:', {
+        message: errorMessage,
+        code: error?.code,
+        cause: error?.cause,
+        url: error?.url,
+      });
+    }
+
+    return {
+      success: false,
+      provider: 'gemini',
+      model: this.model,
+      code: 'INTERNAL_ERROR',
+      error: errorMessage,
+    };
   }
 
   /**
-   * Chat - General conversational endpoint for chatbot
-   * @param message User message
-   * @param context Optional context about current app state
+   * Shared generate call with real timeout handling
    */
-  async chat(message: string, context?: string): Promise<GeminiResponse> {
+  private async generateText(prompt: string, maxOutputTokens: number, temperature: number): Promise<GeminiResponse> {
     try {
-      if (!process.env.GEMINI_API_KEY) {
+      if (!this.isConfigured()) {
         return {
           success: false,
+          provider: 'gemini',
+          model: this.model,
+          code: 'NOT_CONFIGURED',
           error: 'AI service not configured',
         };
       }
 
-      const validatedMessage = this.sanitizeInput(message);
-      const finalContext = context ? `${SYSTEM_PROMPT}\n\nCurrent context: ${context}` : SYSTEM_PROMPT;
-
       const model = this.client.getGenerativeModel({ model: this.model });
 
-      // Use timeout to prevent hanging requests
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
-
-      try {
-        const response = await model.generateContent({
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  text: `${finalContext}\n\nUser Question: ${validatedMessage}`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: parseInt(process.env.GEMINI_MAX_TOKENS || '500'),
-            temperature: 0.7,
+      const generatePromise = model.generateContent({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
           },
-        });
+        ],
+        generationConfig: {
+          maxOutputTokens,
+          temperature,
+        },
+      });
 
-        clearTimeout(timeoutId);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        const timer = setTimeout(() => {
+          clearTimeout(timer);
+          reject(new Error('REQUEST_TIMEOUT'));
+        }, this.requestTimeout);
+      });
 
-        const result = response.response;
-        const text = result.text();
-
-        return {
-          success: true,
-          content: text,
-          usage: result.usageMetadata && {
-            inputTokens: result.usageMetadata.promptTokenCount || 0,
-            outputTokens: result.usageMetadata.candidatesTokenCount || 0,
-          },
-        };
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    } catch (error: any) {
-      console.error('[Gemini] Chat error:', error);
-
-      if (error.name === 'AbortError') {
-        return {
-          success: false,
-          error: 'Request timeout - AI service took too long',
-        };
-      }
-
-      const rateLimit = this.parseRateLimitError(error);
+      const response: any = await Promise.race([generatePromise, timeoutPromise]);
+      const result = response.response;
+      const text = result.text();
 
       return {
+        success: true,
+        provider: 'gemini',
+        model: this.model,
+        content: text?.trim?.() ?? '',
+        usage: result?.usageMetadata
+          ? {
+              inputTokens: result.usageMetadata.promptTokenCount || 0,
+              outputTokens: result.usageMetadata.candidatesTokenCount || 0,
+            }
+          : undefined,
+      };
+    } catch (error: any) {
+      console.error('[Gemini] Generate text error:', {
+        message: error?.message,
+        name: error?.name,
+        code: error?.code,
+        status: error?.status,
+      });
+      return this.buildErrorResponse(error);
+    }
+  }
+
+  /**
+   * Extract and validate JSON object from AI response
+   */
+  private parseJsonObject(text: string): GeminiResponse {
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return {
+          success: false,
+          provider: 'gemini',
+          model: this.model,
+          code: 'INVALID_RESPONSE',
+          error: 'Invalid response format',
+        };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      return {
+        success: true,
+        provider: 'gemini',
+        model: this.model,
+        content: JSON.stringify(parsed),
+      };
+    } catch (error) {
+      console.error('[Gemini] JSON parse error:', error);
+      return {
         success: false,
-        error: rateLimit.isLimited 
-          ? `Google API rate limit reached. Please try again at ${rateLimit.resetTime}.`
-          : error?.message || 'Unknown error occurred',
-        rateLimit: rateLimit.isLimited ? rateLimit : undefined,
+        provider: 'gemini',
+        model: this.model,
+        code: 'INVALID_RESPONSE',
+        error: 'Failed to parse AI response',
       };
     }
   }
 
   /**
+   * Sanitize user input to reduce abuse / prompt injection surface
+   */
+  private sanitizeInput(input: string): string {
+    return String(input || '')
+      .trim()
+      .substring(0, 1000)
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+  }
+
+  /**
+   * Chat - general conversational endpoint for chatbot
+   */
+  async chat(message: string, context?: string): Promise<GeminiResponse> {
+    const validatedMessage = this.sanitizeInput(message);
+    const finalContext = context
+      ? `${SYSTEM_PROMPT}\n\nCurrent context: ${context}`
+      : SYSTEM_PROMPT;
+
+    const prompt = `${finalContext}\n\nUser Question: ${validatedMessage}`;
+
+    return this.generateText(prompt, this.maxOutputTokens, 0.7);
+  }
+
+  /**
    * Improve item description/title for form submission
-   * @param title Current item title
-   * @param description Current item description
-   * @param category Item category
-   * @param itemType Lost/Found/Recovered
    */
   async improveItemDescription(
     title: string,
@@ -212,20 +356,17 @@ export class GeminiService {
     category?: string,
     itemType?: string
   ): Promise<GeminiResponse> {
-    try {
-      if (!process.env.GEMINI_API_KEY) {
-        return {
-          success: false,
-          error: 'AI service not configured',
-        };
-      }
+    const safeTitle = this.sanitizeInput(title);
+    const safeDescription = this.sanitizeInput(description);
+    const safeCategory = category ? this.sanitizeInput(category) : '';
+    const safeItemType = itemType ? this.sanitizeInput(itemType) : '';
 
-      const prompt = `You are helping improve a lost/found item report on a campus platform.
+    const prompt = `You are helping improve a lost/found item report on a campus platform.
 Current submission:
-- Title: "${title}"
-- Description: "${description}"
-${category ? `- Category: ${category}` : ''}
-${itemType ? `- Item Type: ${itemType}` : ''}
+- Title: "${safeTitle}"
+- Description: "${safeDescription}"
+${safeCategory ? `- Category: ${safeCategory}` : ''}
+${safeItemType ? `- Item Type: ${safeItemType}` : ''}
 
 Improve this report by:
 1. Making the title clearer and more descriptive (max 10 words)
@@ -243,75 +384,23 @@ Return ONLY valid JSON with this exact structure (no markdown, no backticks):
 
 Be concise and practical.`;
 
-      const model = this.client.getGenerativeModel({ model: this.model });
-
-      const response = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 300,
-          temperature: 0.5,
-        },
-      });
-
-      const text = response.response.text();
-
-      // Parse JSON response carefully
-      try {
-        // Try to extract JSON object even if there's extra text
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          return {
-            success: false,
-            error: 'Invalid response format',
-          };
-        }
-
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          success: true,
-          content: JSON.stringify(parsed),
-        };
-      } catch (parseError) {
-        console.error('[Gemini] JSON parse error:', parseError);
-        return {
-          success: false,
-          error: 'Failed to parse AI response',
-        };
-      }
-    } catch (error: any) {
-      console.error('[Gemini] Item improvement error:', error);
-      return {
-        success: false,
-        error: error?.message || 'Unknown error occurred',
-      };
+    const response = await this.generateText(prompt, 300, 0.5);
+    if (!response.success || !response.content) {
+      return response;
     }
+
+    return this.parseJsonObject(response.content);
   }
 
   /**
    * Improve search query for better database matching
-   * @param query User search query
    */
   async improveSearchQuery(query: string): Promise<GeminiResponse> {
-    try {
-      if (!process.env.GEMINI_API_KEY) {
-        return {
-          success: false,
-          error: 'AI service not configured',
-        };
-      }
+    const safeQuery = this.sanitizeInput(query);
 
-      const prompt = `You are helping improve a search query for a campus lost and found platform.
+    const prompt = `You are helping improve a search query for a campus lost and found platform.
 
-User search query: "${query}"
+User search query: "${safeQuery}"
 
 Improve this query by:
 1. Fixing typos
@@ -325,75 +414,25 @@ Return ONLY valid JSON (no markdown or backticks):
   "alternatives": ["...", "...", "..."]
 }`;
 
-      const model = this.client.getGenerativeModel({ model: this.model });
-
-      const response = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 150,
-          temperature: 0.5,
-        },
-      });
-
-      const text = response.response.text();
-
-      try {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          return {
-            success: false,
-            error: 'Invalid response format',
-          };
-        }
-
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          success: true,
-          content: JSON.stringify(parsed),
-        };
-      } catch (parseError) {
-        console.error('[Gemini] JSON parse error:', parseError);
-        return {
-          success: false,
-          error: 'Failed to parse AI response',
-        };
-      }
-    } catch (error: any) {
-      console.error('[Gemini] Search improvement error:', error);
-      return {
-        success: false,
-        error: error?.message || 'Unknown error occurred',
-      };
+    const response = await this.generateText(prompt, 150, 0.5);
+    if (!response.success || !response.content) {
+      return response;
     }
+
+    return this.parseJsonObject(response.content);
   }
 
   /**
    * Generate claim message suggestions
-   * @param claimReason User's reason for claiming
-   * @param itemTitle Title of the item being claimed
    */
   async generateClaimMessage(claimReason: string, itemTitle: string): Promise<GeminiResponse> {
-    try {
-      if (!process.env.GEMINI_API_KEY) {
-        return {
-          success: false,
-          error: 'AI service not configured',
-        };
-      }
+    const safeClaimReason = this.sanitizeInput(claimReason);
+    const safeItemTitle = this.sanitizeInput(itemTitle);
 
-      const prompt = `Help improve a claim message for a campus lost and found item.
+    const prompt = `Help improve a claim message for a campus lost and found item.
 
-Item: "${itemTitle}"
-Initial message: "${claimReason}"
+Item: "${safeItemTitle}"
+Initial message: "${safeClaimReason}"
 
 Rewrite this message to be:
 1. Clear and professional
@@ -403,101 +442,22 @@ Rewrite this message to be:
 
 Return the improved message ONLY, no quotes or explanation.`;
 
-      const model = this.client.getGenerativeModel({ model: this.model });
-
-      const response = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 100,
-          temperature: 0.6,
-        },
-      });
-
-      const text = response.response.text();
-
-      return {
-        success: true,
-        content: text.trim(),
-      };
-    } catch (error: any) {
-      console.error('[Gemini] Claim message error:', error);
-      return {
-        success: false,
-        error: error?.message || 'Unknown error occurred',
-      };
-    }
+    return this.generateText(prompt, 100, 0.6);
   }
 
   /**
    * Suggest FAQ answer
-   * @param question User question
    */
   async generateFAQAnswer(question: string): Promise<GeminiResponse> {
-    try {
-      if (!process.env.GEMINI_API_KEY) {
-        return {
-          success: false,
-          error: 'AI service not configured',
-        };
-      }
+    const safeQuestion = this.sanitizeInput(question);
 
-      const prompt = `${SYSTEM_PROMPT}
+    const prompt = `${SYSTEM_PROMPT}
 
-User Question: "${question}"
+User Question: "${safeQuestion}"
 
 Provide a helpful, concise answer (under 100 words) specific to this campus lost and found platform.`;
 
-      const model = this.client.getGenerativeModel({ model: this.model });
-
-      const response = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 150,
-          temperature: 0.7,
-        },
-      });
-
-      const text = response.response.text();
-
-      return {
-        success: true,
-        content: text.trim(),
-      };
-    } catch (error: any) {
-      console.error('[Gemini] FAQ answer error:', error);
-      return {
-        success: false,
-        error: error?.message || 'Unknown error occurred',
-      };
-    }
-  }
-
-  /**
-   * Sanitize user input to prevent prompt injection
-   */
-  private sanitizeInput(input: string): string {
-    return input
-      .trim()
-      .substring(0, 1000) // Limit input length
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''); // Remove control characters
+    return this.generateText(prompt, 150, 0.7);
   }
 }
 

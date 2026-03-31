@@ -1,5 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
-import { optionalAuthMiddleware, hybridAuthMiddleware, AuthRequest } from '../middleware/auth.js';
+import { optionalAuthMiddleware, hybridAuthMiddleware, adminOnlyMiddleware, AuthRequest } from '../middleware/auth.js';
 import { userService } from '../services/UserService.js';
 import { Item } from '../models/Item.js';
 import { User } from '../models/User.js';
@@ -11,6 +11,53 @@ const router: import('express').Router = Router();
  * GET /users/profile?email=...
  * Get user profile data including settings and preferences
  */
+router.get('/', adminOnlyMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const page = parseInt((req.query.page as string) || '1', 10);
+    const limit = parseInt((req.query.limit as string) || '20', 10);
+    const sortBy = (req.query.sortBy as string) || '-createdAt';
+    const search = (req.query.search as string) || '';
+
+    const query: any = {};
+    if (search.trim()) {
+      query.$or = [
+        { email: { $regex: search, $options: 'i' } },
+        { displayName: { $regex: search, $options: 'i' } },
+        { studentId: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (req.query.role) {
+      query.role = req.query.role;
+    }
+
+    if (req.query.isActive) {
+      query.isActive = req.query.isActive === 'true';
+    }
+
+    const users = await User.find(query)
+      .sort({ [sortBy.replace('-', '')]: sortBy.startsWith('-') ? -1 : 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: users,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/profile', optionalAuthMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { email } = req.query;
@@ -132,7 +179,7 @@ router.get('/stats', optionalAuthMiddleware, async (req: AuthRequest, res: Respo
     const stats = {
       itemsPosted: userItems.filter(item => item.itemType === 'Lost' || item.itemType === 'Found').length,
       itemsRecovered: userItems.filter(item => item.status === 'recovered').length,
-      itemsClaimed: userItems.filter(item => item.status === 'claimed').length,
+      itemsClaimed: userItems.filter(item => item.status === 'claim_in_progress').length,
       totalMatches: 0, // Placeholder for future implementation
       activeItems: userItems.filter(item => item.status === 'active').length,
       pendingVerification: userItems.filter(item => item.verificationStatus === 'pending').length,
@@ -243,6 +290,31 @@ router.put('/profile', hybridAuthMiddleware, async (req: AuthRequest, res: Respo
  * PUT /users/settings
  * Update user notification settings/preferences
  */
+router.patch('/:id/status', adminOnlyMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { isActive } = req.body;
+    const { id } = req.params;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isActive boolean is required' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { isActive },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    return res.json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.put('/settings', hybridAuthMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { email, settings } = req.body;

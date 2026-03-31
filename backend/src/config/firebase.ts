@@ -69,7 +69,11 @@ export function initializeFirebase(): admin.app.App {
 }
 
 export function getFirebaseAuth(): admin.auth.Auth {
-  return admin.auth();
+  if (!firebaseApp) {
+    console.error('[Firebase] App not initialized! Call initializeFirebase() first');
+    throw new Error('Firebase app not initialized');
+  }
+  return admin.auth(firebaseApp);
 }
 
 export function getFirebaseDB(): admin.database.Database {

@@ -128,7 +128,7 @@ const adminService = {
   markAsClaimed: async (itemId) => {
     try {
       const response = await apiClient.patch(`/items/${itemId}`, {
-        status: 'claimed',
+        status: 'claim_in_progress',
       });
       return response.data;
     } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { Helmet } from 'react-helmet-async';
+import toast from 'react-hot-toast';
 import {
   FiSearch,
   FiMail,
@@ -33,6 +34,24 @@ const AdminUsers = () => {
     u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleUserStatusChange = async (userId, isActive) => {
+    try {
+      await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001'}/api/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          // JWT auth token should be attached by app's global interceptor if configured
+        },
+        body: JSON.stringify({ isActive }),
+      });
+      toast.success(`User ${isActive ? 'activated' : 'disabled'} successfully`);
+      refetch();
+    } catch (error) {
+      console.error('Failed to update user status', error);
+      toast.error('Failed to update user status');
+    }
+  };
 
   const statCards = [
     {

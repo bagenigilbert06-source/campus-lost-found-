@@ -8,29 +8,44 @@ import { notificationService } from '../services/NotificationService.js';
 
 const router: import('express').Router = Router();
 
-// Get claims for a user by email
+const ADMIN_EMAILS = [
+  'admin@zetech.ac.ke',
+  'security@zetech.ac.ke',
+  'lost-and-found@zetech.ac.ke',
+  'bagenigilbert@zetech.ac.ke'
+];
+
+function isAdminUser(req: AuthRequest): boolean {
+  const email = req.user?.email?.toLowerCase();
+  return (req.user?.role === 'admin') || (email ? ADMIN_EMAILS.includes(email) : false);
+}
+
+// Get claims for a user by email or all claims for admin
 router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const { studentEmail, userEmail } = req.query;
-    const email = studentEmail || userEmail;
+    const status = req.query.status as string;
+    const itemId = req.query.itemId as string;
+    const studentEmail = req.query.studentEmail as string;
 
-    if (!email || typeof email !== 'string') {
-      res.status(400).json({ message: 'Email parameter is required' });
-      return;
+    const query: any = {};
+
+    if (status) query.status = status;
+    if (itemId) query.itemId = itemId;
+
+    if (isAdminUser(req)) {
+      // Admin can list all claims
+      const claims = await Claim.find(query).sort({ createdAt: -1 }).lean();
+      return res.json({ success: true, data: claims, total: claims.length });
     }
 
-    // Get all claims for this student
-    const claims = await Claim.find({
-      studentEmail: email.toLowerCase().trim(),
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+    const email = studentEmail || req.user?.email;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, message: 'Email parameter is required' });
+    }
 
-    res.json({
-      success: true,
-      data: claims,
-      total: claims.length,
-    });
+    query.studentEmail = email.toLowerCase().trim();
+    const claims = await Claim.find(query).sort({ createdAt: -1 }).lean();
+    return res.json({ success: true, data: claims, total: claims.length });
   } catch (error) {
     next(error);
   }
@@ -89,9 +104,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
     await claim.save();
     console.log('[Claims] Claim saved successfully');
 
-    // Update item status to claimed if not already
+    // Update item status to claim_in_progress if not already
     console.log('[Claims] Updating item status...');
-    await Item.findByIdAndUpdate(itemId, { status: 'claimed' });
+    await Item.findByIdAndUpdate(itemId, { status: 'claim_in_progress' });
     console.log('[Claims] Item status updated');
 
     // Create a message thread for this claim (automatically notify admin)
@@ -167,7 +182,7 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res, next) 
 
     const { status, adminNote } = req.body;
 
-    if (!status || !['pending', 'approved', 'rejected'].includes(status)) {
+    if (!status || !['pending', 'approved', 'rejected', 'needs_more_proof'].includes(status)) {
       res.status(400).json({ message: 'Invalid status value' });
       return;
     }
@@ -191,14 +206,22 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res, next) 
 
     // Update item status if claim is approved
     if (status === 'approved') {
+      const recoveredBy = {
+        email: claim.studentEmail,
+        name: claim.studentName,
+        date: new Date(),
+      };
+
+      const item = await Item.findById(claim.itemId).lean();
+
       await Item.findByIdAndUpdate(claim.itemId, {
         status: 'recovered',
-        claimedBy: {
-          email: claim.studentEmail,
-          name: claim.studentName,
-          date: new Date(),
-        },
+        claimedBy: recoveredBy,
         claimedAt: new Date(),
+        recoveredBy,
+        recoveredAt: new Date(),
+        recoveredDate: new Date(),
+        recoveredLocation: item?.location || undefined,
       });
 
       // Notify student that their claim was approved
@@ -229,6 +252,21 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res, next) 
       } catch (notifError) {
         console.warn('[v0] Student notification failed:', notifError);
       }
+    } else if (status === 'needs_more_proof') {
+      const message = new Message({
+        conversationId: `claim-${claim._id}`,
+        itemId: claim.itemId,
+        senderId: 'admin',
+        senderEmail: req.user.email || 'admin@zetech.ac.ke',
+        senderRole: 'admin',
+        recipientId: claim.studentUId,
+        recipientEmail: claim.studentEmail,
+        recipientRole: 'student',
+        content: `Your claim for "${claim.itemTitle}" needs more proof. Please share additional evidence: ${adminNote || 'e.g., additional photo, receipt, serial number.'}`,
+        isRead: false,
+      });
+
+      await message.save();
     } else if (status === 'rejected') {
       // Notify student that their claim was rejected
       const message = new Message({

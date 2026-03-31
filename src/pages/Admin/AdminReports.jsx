@@ -1,72 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Helmet } from 'react-helmet-async';
-import toast from 'react-hot-toast';
-import { schoolConfig } from '../../config/schoolConfig';
+import React, { useState, useEffect, useMemo } from "react";
+import axios from "axios";
+import { Helmet } from "react-helmet-async";
+import toast from "react-hot-toast";
 import {
   FaChartBar,
   FaChartLine,
-  FaPercentage,
-  FaCalendar
-} from 'react-icons/fa';
-import AdminContainer from '../../components/admin/AdminContainer';
-import StatsCard from '../../components/admin/StatsCard';
-import LoadingState from '../../components/admin/LoadingState';
+  FaClipboardCheck,
+  FaMapMarkerAlt,
+  FaLayerGroup,
+} from "react-icons/fa";
+import { schoolConfig } from "../../config/schoolConfig";
+import AdminContainer from "../../components/admin/AdminContainer";
+import LoadingState from "../../components/admin/LoadingState";
+
+const API_BASE = "http://localhost:3001/api";
 
 const AdminReports = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState('all');
-  const [stats, setStats] = useState({});
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    calculateStats();
-  }, [items]);
-
   const fetchData = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/api/items');
-      console.log('[v0] Items response:', res.data);
-      // Handle both array and object with data property
-      const itemsArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setLoading(true);
+
+      const res = await axios.get(`${API_BASE}/items`, {
+        withCredentials: true,
+      });
+
+      const itemsArray = Array.isArray(res.data)
+        ? res.data
+        : res.data?.data || [];
+
       setItems(itemsArray);
-      setLoading(false);
     } catch (error) {
-      console.error('[v0] Error fetching items:', error);
-      toast.error('Failed to load report data');
+      console.error("[AdminReports] Error fetching items:", error);
+      toast.error("Failed to load report data");
       setItems([]);
+    } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = () => {
+  const stats = useMemo(() => {
     const totalItems = items.length;
-    const lostItems = items.filter(i => i.itemType === 'Lost').length;
-    const foundItems = items.filter(i => i.itemType === 'Found').length;
-    const recoveredItems = items.filter(i => i.status === 'recovered').length;
-    const verifiedItems = items.filter(i => i.verificationStatus === 'verified').length;
-    const pendingItems = items.filter(i => !i.verificationStatus || i.verificationStatus === 'pending').length;
-    const rejectedItems = items.filter(i => i.verificationStatus === 'rejected').length;
+    const lostItems = items.filter((i) => i.itemType === "Lost").length;
+    const foundItems = items.filter((i) => i.itemType === "Found").length;
+    const recoveredItems = items.filter((i) => i.status === "recovered").length;
+    const verifiedItems = items.filter(
+      (i) => i.verificationStatus === "verified"
+    ).length;
+    const pendingItems = items.filter(
+      (i) => !i.verificationStatus || i.verificationStatus === "pending"
+    ).length;
+    const rejectedItems = items.filter(
+      (i) => i.verificationStatus === "rejected"
+    ).length;
 
     const categoryCount = {};
-    items.forEach(item => {
+    const locationCount = {};
+
+    items.forEach((item) => {
       if (item.category) {
         categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
       }
-    });
 
-    const locationCount = {};
-    items.forEach(item => {
       if (item.location) {
         locationCount[item.location] = (locationCount[item.location] || 0) + 1;
       }
     });
 
-    setStats({
+    return {
       totalItems,
       lostItems,
       foundItems,
@@ -74,16 +81,27 @@ const AdminReports = () => {
       verifiedItems,
       pendingItems,
       rejectedItems,
-      recoveryRate: totalItems > 0 ? ((recoveredItems / totalItems) * 100).toFixed(1) : 0,
-      verificationRate: totalItems > 0 ? ((verifiedItems / totalItems) * 100).toFixed(1) : 0,
+      activeItems: totalItems - recoveredItems,
+      recoveryRate:
+        totalItems > 0 ? ((recoveredItems / totalItems) * 100).toFixed(1) : 0,
+      verificationRate:
+        totalItems > 0 ? ((verifiedItems / totalItems) * 100).toFixed(1) : 0,
+      pendingRate:
+        totalItems > 0 ? ((pendingItems / totalItems) * 100).toFixed(1) : 0,
+      rejectedRate:
+        totalItems > 0 ? ((rejectedItems / totalItems) * 100).toFixed(1) : 0,
+      activeRate:
+        totalItems > 0
+          ? (((totalItems - recoveredItems) / totalItems) * 100).toFixed(1)
+          : 0,
       categoryCount: Object.entries(categoryCount)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 5),
       locationCount: Object.entries(locationCount)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
-    });
-  };
+        .slice(0, 5),
+    };
+  }, [items]);
 
   if (loading) {
     return (
@@ -100,177 +118,299 @@ const AdminReports = () => {
       </Helmet>
 
       <AdminContainer>
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-500 mt-1">Key insights and statistics about lost & found items</p>
-        </div>
-
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard
-            icon={FaChartBar}
-            label="Total Items"
-            value={stats.totalItems || 0}
-            color="zetech-primary"
-          />
-          <StatsCard
-            icon={FaChartBar}
-            label="Lost Items"
-            value={stats.lostItems || 0}
-            color="red"
-          />
-          <StatsCard
-            icon={FaChartBar}
-            label="Found Items"
-            value={stats.foundItems || 0}
-            color="green"
-          />
-          <StatsCard
-            icon={FaChartLine}
-            label="Recovered"
-            value={stats.recoveredItems || 0}
-            color="zetech-secondary"
-          />
-        </div>
-
-        {/* Verification & Recovery Rates */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Verification Status</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Verified</span>
-                  <span className="text-sm font-bold text-green-600">{stats.verifiedItems || 0}</span>
+        <div className="space-y-6">
+          <section className="overflow-hidden rounded-[28px] border border-emerald-300 bg-gradient-to-br from-emerald-700 via-emerald-700 to-green-800">
+            <div className="flex flex-col gap-6 px-6 py-7 text-white lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-8">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90">
+                  Reports Workspace
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-green-500 h-2 rounded-full"
-                    style={{ width: `${stats.verificationRate || 0}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{stats.verificationRate || 0}% verified</p>
+
+                <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+                  Reports & Analytics
+                </h1>
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/90 md:text-base">
+                  View platform performance, recovery rates, verification progress,
+                  and the most common categories and locations.
+                </p>
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Pending Review</span>
-                  <span className="text-sm font-bold text-yellow-600">{stats.pendingItems || 0}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-yellow-500 h-2 rounded-full"
-                    style={{ width: `${stats.totalItems ? ((stats.pendingItems / stats.totalItems) * 100) : 0}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Rejected</span>
-                  <span className="text-sm font-bold text-red-600">{stats.rejectedItems || 0}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-red-500 h-2 rounded-full"
-                    style={{ width: `${stats.totalItems ? ((stats.rejectedItems / stats.totalItems) * 100) : 0}%` }}
-                  ></div>
-                </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <BannerMiniStat label="Total" value={stats.totalItems} />
+                <BannerMiniStat label="Recovered" value={stats.recoveredItems} />
+                <BannerMiniStat label="Verified" value={stats.verifiedItems} />
+                <BannerMiniStat label="Active" value={stats.activeItems} />
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Recovery Status</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Recovered Items</span>
-                  <span className="text-sm font-bold text-zetech-secondary">{stats.recoveredItems || 0}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-zetech-secondary h-2 rounded-full"
-                    style={{ width: `${stats.recoveryRate || 0}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{stats.recoveryRate || 0}% recovery rate</p>
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              icon={<FaLayerGroup />}
+              label="Total Items"
+              value={stats.totalItems}
+              tone="emerald"
+            />
+            <StatCard
+              icon={<FaChartBar />}
+              label="Lost Items"
+              value={stats.lostItems}
+              tone="red"
+            />
+            <StatCard
+              icon={<FaChartBar />}
+              label="Found Items"
+              value={stats.foundItems}
+              tone="green"
+            />
+            <StatCard
+              icon={<FaChartLine />}
+              label="Recovered"
+              value={stats.recoveredItems}
+              tone="blue"
+            />
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="rounded-[24px] border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+                <h2 className="text-lg font-bold text-slate-900">
+                  Verification Status
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Verified, pending, and rejected items
+                </p>
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Active Items</span>
-                  <span className="text-sm font-bold text-blue-600">
-                    {stats.totalItems - stats.recoveredItems}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full"
-                    style={{ width: `${stats.totalItems ? (((stats.totalItems - stats.recoveredItems) / stats.totalItems) * 100) : 0}%` }}
-                  ></div>
-                </div>
+              <div className="space-y-5 p-5 sm:p-6">
+                <ProgressRow
+                  label="Verified"
+                  value={stats.verifiedItems}
+                  percent={stats.verificationRate}
+                  barClass="bg-emerald-500"
+                  textClass="text-emerald-700"
+                />
+                <ProgressRow
+                  label="Pending Review"
+                  value={stats.pendingItems}
+                  percent={stats.pendingRate}
+                  barClass="bg-amber-500"
+                  textClass="text-amber-700"
+                />
+                <ProgressRow
+                  label="Rejected"
+                  value={stats.rejectedItems}
+                  percent={stats.rejectedRate}
+                  barClass="bg-red-500"
+                  textClass="text-red-700"
+                />
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Category & Location Distribution */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Categories */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Items by Category</h3>
-            {stats.categoryCount && stats.categoryCount.length > 0 ? (
-              <div className="space-y-4">
-                {stats.categoryCount.map(([category, count]) => (
-                  <div key={category}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700">{category}</span>
-                      <span className="text-sm font-bold text-zetech-primary">{count}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-zetech-primary h-2 rounded-full"
-                        style={{ width: `${(count / stats.totalItems) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+            <div className="rounded-[24px] border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+                <h2 className="text-lg font-bold text-slate-900">
+                  Recovery Status
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Recovered and active item rates
+                </p>
               </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No data available</p>
-            )}
-          </div>
 
-          {/* Top Locations */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Items by Location</h3>
-            {stats.locationCount && stats.locationCount.length > 0 ? (
-              <div className="space-y-4">
-                {stats.locationCount.map(([location, count]) => (
-                  <div key={location}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700 truncate">{location}</span>
-                      <span className="text-sm font-bold text-zetech-secondary">{count}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-zetech-secondary h-2 rounded-full"
-                        style={{ width: `${(count / stats.totalItems) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-5 p-5 sm:p-6">
+                <ProgressRow
+                  label="Recovered Items"
+                  value={stats.recoveredItems}
+                  percent={stats.recoveryRate}
+                  barClass="bg-green-500"
+                  textClass="text-green-700"
+                />
+                <ProgressRow
+                  label="Active Items"
+                  value={stats.activeItems}
+                  percent={stats.activeRate}
+                  barClass="bg-blue-500"
+                  textClass="text-blue-700"
+                />
               </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No data available</p>
-            )}
-          </div>
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="rounded-[24px] border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-700">
+                    <FaClipboardCheck />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Items by Category
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Most common item categories
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6">
+                {stats.categoryCount?.length > 0 ? (
+                  <div className="space-y-4">
+                    {stats.categoryCount.map(([category, count]) => (
+                      <BarListRow
+                        key={category}
+                        label={category}
+                        value={count}
+                        percent={stats.totalItems ? (count / stats.totalItems) * 100 : 0}
+                        barClass="bg-emerald-600"
+                        valueClass="text-emerald-700"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    No data available
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-green-100 bg-green-50 text-green-700">
+                    <FaMapMarkerAlt />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Items by Location
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Most common reported locations
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6">
+                {stats.locationCount?.length > 0 ? (
+                  <div className="space-y-4">
+                    {stats.locationCount.map(([location, count]) => (
+                      <BarListRow
+                        key={location}
+                        label={location}
+                        value={count}
+                        percent={stats.totalItems ? (count / stats.totalItems) * 100 : 0}
+                        barClass="bg-green-600"
+                        valueClass="text-green-700"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    No data available
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
         </div>
       </AdminContainer>
     </>
   );
 };
+
+function BannerMiniStat({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-50/85">
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-bold text-white">{value}</p>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value, tone = "emerald" }) {
+  const tones = {
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    red: "bg-red-50 text-red-700 border-red-100",
+    green: "bg-green-50 text-green-700 border-green-100",
+    blue: "bg-blue-50 text-blue-700 border-blue-100",
+  };
+
+  return (
+    <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            {label}
+          </p>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+            {value}
+          </p>
+        </div>
+
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl border text-base ${tones[tone]}`}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressRow({
+  label,
+  value,
+  percent,
+  barClass,
+  textClass,
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span className={`text-sm font-bold ${textClass}`}>{value}</span>
+      </div>
+
+      <div className="h-2 w-full rounded-full bg-slate-200">
+        <div
+          className={`h-2 rounded-full ${barClass}`}
+          style={{ width: `${percent || 0}%` }}
+        />
+      </div>
+
+      <p className="mt-1 text-xs text-slate-500">{percent || 0}%</p>
+    </div>
+  );
+}
+
+function BarListRow({
+  label,
+  value,
+  percent,
+  barClass,
+  valueClass,
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="truncate text-sm font-medium text-slate-700">
+          {label}
+        </span>
+        <span className={`text-sm font-bold ${valueClass}`}>{value}</span>
+      </div>
+
+      <div className="h-2 w-full rounded-full bg-slate-200">
+        <div
+          className={`h-2 rounded-full ${barClass}`}
+          style={{ width: `${percent || 0}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default AdminReports;

@@ -73,8 +73,6 @@ const UpdateItems = () => {
     images,
     image,
     distinguishingFeatures: initialFeatures = "",
-    status: initialStatus = "active",
-    verificationStatus: initialVerificationStatus = "pending",
   } = item || {};
 
   const initialImageUrls = useMemo(() => {
@@ -92,8 +90,6 @@ const UpdateItems = () => {
     location: initialLocation,
     dateLost: new Date(initialDateLost).toISOString().split("T")[0],
     distinguishingFeatures: initialFeatures,
-    status: initialStatus,
-    verificationStatus: initialVerificationStatus,
   });
 
   const [imageUrls, setImageUrls] = useState(initialImageUrls);
@@ -181,10 +177,6 @@ const UpdateItems = () => {
       dateLost: formData.dateLost,
       distinguishingFeatures: formData.distinguishingFeatures.trim(),
       images: imageUrls,
-      email: user?.email?.toLowerCase() || "",
-      name: user?.displayName || "",
-      status: formData.status,
-      verificationStatus: formData.verificationStatus,
     };
 
     try {
@@ -255,7 +247,6 @@ const UpdateItems = () => {
                     >
                       <option value="Lost">Lost</option>
                       <option value="Found">Found</option>
-                      <option value="Recovered">Recovered</option>
                     </select>
                   </div>
 
@@ -348,22 +339,6 @@ const UpdateItems = () => {
                       ))}
                     </select>
                   </div>
-
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-semibold">Status</span>
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      className="select select-bordered w-full"
-                    >
-                      <option value="active">Active</option>
-                      <option value="claimed">Claimed</option>
-                      <option value="recovered">Recovered</option>
-                    </select>
-                  </div>
                 </div>
 
                 <div className="form-control">
@@ -393,24 +368,6 @@ const UpdateItems = () => {
                     placeholder="Unique marks, serial number, color details, sticker, scratches..."
                     className="textarea textarea-bordered min-h-[100px] w-full"
                   />
-                </div>
-
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-semibold">
-                      Verification Status
-                    </span>
-                  </label>
-                  <select
-                    name="verificationStatus"
-                    value={formData.verificationStatus}
-                    onChange={handleChange}
-                    className="select select-bordered w-full"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="verified">Verified</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
                 </div>
 
                 <div className="rounded-2xl border border-base-300 bg-base-200/60 p-4">
@@ -536,10 +493,6 @@ const UpdateItems = () => {
                       <span className="font-medium">{imageUrls.length}</span>
                     </div>
 
-                    <div className="flex justify-between gap-3">
-                      <span className="text-base-content/60">Status</span>
-                      <span className="font-medium">{formData.status}</span>
-                    </div>
                   </div>
                 </div>
 

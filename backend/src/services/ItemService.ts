@@ -1,14 +1,18 @@
 import { Item, IItem } from '../models/Item.js';
-import { NotFound, BadRequest } from '../middleware/errorHandler.js';
+import { NotFound, BadRequest, Forbidden } from '../middleware/errorHandler.js';
 import { userService } from './UserService.js';
 
 export class ItemService {
-  async createItem(data: Partial<IItem>, userId: string): Promise<IItem> {
+  async createItem(data: Partial<IItem>, userId: string, isAdmin = false): Promise<IItem> {
     const props = data as any;
     const itemType = (props.itemType || props.postType || 'Lost') as 'Lost' | 'Found' | 'Recovered';
 
     if (!['Lost', 'Found', 'Recovered'].includes(itemType)) {
       throw BadRequest('Invalid post type');
+    }
+
+    if (!isAdmin && !['Lost', 'Found'].includes(itemType)) {
+      throw BadRequest('Normal users can only create Lost or Found items');
     }
 
     const item = new Item({
@@ -41,7 +45,8 @@ export class ItemService {
     // For public search (no specific user) default to active items only,
     // but for user-specific queries we should include all statuses.
     if (filters.status !== undefined) {
-      query.status = filters.status;
+      // Support legacy status value from older data, map to current value.
+      query.status = filters.status === 'claimed' ? 'claim_in_progress' : filters.status;
     } else if (!filters.userId && !filters.userEmail) {
       query.status = 'active'; // Default to showing only active items for public listings
     }
@@ -64,34 +69,133 @@ export class ItemService {
     return { items, total };
   }
 
-  async updateItem(itemId: string, userId: string, data: Partial<IItem>): Promise<IItem> {
-    const item = await Item.findById(itemId);
+  async updateItem(itemId: string, userId: string, data: Partial<IItem>, isAdmin = false): Promise<IItem> {
+    try {
+      const item = await Item.findById(itemId);
 
-    if (!item) {
-      throw NotFound('Item not found');
-    }
-
-    if (item.userId !== userId) {
-      throw new Error('Unauthorized to update this item');
-    }
-
-    const patch = data as any;
-    if (patch.postType || patch.itemType) {
-      const resolvedType = patch.postType || patch.itemType;
-      if (!['Lost', 'Found', 'Recovered'].includes(resolvedType as string)) {
-        throw BadRequest('Invalid post type');
+      if (!item) {
+        throw NotFound('Item not found');
       }
-      item.itemType = resolvedType as 'Lost' | 'Found' | 'Recovered';
-      (item as any).postType = resolvedType as 'Lost' | 'Found' | 'Recovered';
-    }
 
-    if (patch.subType) {
-      item.subType = patch.subType;
-    }
+      // Backwards compatibility: legacy items may still have status "claimed".
+      // Normalize to current canonical value before running validation/update logic.
+      if ((item as any).status === 'claimed') {
+        (item as any).status = 'claim_in_progress';
+      }
 
-    Object.assign(item, data);
-    await item.save();
-    return item;
+      if (!isAdmin) {
+        const currentUser = await userService.getUserById(userId);
+        const currentEmail = currentUser?.email?.toLowerCase() || '';
+        const itemOwnerId = item.userId || '';
+        const itemOwnerEmail = (item.email || '').toLowerCase();
+
+        const isOwner = itemOwnerId === userId || (itemOwnerId === '' && itemOwnerEmail && itemOwnerEmail === currentEmail);
+
+        if (!isOwner) {
+          throw Forbidden('Unauthorized to update this item');
+        }
+      }
+
+      const patch = data as any;
+
+      // Ensure dateLost is a proper Date object
+      if (patch.dateLost && typeof patch.dateLost === 'string') {
+        patch.dateLost = new Date(patch.dateLost);
+      }
+
+      if (!isAdmin) {
+        const safeFields = [
+          'title',
+          'description',
+          'category',
+          'location',
+          'dateLost',
+          'subType',
+          'images',
+          'distinguishingFeatures',
+          'coordinates',
+          'itemType',
+        ];
+        const blockedFields = [
+          'status',
+          'verificationStatus',
+          'claimedBy',
+          'recoveredBy',
+          'claimedAt',
+          'recoveredAt',
+          'postType',
+          'metadata',
+        ];
+
+        for (const field of Object.keys(patch)) {
+          if (!safeFields.includes(field)) {
+            throw BadRequest(`Field '${field}' cannot be updated by normal users`);
+          }
+        }
+
+        if (patch.itemType && !['Lost', 'Found'].includes(patch.itemType)) {
+          throw BadRequest('Normal users can only set itemType to Lost or Found');
+        }
+
+        if (patch.postType && !['Lost', 'Found'].includes(patch.postType)) {
+          throw BadRequest('Normal users can only set postType to Lost or Found');
+        }
+
+        if (blockedFields.some((f) => Object.prototype.hasOwnProperty.call(patch, f))) {
+          throw BadRequest('Attempt to modify admin-only fields');
+        }
+      }
+
+      // Normalize patch status from legacy value if present
+      if (patch.status === 'claimed') {
+        patch.status = 'claim_in_progress';
+      }
+
+      if (patch.itemType || patch.postType) {
+        const resolvedType = patch.itemType || patch.postType;
+        if (!['Lost', 'Found', 'Recovered'].includes(resolvedType as string)) {
+          throw BadRequest('Invalid post type');
+        }
+        item.itemType = resolvedType as 'Lost' | 'Found' | 'Recovered';
+        (item as any).postType = resolvedType as 'Lost' | 'Found' | 'Recovered';
+      }
+
+      if (patch.subType) {
+        item.subType = patch.subType;
+      }
+
+      // apply safe updates
+      const allowedUpdate = isAdmin
+        ? patch
+        : {
+            title: patch.title,
+            description: patch.description,
+            category: patch.category,
+            location: patch.location,
+            dateLost: patch.dateLost,
+            subType: patch.subType,
+            images: patch.images,
+            distinguishingFeatures: patch.distinguishingFeatures,
+            coordinates: patch.coordinates,
+            itemType: patch.itemType,
+            postType: patch.postType,
+          };
+
+      Object.assign(item, Object.keys(allowedUpdate).reduce((acc, key) => {
+        if (allowedUpdate[key] !== undefined) acc[key] = allowedUpdate[key];
+        return acc;
+      }, {} as any));
+
+      await item.save();
+      return item;
+    } catch (error) {
+      console.error('[ItemService] Error updating item:', {
+        itemId,
+        userId,
+        error: error instanceof Error ? error.message : error,
+      });
+      throw error;
+    }
   }
 
   async deleteItem(itemId: string, userId: string): Promise<void> {
@@ -122,7 +226,7 @@ export class ItemService {
     // Get user details for claimedBy field
     const user = await userService.getUserById(userId);
 
-    item.status = 'claimed';
+    item.status = 'claim_in_progress';
     item.claimedBy = {
       email: user.email,
       name: user.displayName,

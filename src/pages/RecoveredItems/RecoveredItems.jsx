@@ -104,15 +104,15 @@ const AllRecoveredItems = () => {
                 <div className="mt-4 text-sm text-gray-500 space-y-2">
                   <div className="flex items-center gap-2">
                     <FiUser />
-                    <span>{item.recoveredBy.name}</span>
+                    <span>{item.recoveredBy?.name || item.claimedBy?.name || 'Unknown'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FiCalendar />
-                    <span>{new Date(item.recoveredDate).toLocaleDateString()}</span>
+                    <span>{new Date(item.recoveredDate || item.recoveredAt || item.claimedAt || item.dateLost || item.updatedAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FiMapPin />
-                    <span>{item.recoveredLocation || 'No location available'}</span>
+                    <span>{item.recoveredLocation || item.location || 'No location available'}</span>
                   </div>
                 </div>
               </div>
@@ -147,9 +147,9 @@ const AllRecoveredItems = () => {
                     </td>
                     <td className="border px-4 py-2">{item.title}</td>
                     <td className="border px-4 py-2">{item.description || 'No description available.'}</td>
-                    <td className="border px-4 py-2">{item.recoveredBy.name}</td>
-                    <td className="border px-4 py-2">{new Date(item.recoveredDate).toLocaleDateString()}</td>
-                    <td className="border px-4 py-2">{item.recoveredLocation || 'No location available'}</td>
+                    <td className="border px-4 py-2">{item.recoveredBy?.name || item.claimedBy?.name || 'Unknown'}</td>
+                    <td className="border px-4 py-2">{new Date(item.recoveredDate || item.recoveredAt || item.claimedAt || item.dateLost || item.updatedAt).toLocaleDateString()}</td>
+                    <td className="border px-4 py-2">{item.recoveredLocation || item.location || 'No location available'}</td>
                   </tr>
                 ))}
               </tbody>

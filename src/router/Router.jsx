@@ -27,6 +27,9 @@ import AdminClaims from "../pages/Admin/AdminClaims";
 import AdminReports from "../pages/Admin/AdminReports";
 import AdminActivityLog from "../pages/Admin/AdminActivityLog";
 import AdminSettings from "../pages/Admin/AdminSettings";
+import AdminMessages from "../pages/Admin/AdminMessages";
+import AdminAddItem from "../pages/Admin/AdminAddItem";
+import AIAnalytics from "../pages/Admin/AIAnalytics";
 import NotificationSettings from "../pages/Settings/NotificationSettings";
 import CampusDirectory from "../pages/Directory/CampusDirectory";
 import UserProfile from "../pages/UserProfile/UserProfile";
@@ -78,6 +81,10 @@ const router = createBrowserRouter([
         element: <AdminRoute><AdminDashboard /></AdminRoute>,
       },
       {
+        path: 'add-item',
+        element: <AdminRoute><AdminAddItem /></AdminRoute>,
+      },
+      {
         path: 'inventory',
         element: <AdminRoute><AdminInventory /></AdminRoute>,
       },
@@ -96,6 +103,14 @@ const router = createBrowserRouter([
       {
         path: 'settings',
         element: <AdminRoute><AdminSettings /></AdminRoute>,
+      },
+      {
+        path: 'messages',
+        element: <AdminRoute><AdminMessages /></AdminRoute>,
+      },
+      {
+        path: 'ai-analytics',
+        element: <AdminRoute><AIAnalytics /></AdminRoute>,
       },
     ]
   },

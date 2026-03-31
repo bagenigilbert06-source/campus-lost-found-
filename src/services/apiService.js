@@ -87,6 +87,13 @@ export const itemsService = {
     return response.data.data;
   },
 
+  getRecoveredItems: async (email) => {
+    const response = await apiClient.get('/items/recovered', {
+      params: { email },
+    });
+    return response.data.data;
+  },
+
   createItem: async (itemData) => {
     const response = await apiClient.post('/items', itemData);
     return response.data.data;
@@ -239,8 +246,40 @@ export const claimsService = {
     return response.data.data;
   },
 
-  updateClaimStatus: async (claimId, status) => {
-    const response = await apiClient.patch(`/claims/${claimId}/status`, { status });
+  updateClaimStatus: async (claimId, status, adminNote = '') => {
+    const response = await apiClient.patch(`/claims/${claimId}/status`, { status, adminNote });
+    return response.data;
+  },
+};
+
+export const messagesService = {
+  getMessages: async (params = {}) => {
+    const response = await apiClient.get('/messages', { params });
+    return response.data;
+  },
+
+  getMessageById: async (id) => {
+    const response = await apiClient.get(`/messages/${id}`);
+    return response.data.data;
+  },
+
+  sendMessage: async (payload) => {
+    const response = await apiClient.post('/messages', payload);
+    return response.data;
+  },
+
+  replyToMessage: async (originalMessageId, content) => {
+    const response = await apiClient.post('/messages/reply', { originalMessageId, content });
+    return response.data;
+  },
+
+  markAsRead: async (messageId) => {
+    const response = await apiClient.patch(`/messages/${messageId}`, { isRead: true });
+    return response.data;
+  },
+
+  deleteMessage: async (messageId) => {
+    const response = await apiClient.delete(`/messages/${messageId}`);
     return response.data;
   },
 };
@@ -252,4 +291,5 @@ export default {
   matchingService,
   notificationService,
   claimsService,
+  messagesService,
 };

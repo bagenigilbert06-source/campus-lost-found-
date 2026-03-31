@@ -1,0 +1,11 @@
+# pnpm Workspace Configuration for Campus Lost & Found
+
+packages:
+  - 'frontend'
+  - 'backend'
+
+# Install strategy for all packages
+shared-workspace-lockfile: true
+
+# Fast install for dependencies
+install-strategy: 'auto'

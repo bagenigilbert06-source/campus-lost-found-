@@ -4,6 +4,7 @@ export interface IItem extends Document {
   itemType: 'Lost' | 'Found' | 'Recovered';
   postType?: 'Lost' | 'Found' | 'Recovered';
   subType?: string;
+  distinguishingFeatures?: string;
   title: string;
   description: string;
   category: string;
@@ -18,11 +19,14 @@ export interface IItem extends Document {
   userId?: string; // Firebase UID
   email?: string; // User email
   name?: string; // User display name
-  status: 'active' | 'recovered' | 'claimed';
+  status: 'active' | 'pending_review' | 'verified' | 'matched' | 'claim_in_progress' | 'claimed' | 'ready_for_pickup' | 'recovered' | 'resolved' | 'rejected' | 'archived';
   verificationStatus?: 'pending' | 'verified' | 'rejected';
   claimedBy?: { email: string; name: string; date: Date };
   claimedAt?: Date;
   recoveredBy?: { email: string; name: string; date: Date };
+  recoveredAt?: Date;
+  recoveredDate?: Date;
+  recoveredLocation?: string;
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +36,7 @@ const ItemSchema = new Schema<IItem>(
   {
     itemType: { type: String, enum: ['Lost', 'Found', 'Recovered'], required: true, index: true },
     subType: { type: String },
+    distinguishingFeatures: { type: String },
     title: { type: String, required: true },
     description: { type: String, required: true },
     category: { type: String, required: true, index: true },
@@ -49,7 +54,19 @@ const ItemSchema = new Schema<IItem>(
     name: { type: String },
     status: {
       type: String,
-      enum: ['active', 'recovered', 'claimed'],
+      enum: [
+        'active',
+        'pending_review',
+        'verified',
+        'matched',
+        'claim_in_progress',
+        'claimed',
+        'ready_for_pickup',
+        'recovered',
+        'resolved',
+        'rejected',
+        'archived',
+      ],
       default: 'active',
       index: true,
     },
@@ -69,6 +86,9 @@ const ItemSchema = new Schema<IItem>(
       name: { type: String },
       date: { type: Date },
     },
+    recoveredAt: { type: Date },
+    recoveredDate: { type: Date },
+    recoveredLocation: { type: String },
     metadata: { type: Schema.Types.Mixed },
   },
   { timestamps: true }
