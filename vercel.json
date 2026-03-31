@@ -9,7 +9,9 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "distDir": "dist",
+        "buildCommand": "pnpm run build",
+        "installCommand": "pnpm install --frozen-lockfile"
       }
     }
   ],
@@ -25,12 +27,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "api/index.js": {
-      "runtime": "nodejs20.x",
-      "memory": 1024,
-      "maxDuration": 30
-    }
   }
 }

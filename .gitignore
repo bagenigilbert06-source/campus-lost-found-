@@ -18,3 +18,4 @@ build/
 .cache/
 .vercel/
 firebase-adminsdk-*.json
+.vercel
