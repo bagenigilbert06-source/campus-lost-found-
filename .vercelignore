@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+
+# Build outputs
+.vite/
+dist-old/
+build/
+
+# Development
+.env.local
+.env.*.local
+.git/
+.gitignore
+
+# Testing
+playwright-report/
+test-run.log
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+SETUP_AND_RUN.md
+PERFORMANCE_FIXES_SUMMARY.md
+GET_STARTED.md
+NPM_INSTALL_FIX.md
+
+# Backend source (not needed after build)
+backend/src/
+backend/tests/
+backend/jest.config.js
+backend/tsconfig.json
+
+# Scripts
+scripts/
+start.sh
+start.bat
+
+# Playwright
+playwright.config.ts

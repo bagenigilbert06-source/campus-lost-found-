@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:backend": "cd backend && pnpm run dev",
-    "build": "vite build",
+    "build": "cd backend && pnpm run build && cd .. && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "validate-config": "node scripts/validate-config.js",
