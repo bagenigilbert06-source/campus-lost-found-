@@ -18,11 +18,11 @@ function isAdminUser(req: AuthRequest): boolean {
 }
 
 /**
- * Log query diagnostics for slow queries (>100ms)
+ * Log query diagnostics for slow queries (>500ms)
  * Helps identify COLLSCAN operations and inefficient indexes
  */
 async function logSlowQueryDiagnostics(db_duration: number, query: any, collection_name: string): Promise<void> {
-  if (db_duration > 100) {
+  if (db_duration > 500) {
     try {
       const explanation = await Message.collection.find(query).explain('executionStats');
       const executionStats = explanation?.executionStats;
@@ -83,7 +83,7 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
       const responseTime = Date.now() - startTime;
 
       logSlowQueryDiagnostics(dbDuration, adminQuery, 'Messages');
-      console.log(`[Messages] Admin query timing - DB: ${dbDuration}ms, Total: ${responseTime}ms, Docs: ${messages.length}/${total}, Query: ${JSON.stringify(adminQuery)}`);
+      console.log(`[Messages] Admin: DB=${dbDuration}ms, Response=${responseTime}ms, Returned=${messages.length}, Total=${total}, Page=${page}/${Math.ceil(total / limit)}`);
 
       return res.json({ success: true, data: messages, total, page, limit });
     }
@@ -124,7 +124,7 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
     const responseTime = Date.now() - startTime;
 
     logSlowQueryDiagnostics(dbDuration, userQuery, 'Messages');
-    console.log(`[Messages] User query timing (${email}) - DB: ${dbDuration}ms, Total: ${responseTime}ms, Docs: ${messages.length}/${total}, Query: ${JSON.stringify(userQuery)}`);
+    console.log(`[Messages] User ${email}: DB=${dbDuration}ms, Response=${responseTime}ms, Returned=${messages.length}, Total=${total}, Page=${page}/${Math.ceil(total / limit)}`);
 
     return res.json({ success: true, data: messages, total, page, limit });
   } catch (error) {

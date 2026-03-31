@@ -28,7 +28,7 @@ const DashboardMessages = () => {
     try {
       setLoading(true);
       const res = await axios.get('http://localhost:3001/api/messages', {
-        params: { recipientEmail: user?.email },
+        params: { limit: 50 },
         withCredentials: true
       }).catch(() => ({ data: { data: [] } }));
 
@@ -51,6 +51,12 @@ const DashboardMessages = () => {
 
   const handleMarkAsRead = async (messageId) => {
     try {
+      // Find the message and skip if already read
+      const message = messages.find(m => m._id === messageId);
+      if (!message || message.isRead) {
+        return;
+      }
+
       await axios.patch(`http://localhost:3001/api/messages/${messageId}`, {
         isRead: true
       }, {

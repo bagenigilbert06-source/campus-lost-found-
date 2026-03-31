@@ -31,7 +31,6 @@ const AdminMessages = () => {
       setLoading(true);
       // Use backend filtering instead of client-side filtering
       const response = await messagesService.getMessages({
-        recipientEmail: user.email,
         senderRole: 'student',
         limit: 100, // Limit to fetch only necessary data
       });

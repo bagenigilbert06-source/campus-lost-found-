@@ -22,7 +22,6 @@ const AdminNotificationsDropdown = () => {
       setLoading(true);
       // Use backend filtering instead of fetching all messages and filtering client-side
       const data = await messagesService.getMessages({
-        recipientEmail: user.email,
         senderRole: 'student',
         limit: 50, // Limit to recent messages
       });

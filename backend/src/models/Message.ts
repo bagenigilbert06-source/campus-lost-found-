@@ -40,6 +40,9 @@ MessageSchema.index({ recipientId: 1, isRead: 1 });
 MessageSchema.index({ senderId: 1, recipientId: 1, createdAt: -1 }); // For conversation lookup by user IDs
 
 // Email-based indexes for frontend filtering (critical for performance)
+MessageSchema.index({ senderEmail: 1 });
+MessageSchema.index({ recipientEmail: 1 });
+MessageSchema.index({ senderRole: 1 }); // Single index for role filtering
 MessageSchema.index({ senderEmail: 1, createdAt: -1 });
 MessageSchema.index({ recipientEmail: 1, createdAt: -1 });
 MessageSchema.index({ recipientEmail: 1, senderRole: 1, createdAt: -1 }); // For recipient filtering by sender role

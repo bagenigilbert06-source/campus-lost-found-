@@ -316,7 +316,6 @@ const DashboardHome = () => {
           axios
             .get(`${API_BASE}/messages`, {
               params: { 
-                recipientEmail: user.email,
                 limit: 50, // Only fetch recent messages
               },
               withCredentials: true,
