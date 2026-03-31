@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { FaBookmark as FaBookmarkSolid } from 'react-icons/fa';
 import { FaRegBookmark } from 'react-icons/fa';
@@ -8,9 +8,25 @@ import Swal from 'sweetalert2';
 import { getIdToken } from 'firebase/auth';
 import auth from '../firebase/firebase.init';
 
-const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
+/**
+ * BookmarkButton Component
+ * 
+ * NOW: Accepts isBookmarked as a prop instead of checking it individually
+ * BEFORE: Made 1 request per item card to check bookmark status (N+1 problem)
+ * 
+ * Usage:
+ *   const { bookmarks } = useBatchBookmarks(itemIds);
+ *   <BookmarkButton itemId={id} isBookmarked={bookmarks[id]} onStatusChange={refetch} />
+ */
+const BookmarkButton = ({ 
+  itemId, 
+  size = 'md', 
+  showLabel = false,
+  isBookmarked = false,
+  onStatusChange = null
+}) => {
   const { user } = useContext(AuthContext);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(isBookmarked);
   const [isLoading, setIsLoading] = useState(false);
 
   const sizeClasses = {
@@ -39,27 +55,6 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
     return null;
   };
 
-  useEffect(() => {
-    if (user && itemId) {
-      checkBookmarkStatus();
-    }
-  }, [user, itemId]);
-
-  const checkBookmarkStatus = async () => {
-    try {
-      const token = await getFirebaseToken();
-      if (!token) return;
-
-      const response = await axios.get(
-        `http://localhost:3001/api/bookmarks/check/${itemId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setIsBookmarked(response.data.isBookmarked);
-    } catch (error) {
-      console.error('Error checking bookmark status:', error);
-    }
-  };
-
   const handleBookmarkToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -80,7 +75,7 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
         throw new Error('Failed to get authentication token');
       }
 
-      if (isBookmarked) {
+      if (bookmarked) {
         await axios.delete(
           `http://localhost:3001/api/bookmarks/${itemId}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -92,7 +87,13 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
       }
-      setIsBookmarked(!isBookmarked);
+      const newStatus = !bookmarked;
+      setBookmarked(newStatus);
+      
+      // Notify parent if callback provided
+      if (onStatusChange) {
+        onStatusChange();
+      }
     } catch (error) {
       Swal.fire({
         icon: 'error',
@@ -111,16 +112,16 @@ const BookmarkButton = ({ itemId, size = 'md', showLabel = false }) => {
       className="flex items-center gap-2 p-2 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors duration-300 disabled:opacity-50"
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+      title={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
     >
-      {isBookmarked ? (
+      {bookmarked ? (
         <FaBookmarkSolid className={sizeClasses[size]} />
       ) : (
         <FaRegBookmark className={sizeClasses[size]} />
       )}
       {showLabel && (
         <span className="text-sm font-medium">
-          {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+          {bookmarked ? 'Bookmarked' : 'Bookmark'}
         </span>
       )}
     </motion.button>

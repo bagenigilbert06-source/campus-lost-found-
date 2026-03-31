@@ -96,8 +96,11 @@ const ItemSchema = new Schema<IItem>(
 
 // Compound index for efficient queries
 ItemSchema.index({ userId: 1, status: 1 });
+ItemSchema.index({ userId: 1, createdAt: -1 }); // For user items sorted by creation date
+ItemSchema.index({ status: 1, createdAt: -1 }); // For status-based queries sorted by date
 ItemSchema.index({ category: 1, location: 1 });
 ItemSchema.index({ itemType: 1, status: 1 });
 ItemSchema.index({ postType: 1, status: 1 });
+ItemSchema.index({ createdAt: -1 }); // For date-based sorting across all items
 
 export const Item = model<IItem>('Item', ItemSchema);

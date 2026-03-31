@@ -5,6 +5,9 @@ import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
 import { GlassSearchBar, GlassCard, GlassButton } from '../../components/glass';
 import ItemsCard from '../Home/ItemsCard';
+import PaginationComponent from '../../components/PaginationComponent';
+
+const ITEMS_PER_PAGE = 12;
 
 const AllItems = () => {
     const items = useLoaderData();
@@ -12,6 +15,7 @@ const AllItems = () => {
     const [debouncedSearchValue, setDebouncedSearchValue] = useState(searchValue);
     const [selectedCategory, setSelectedCategory] = useState('');
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
     
     const categories = [...new Set(items.map(item => item.category))];
     const suggestions = [...new Set(items.map(item => item.title))].slice(0, 8);
@@ -35,6 +39,12 @@ const AllItems = () => {
                 item.location?.toLowerCase().includes(debouncedSearchValue.toLowerCase()) ||
                 item.category?.toLowerCase().includes(debouncedSearchValue.toLowerCase())
             )
+    );
+
+    const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+    const paginatedItems = filteredItems.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
     );
 
     return (
@@ -154,7 +164,7 @@ const AllItems = () => {
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                             {filteredItems.length > 0 ? (
-                                filteredItems.map((item) => (
+                                paginatedItems.map((item) => (
                                     <ItemsCard 
                                         key={item._id} 
                                         item={item}
@@ -178,6 +188,19 @@ const AllItems = () => {
                                 </motion.div>
                             )}
                         </div>
+                    )}
+
+                    {totalPages > 1 && (
+                        <PaginationComponent
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalItems={filteredItems.length}
+                            itemsPerPage={ITEMS_PER_PAGE}
+                            onPageChange={(page) => {
+                                setCurrentPage(page);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                        />
                     )}
             </motion.div>
 

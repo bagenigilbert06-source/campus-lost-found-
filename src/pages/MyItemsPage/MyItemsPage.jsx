@@ -14,6 +14,9 @@ import {
   FaTrash,
   FaInbox,
 } from "react-icons/fa";
+import PaginationComponent from "../../components/PaginationComponent";
+
+const ITEMS_PER_PAGE = 8;
 
 const MyItemsPage = () => {
   const { user } = useContext(AuthContext);
@@ -22,6 +25,7 @@ const MyItemsPage = () => {
   const [recovered, setRecovered] = useState([]);
   const [activeTab, setActiveTab] = useState("items");
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const API_BASE = "http://localhost:3001/api";
 
   useEffect(() => {
@@ -127,6 +131,13 @@ const MyItemsPage = () => {
     },
   ];
 
+  const paginatedItems = posts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const paginatedClaims = claims.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const paginatedRecovered = recovered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const activeData = activeTab === "items" ? posts : activeTab === "claims" ? claims : recovered;
+  const totalPages = Math.max(1, Math.ceil(activeData.length / ITEMS_PER_PAGE));
+
   return (
     <div className="min-h-screen bg-[#f7f8fa] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <Helmet>
@@ -171,7 +182,10 @@ const MyItemsPage = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setCurrentPage(1);
+                  }}
                   type="button"
                   className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold ${
                     active
@@ -215,82 +229,94 @@ const MyItemsPage = () => {
                   actionTo="/app/post-item"
                 />
               ) : (
-                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className="bg-slate-50">
-                        <tr className="border-b border-slate-200 text-left text-sm text-slate-600">
-                          <th className="px-4 py-4 font-semibold sm:px-5">Item</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Category</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Status</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Location</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {posts.map((post) => (
-                          <tr key={post._id} className="border-b border-slate-100 last:border-0">
-                            <td className="px-4 py-4 sm:px-5">
-                              <div className="flex min-w-[220px] items-center gap-3">
-                                <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-100">
-                                  <img
-                                    src={post.images?.[0] || post.image}
-                                    alt={post.title}
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-semibold text-slate-900">
-                                    {post.title}
-                                  </p>
-                                  <p className="mt-0.5 text-xs text-slate-500">
-                                    {post.itemType || "Item"}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="px-4 py-4 sm:px-5">
-                              <StatusPill tone="slate">{post.category}</StatusPill>
-                            </td>
-
-                            <td className="px-4 py-4 sm:px-5">
-                              <StatusPill tone={post.status === "active" ? "green" : "amber"}>
-                                {post.status || "active"}
-                              </StatusPill>
-                            </td>
-
-                            <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
-                              {post.location || "N/A"}
-                            </td>
-
-                            <td className="px-4 py-4 sm:px-5">
-                              <div className="flex flex-wrap gap-2">
-                                <Link
-                                  to={`/app/update/${post._id}`}
-                                  className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white"
-                                >
-                                  <FaEdit className="h-3 w-3" />
-                                  Edit
-                                </Link>
-
-                                <button
-                                  onClick={() => handleDelete(post._id)}
-                                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white"
-                                  type="button"
-                                >
-                                  <FaTrash className="h-3 w-3" />
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
+                <>
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-slate-50">
+                          <tr className="border-b border-slate-200 text-left text-sm text-slate-600">
+                            <th className="px-4 py-4 font-semibold sm:px-5">Item</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Category</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Status</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Location</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {paginatedItems.map((post) => (
+                            <tr key={post._id} className="border-b border-slate-100 last:border-0">
+                              <td className="px-4 py-4 sm:px-5">
+                                <div className="flex min-w-[220px] items-center gap-3">
+                                  <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-100">
+                                    <img
+                                      src={post.images?.[0] || post.image}
+                                      alt={post.title}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-slate-900">
+                                      {post.title}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-slate-500">
+                                      {post.itemType || "Item"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-4 sm:px-5">
+                                <StatusPill tone="slate">{post.category}</StatusPill>
+                              </td>
+
+                              <td className="px-4 py-4 sm:px-5">
+                                <StatusPill tone={post.status === "active" ? "green" : "amber"}>
+                                  {post.status || "active"}
+                                </StatusPill>
+                              </td>
+
+                              <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
+                                {post.location || "N/A"}
+                              </td>
+
+                              <td className="px-4 py-4 sm:px-5">
+                                <div className="flex flex-wrap gap-2">
+                                  <Link
+                                    to={`/app/update/${post._id}`}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white"
+                                  >
+                                    <FaEdit className="h-3 w-3" />
+                                    Edit
+                                  </Link>
+
+                                  <button
+                                    onClick={() => handleDelete(post._id)}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white"
+                                    type="button"
+                                  >
+                                    <FaTrash className="h-3 w-3" />
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
+
+                  {totalPages > 1 && activeTab === "items" && (
+                    <PaginationComponent
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={posts.length}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      onPageChange={setCurrentPage}
+                    />
+                  )}
+                </>
               ))}
 
             {/* Claims */}
@@ -304,53 +330,65 @@ const MyItemsPage = () => {
                   actionTo="/app/search"
                 />
               ) : (
-                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className="bg-slate-50">
-                        <tr className="border-b border-slate-200 text-left text-sm text-slate-600">
-                          <th className="px-4 py-4 font-semibold sm:px-5">Item Title</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Status</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Claimed On</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Category</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {claims.map((claim) => (
-                          <tr key={claim._id} className="border-b border-slate-100 last:border-0">
-                            <td className="px-4 py-4 sm:px-5">
-                              <p className="min-w-[200px] text-sm font-semibold text-slate-900">
-                                {claim.itemTitle}
-                              </p>
-                            </td>
-
-                            <td className="px-4 py-4 sm:px-5">
-                              <StatusPill
-                                tone={
-                                  claim.status === "approved"
-                                    ? "green"
-                                    : claim.status === "rejected"
-                                    ? "red"
-                                    : "amber"
-                                }
-                              >
-                                {claim.status || "pending"}
-                              </StatusPill>
-                            </td>
-
-                            <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
-                              {new Date(claim.createdAt).toLocaleDateString()}
-                            </td>
-
-                            <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
-                              {claim.category || "N/A"}
-                            </td>
+                <>
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-slate-50">
+                          <tr className="border-b border-slate-200 text-left text-sm text-slate-600">
+                            <th className="px-4 py-4 font-semibold sm:px-5">Item Title</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Status</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Claimed On</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Category</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {paginatedClaims.map((claim) => (
+                            <tr key={claim._id} className="border-b border-slate-100 last:border-0">
+                              <td className="px-4 py-4 sm:px-5">
+                                <p className="min-w-[200px] text-sm font-semibold text-slate-900">
+                                  {claim.itemTitle}
+                                </p>
+                              </td>
+
+                              <td className="px-4 py-4 sm:px-5">
+                                <StatusPill
+                                  tone={
+                                    claim.status === "approved"
+                                      ? "green"
+                                      : claim.status === "rejected"
+                                      ? "red"
+                                      : "amber"
+                                  }
+                                >
+                                  {claim.status || "pending"}
+                                </StatusPill>
+                              </td>
+
+                              <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
+                                {new Date(claim.createdAt).toLocaleDateString()}
+                              </td>
+
+                              <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
+                                {claim.category || "N/A"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
+
+                  {totalPages > 1 && activeTab === "claims" && (
+                    <PaginationComponent
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={claims.length}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      onPageChange={setCurrentPage}
+                    />
+                  )}
+                </>
               ))}
 
             {/* Recovered */}
@@ -362,60 +400,72 @@ const MyItemsPage = () => {
                   description="Your approved and recovered items will appear here."
                 />
               ) : (
-                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className="bg-green-50">
-                        <tr className="border-b border-green-100 text-left text-sm text-green-700">
-                          <th className="px-4 py-4 font-semibold sm:px-5">Item</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Category</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Recovered On</th>
-                          <th className="px-4 py-4 font-semibold sm:px-5">Location Found</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recovered.map((item) => (
-                          <tr key={item._id} className="border-b border-slate-100 last:border-0">
-                            <td className="px-4 py-4 sm:px-5">
-                              <div className="flex min-w-[220px] items-center gap-3">
-                                <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-100">
-                                  <img
-                                    src={item.images?.[0] || item.image}
-                                    alt={item.title}
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-semibold text-slate-900">
-                                    {item.title}
-                                  </p>
-                                  <p className="mt-0.5 text-xs text-slate-500">
-                                    Recovered item
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="px-4 py-4 sm:px-5">
-                              <StatusPill tone="green">{item.category}</StatusPill>
-                            </td>
-
-                            <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
-                              {item.updatedAt
-                                ? new Date(item.updatedAt).toLocaleDateString()
-                                : "N/A"}
-                            </td>
-
-                            <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
-                              {item.location || "N/A"}
-                            </td>
+                <>
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-green-50">
+                          <tr className="border-b border-green-100 text-left text-sm text-green-700">
+                            <th className="px-4 py-4 font-semibold sm:px-5">Item</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Category</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Recovered On</th>
+                            <th className="px-4 py-4 font-semibold sm:px-5">Location Found</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {paginatedRecovered.map((item) => (
+                            <tr key={item._id} className="border-b border-slate-100 last:border-0">
+                              <td className="px-4 py-4 sm:px-5">
+                                <div className="flex min-w-[220px] items-center gap-3">
+                                  <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-100">
+                                    <img
+                                      src={item.images?.[0] || item.image}
+                                      alt={item.title}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-slate-900">
+                                      {item.title}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-slate-500">
+                                      Recovered item
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-4 sm:px-5">
+                                <StatusPill tone="green">{item.category}</StatusPill>
+                              </td>
+
+                              <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
+                                {item.updatedAt
+                                  ? new Date(item.updatedAt).toLocaleDateString()
+                                  : "N/A"}
+                              </td>
+
+                              <td className="px-4 py-4 text-sm text-slate-600 sm:px-5">
+                                {item.location || "N/A"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
+
+                  {totalPages > 1 && activeTab === "recovered" && (
+                    <PaginationComponent
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={recovered.length}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      onPageChange={setCurrentPage}
+                    />
+                  )}
+                </>
               ))}
           </>
         )}

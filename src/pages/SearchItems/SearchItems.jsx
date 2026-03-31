@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { schoolConfig } from "../../config/schoolConfig";
 import SmartSearchHelper from "../../components/SmartSearchHelper";
+import PaginationComponent from "../../components/PaginationComponent";
 import {
   FaSearch,
   FaFilter,
@@ -36,6 +37,8 @@ const SearchItems = () => {
   const [dateTo, setDateTo] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [showFilters, setShowFilters] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
 
   const categories = useMemo(
     () => [
@@ -180,6 +183,7 @@ const SearchItems = () => {
     }
 
     setFilteredItems(filtered);
+    setCurrentPage(1);
   };
 
   const handleClaimItem = (itemId) => {
@@ -201,6 +205,13 @@ const SearchItems = () => {
     setDateTo("");
     setSortBy("newest");
   };
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+  const activePage = Math.min(currentPage, totalPages);
+  const paginatedItems = filteredItems.slice(
+    (activePage - 1) * ITEMS_PER_PAGE,
+    activePage * ITEMS_PER_PAGE
+  );
 
   const hasActiveFilters =
     searchQuery ||
@@ -443,11 +454,23 @@ const SearchItems = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredItems.map((item) => (
-              <ItemCard key={item._id} item={item} onClaim={handleClaimItem} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {paginatedItems.map((item) => (
+                <ItemCard key={item._id} item={item} onClaim={handleClaimItem} />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <PaginationComponent
+                currentPage={activePage}
+                totalPages={totalPages}
+                totalItems={filteredItems.length}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

@@ -33,9 +33,17 @@ const MessageSchema = new Schema<IMessage>(
   { timestamps: true }
 );
 
-// Compound index for efficient conversation queries
+// Compound indexes for efficient queries
 MessageSchema.index({ conversationId: 1, createdAt: -1 });
 MessageSchema.index({ senderId: 1, createdAt: -1 });
 MessageSchema.index({ recipientId: 1, isRead: 1 });
+MessageSchema.index({ senderId: 1, recipientId: 1, createdAt: -1 }); // For conversation lookup by user IDs
+
+// Email-based indexes for frontend filtering (critical for performance)
+MessageSchema.index({ senderEmail: 1, createdAt: -1 });
+MessageSchema.index({ recipientEmail: 1, createdAt: -1 });
+MessageSchema.index({ recipientEmail: 1, senderRole: 1, createdAt: -1 }); // For recipient filtering by sender role
+MessageSchema.index({ senderEmail: 1, recipientEmail: 1, createdAt: -1 }); // For conversation lookup by emails
+MessageSchema.index({ createdAt: -1 }); // For date-based sorting across all queries
 
 export const Message = model<IMessage>('Message', MessageSchema);

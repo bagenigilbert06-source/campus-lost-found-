@@ -13,6 +13,9 @@ import {
   FaComments,
   FaInbox,
 } from "react-icons/fa";
+import PaginationComponent from "../../components/PaginationComponent";
+
+const ACTIVITIES_PER_PAGE = 10;
 
 const DashboardActivity = () => {
   const { user } = useContext(AuthContext);
@@ -21,55 +24,65 @@ const DashboardActivity = () => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
+  // Check user auth and redirect if needed
   useEffect(() => {
     if (!user) {
       navigate("/signin");
-      return;
     }
-    fetchActivity();
   }, [user, navigate]);
 
-  const fetchActivity = async () => {
-    const API_BASE = 'http://localhost:3001/api';
+  // Fetch activity data
+  useEffect(() => {
+    if (!user?.uid || !user?.email) {
+      return;
+    }
 
-    try {
-      setLoading(true);
+    const fetchActivity = async () => {
+      const API_BASE = 'http://localhost:3001/api';
 
-      const [itemsRes, claimsRes, messagesRes, notificationsRes] = await Promise.all([
-        itemsService.getUserItems(user?.uid).catch((error) => {
-          console.error('[DashboardActivity] Error fetching items:', error);
-          return [];
-        }),
-        claimsService.getClaims(user?.email).catch((error) => {
-          console.error('[DashboardActivity] Error fetching claims:', error);
-          return [];
-        }),
-        axios
-          .get(`${API_BASE}/messages`, {
-            params: { recipientEmail: user?.email },
-            withCredentials: true,
-          })
-          .catch((error) => {
-            console.error('[DashboardActivity] Error fetching messages:', error);
-            return { data: [] };
+      try {
+        setLoading(true);
+
+        const [itemsRes, claimsRes, messagesRes, notificationsRes] = await Promise.all([
+          itemsService.getUserItems(user?.uid).catch((error) => {
+            console.error('[DashboardActivity] Error fetching items:', error);
+            return [];
           }),
-        notificationService.getNotifications().catch((error) => {
-          console.error('[DashboardActivity] Error fetching notifications:', error);
-          return { notifications: [] };
-        }),
-      ]);
+          claimsService.getClaims(user?.email).catch((error) => {
+            console.error('[DashboardActivity] Error fetching claims:', error);
+            return [];
+          }),
+          // Optimize getMessage with limit parameter to reduce payload
+          axios
+            .get(`${API_BASE}/messages`, {
+              params: { 
+                recipientEmail: user?.email,
+                limit: 50, // Only fetch recent messages
+              },
+              withCredentials: true,
+            })
+            .catch((error) => {
+              console.error('[DashboardActivity] Error fetching messages:', error);
+              return { data: [] };
+            }),
+          notificationService.getNotifications().catch((error) => {
+            console.error('[DashboardActivity] Error fetching notifications:', error);
+            return { notifications: [] };
+          }),
+        ]);
 
 
-      const items = Array.isArray(itemsRes)
-        ? itemsRes
-        : itemsRes?.data || [];
+        const items = Array.isArray(itemsRes)
+          ? itemsRes
+          : itemsRes?.data || [];
 
-      const claims = Array.isArray(claimsRes.data)
-        ? claimsRes.data
-        : claimsRes.data?.data || [];
+        const claims = Array.isArray(claimsRes.data)
+          ? claimsRes.data
+          : claimsRes.data?.data || [];
 
-      const messages = Array.isArray(messagesRes.data)
+        const messages = Array.isArray(messagesRes.data)
         ? messagesRes.data
         : messagesRes.data?.data || [];
 
@@ -132,12 +145,21 @@ const DashboardActivity = () => {
     } finally {
       setLoading(false);
     }
-  };
+    };
+
+    fetchActivity();
+  }, [user?.uid, user?.email]);
 
   const filteredActivities = useMemo(() => {
     if (filter === "all") return activities;
     return activities.filter((activity) => activity.type === filter);
   }, [activities, filter]);
+
+  const totalPages = Math.ceil(filteredActivities.length / ACTIVITIES_PER_PAGE);
+  const paginatedActivities = filteredActivities.slice(
+    (currentPage - 1) * ACTIVITIES_PER_PAGE,
+    currentPage * ACTIVITIES_PER_PAGE
+  );
 
   const stats = useMemo(
     () => ({
@@ -229,7 +251,10 @@ const DashboardActivity = () => {
                 return (
                   <button
                     key={btn.id}
-                    onClick={() => setFilter(btn.id)}
+                    onClick={() => {
+                      setFilter(btn.id);
+                      setCurrentPage(1);
+                    }}
                     className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold ${
                       active
                         ? "bg-slate-900 text-white"
@@ -269,15 +294,27 @@ const DashboardActivity = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              {filteredActivities.map((activity, index) => (
-                <ActivityRow
-                  key={`${activity.type}-${activity.id}-${index}`}
-                  activity={activity}
-                  isLast={index === filteredActivities.length - 1}
+            <>
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                {paginatedActivities.map((activity, index) => (
+                  <ActivityRow
+                    key={`${activity.type || 'activity'}-${index}`}
+                    activity={activity}
+                    isLast={index === paginatedActivities.length - 1}
+                  />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <PaginationComponent
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredActivities.length}
+                  itemsPerPage={ACTIVITIES_PER_PAGE}
+                  onPageChange={setCurrentPage}
                 />
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>

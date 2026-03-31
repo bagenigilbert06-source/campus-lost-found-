@@ -292,48 +292,60 @@ const DashboardHome = () => {
   const [stats, setStats] = useState(defaultStats);
   const [recentActivity, setRecentActivity] = useState([]);
 
-  const fetchDashboardData = useCallback(async () => {
+  // Check user auth and redirect if needed
+  useEffect(() => {
+    if (!user) {
+      navigate('/signin');
+    }
+  }, [user, navigate]);
+
+  // Fetch dashboard data
+  useEffect(() => {
     if (!user?.email) {
-      setLoading(false);
       return;
     }
 
-    try {
-      setLoading(true);
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
 
-      const [claimsRes, itemsRes, messagesRes, notificationsRes] = await Promise.all([
-        claimsService.getClaims(user.email),
-        itemsService.getAllItems({ userEmail: user.email }),
-        axios
-          .get(`${API_BASE}/messages`, {
-            params: { recipientEmail: user.email },
-            withCredentials: true,
-          })
-          .catch(() => ({ data: [] })),
-        notificationService.getNotifications(),
-      ]);
+        const [claimsRes, itemsRes, messagesRes, notificationsRes] = await Promise.all([
+          claimsService.getClaims(user.email),
+          itemsService.getAllItems({ userEmail: user.email }),
+          // Optimize with limit parameter to reduce payload
+          axios
+            .get(`${API_BASE}/messages`, {
+              params: { 
+                recipientEmail: user.email,
+                limit: 50, // Only fetch recent messages
+              },
+              withCredentials: true,
+            })
+            .catch(() => ({ data: [] })),
+          notificationService.getNotifications(),
+        ]);
 
-      const claimsData = Array.isArray(claimsRes.data)
-        ? claimsRes.data
-        : claimsRes.data?.data || [];
+        const claimsData = Array.isArray(claimsRes.data)
+          ? claimsRes.data
+          : claimsRes.data?.data || [];
 
-      const itemsData = Array.isArray(itemsRes.data)
-        ? itemsRes.data
-        : itemsRes.data?.data || [];
+        const itemsData = Array.isArray(itemsRes.data)
+          ? itemsRes.data
+          : itemsRes.data?.data || [];
 
-      const messagesData = Array.isArray(messagesRes.data)
-        ? messagesRes.data
-        : messagesRes.data?.data || [];
+        const messagesData = Array.isArray(messagesRes.data)
+          ? messagesRes.data
+          : messagesRes.data?.data || [];
 
-      const notificationsData = notificationsRes.notifications || notificationsRes.data || [];
+        const notificationsData = notificationsRes.notifications || notificationsRes.data || [];
 
-      const approved = claimsData.filter((claim) => claim.status === 'approved').length;
-      const pending = claimsData.filter((claim) => claim.status === 'pending').length;
-      const recovered = itemsData.filter((item) => item.status === 'recovered').length;
-      const unread = messagesData.filter((message) => !message.isRead).length;
+        const approved = claimsData.filter((claim) => claim.status === 'approved').length;
+        const pending = claimsData.filter((claim) => claim.status === 'pending').length;
+        const recovered = itemsData.filter((item) => item.status === 'recovered').length;
+        const unread = messagesData.filter((message) => !message.isRead).length;
 
-      setStats({
-        itemsPosted: itemsData.length,
+        setStats({
+          itemsPosted: itemsData.length,
         claimsSubmitted: claimsData.length,
         claimsApproved: approved,
         claimsPending: pending,
@@ -376,16 +388,10 @@ const DashboardHome = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      navigate('/signin');
-      return;
-    }
+    };
 
     fetchDashboardData();
-  }, [user, navigate, fetchDashboardData]);
+  }, [user]);
 
   const statCards = useMemo(
     () => [

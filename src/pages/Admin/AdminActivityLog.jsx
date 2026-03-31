@@ -13,11 +13,15 @@ import {
 import AdminContainer from '../../components/admin/AdminContainer';
 import EmptyState from '../../components/admin/EmptyState';
 import LoadingState from '../../components/admin/LoadingState';
+import PaginationComponent from '../../components/PaginationComponent';
+
+const ITEMS_PER_PAGE = 12;
 
 const AdminActivityLog = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterAction, setFilterAction] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchItems();
@@ -118,6 +122,12 @@ const AdminActivityLog = () => {
 
   const activities = getActivityLog();
 
+  const totalPages = Math.ceil(activities.length / ITEMS_PER_PAGE);
+  const paginatedActivities = activities.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const getColorClasses = (color) => {
     const colors = {
       blue: 'bg-blue-100 text-blue-700',
@@ -195,31 +205,56 @@ const AdminActivityLog = () => {
             description="No activities match your filter"
           />
         ) : (
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            {/* Desktop Timeline */}
-            <div className="hidden md:block">
-              <div className="relative space-y-0">
-                {activities.map((activity, idx) => {
+          <>
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              {/* Desktop Timeline */}
+              <div className="hidden md:block">
+                <div className="relative space-y-0">
+                  {paginatedActivities.map((activity, idx) => {
+                    const Icon = activity.icon;
+                    return (
+                      <div key={activity.id} className="flex gap-6 p-6 border-b last:border-b-0 hover:bg-gray-50 transition">
+                        {/* Timeline Icon */}
+                        <div className="flex flex-col items-center">
+                          <div className={`p-3 rounded-full ${getColorClasses(activity.color)}`}>
+                            <Icon size={16} />
+                          </div>
+                          {idx !== activities.length - 1 && (
+                            <div className="w-0.5 h-12 bg-gray-200 mt-2"></div>
+                          )}
+                        </div>
+
+                        {/* Activity Content */}
+                        <div className="flex-1 pt-1">
+                          <h3 className="font-semibold text-gray-900">{activity.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                          <p className="text-xs text-gray-400 mt-2">
+                            {activity.timestamp.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y">
+                {paginatedActivities.map(activity => {
                   const Icon = activity.icon;
                   return (
-                    <div key={activity.id} className="flex gap-6 p-6 border-b last:border-b-0 hover:bg-gray-50 transition">
-                      {/* Timeline Icon */}
-                      <div className="flex flex-col items-center">
-                        <div className={`p-3 rounded-full ${getColorClasses(activity.color)}`}>
+                    <div key={activity.id} className="p-4">
+                      <div className="flex gap-4">
+                        <div className={`p-2 rounded-full h-fit ${getColorClasses(activity.color)}`}>
                           <Icon size={16} />
                         </div>
-                        {idx !== activities.length - 1 && (
-                          <div className="w-0.5 h-12 bg-gray-200 mt-2"></div>
-                        )}
-                      </div>
-
-                      {/* Activity Content */}
-                      <div className="flex-1 pt-1">
-                        <h3 className="font-semibold text-gray-900">{activity.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                        <p className="text-xs text-gray-400 mt-2">
-                          {activity.timestamp.toLocaleString()}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 truncate">{activity.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                          <p className="text-xs text-gray-400 mt-2">
+                            {activity.timestamp.toLocaleString()}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   );
@@ -227,29 +262,16 @@ const AdminActivityLog = () => {
               </div>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden divide-y">
-              {activities.map(activity => {
-                const Icon = activity.icon;
-                return (
-                  <div key={activity.id} className="p-4">
-                    <div className="flex gap-4">
-                      <div className={`p-2 rounded-full h-fit ${getColorClasses(activity.color)}`}>
-                        <Icon size={16} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">{activity.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                        <p className="text-xs text-gray-400 mt-2">
-                          {activity.timestamp.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+            {totalPages > 1 && (
+              <PaginationComponent
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={activities.length}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </>
         )}
       </AdminContainer>
     </>

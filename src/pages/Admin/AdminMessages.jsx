@@ -5,6 +5,9 @@ import toast from 'react-hot-toast';
 import { FaEnvelope, FaTrash, FaArrowLeft } from 'react-icons/fa';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { messagesService } from '../../services/apiService';
+import PaginationComponent from '../../components/PaginationComponent';
+
+const ITEMS_PER_PAGE = 10;
 
 const AdminMessages = () => {
   const { user } = useContext(AuthContext);
@@ -13,6 +16,7 @@ const AdminMessages = () => {
   const [loading, setLoading] = useState(true);
   const [filteredMessages, setFilteredMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!user) {
@@ -25,20 +29,15 @@ const AdminMessages = () => {
   const fetchMessages = async () => {
     try {
       setLoading(true);
-      const response = await messagesService.getMessages();
-      const allMessages = response.data || [];
-      
-      // Filter to show only messages received from students
-      const studentMessages = allMessages.filter((msg) => {
-        return (
-          msg.recipientEmail === user.email &&
-          msg.senderRole === "student"
-        );
+      // Use backend filtering instead of client-side filtering
+      const response = await messagesService.getMessages({
+        recipientEmail: user.email,
+        senderRole: 'student',
+        limit: 100, // Limit to fetch only necessary data
       });
+      const studentMessages = response.data || [];
 
-      // Sort by date (newest first)
-      studentMessages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      
+      // Already sorted by backend in descending order
       setMessages(studentMessages);
       setFilteredMessages(studentMessages);
     } catch (error) {
@@ -76,7 +75,14 @@ const AdminMessages = () => {
       });
       setFilteredMessages(filtered);
     }
+    setCurrentPage(1);
   };
+
+  const totalPages = Math.ceil(filteredMessages.length / ITEMS_PER_PAGE);
+  const paginatedMessages = filteredMessages.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <>
@@ -174,7 +180,7 @@ const AdminMessages = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMessages.map((message) => (
+                    {paginatedMessages.map((message) => (
                       <tr key={message._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -223,9 +229,21 @@ const AdminMessages = () => {
 
           {/* Pagination info */}
           {!loading && filteredMessages.length > 0 && (
-            <div className="mt-6 text-center text-sm text-slate-600">
-              Showing {filteredMessages.length} of {messages.length} messages
-            </div>
+            <>
+              <div className="mt-6 text-center text-sm text-slate-600">
+                Showing {paginatedMessages.length} of {filteredMessages.length} messages
+              </div>
+
+              {totalPages > 1 && (
+                <PaginationComponent
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredMessages.length}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                  onPageChange={setCurrentPage}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

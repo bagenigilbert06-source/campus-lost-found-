@@ -102,10 +102,7 @@ const AuthProvider = ({ children }) => {
             const token = await getIdToken(userCredential.user);
             localStorage.setItem('firebaseToken', token);
             
-            // Sync user to MongoDB to ensure database record exists
-            await syncUserProfileToDatabase(userCredential.user).catch(err => 
-              console.warn('Profile sync error:', err.message)
-            );
+            // NOTE: Profile sync is handled by onAuthStateChanged listener to avoid duplicates
             
             setLoading(false);
             return userCredential;
@@ -144,10 +141,7 @@ const AuthProvider = ({ children }) => {
                 const token = await getIdToken(result.user);
                 localStorage.setItem('firebaseToken', token);
                 
-                // Sync with database in background (don't await to prevent blocking redirect)
-                syncUserProfileToDatabase(result.user).catch(err => 
-                  console.warn('Background sync error:', err.message)
-                );
+                // NOTE: Profile sync is handled by onAuthStateChanged listener to avoid duplicates
                 
                 // Auth state listener will handle the rest
                 return result;
@@ -206,6 +200,12 @@ const AuthProvider = ({ children }) => {
         }
     };
 
+    /**
+     * Track the currently synced user to avoid redundant sync calls
+     * This prevents multiple /auth/register calls for the same user during auth state changes
+     */
+    const lastSyncedUserRef = React.useRef(null);
+
     // Monitor Firebase authentication state and handle redirects
     useEffect(() => {
         let unsubscribe;
@@ -227,10 +227,7 @@ const AuthProvider = ({ children }) => {
                         const token = await getIdToken(firebaseUser);
                         localStorage.setItem('firebaseToken', token);
                         
-                        // Sync with database in background (don't block auth state update)
-                        syncUserProfileToDatabase(firebaseUser).catch(err => 
-                          console.warn('Background sync error:', err.message)
-                        );
+                        // NOTE: Profile sync is handled by onAuthStateChanged listener to avoid duplicates
                     }
                 } catch (redirectError) {
                     console.error('Handling redirect result:', redirectError.code, redirectError.message);
@@ -255,10 +252,14 @@ const AuthProvider = ({ children }) => {
                                 // Set axios default header for all API requests
                                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-                                // Sync user to MongoDB to ensure database record exists
-                                await syncUserProfileToDatabase(currentUser).catch(err => 
-                                  console.warn('Background sync error:', err.message)
-                                );
+                                // Sync user to MongoDB only if they haven't been synced yet in this session
+                                // This avoids repeated register calls on every auth state change
+                                if (lastSyncedUserRef.current !== currentUser.uid) {
+                                    lastSyncedUserRef.current = currentUser.uid;
+                                    syncUserProfileToDatabase(currentUser).catch(err => 
+                                      console.warn('Background sync error:', err.message)
+                                    );
+                                }
 
                                 // Determine user role
                                 const role = determineUserRole(currentUser.email);

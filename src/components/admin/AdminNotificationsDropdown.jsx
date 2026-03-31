@@ -20,34 +20,30 @@ const AdminNotificationsDropdown = () => {
 
     try {
       setLoading(true);
-      const data = await messagesService.getMessages();
-      // Filter to show ONLY messages received from students
-      const allMessages = data.data || [];
-      const filteredMessages = allMessages.filter((msg) => {
-        // Only show messages where:
-        // 1. Current admin user is the recipient
-        // 2. Sender is a student
-        return (
-          msg.recipientEmail === user.email &&
-          msg.senderRole === "student"
-        );
+      // Use backend filtering instead of fetching all messages and filtering client-side
+      const data = await messagesService.getMessages({
+        recipientEmail: user.email,
+        senderRole: 'student',
+        limit: 50, // Limit to recent messages
       });
-      setMessages(filteredMessages);
-      refetchCount();
+      
+      const messages = data.data || [];
+      setMessages(messages);
+      // Don't call refetchCount here - it would make a duplicate request
+      // The count hook will update independently when it fetches
     } catch (error) {
       console.error("[AdminNotificationsDropdown] Error fetching messages:", error);
     } finally {
       setLoading(false);
     }
-  }, [user, refetchCount]);
+  }, [user]);
 
+  // Fetch messages when dropdown opens
   useEffect(() => {
-    if (!user) return;
-
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 30000);
-    return () => clearInterval(interval);
-  }, [user, fetchMessages]);
+    if (isOpen && user) {
+      fetchMessages();
+    }
+  }, [isOpen, user, fetchMessages]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -63,7 +59,10 @@ const AdminNotificationsDropdown = () => {
   const deleteMessage = async (messageId) => {
     try {
       await messagesService.deleteMessage(messageId);
+      // Refetch messages and count after deletion
       await fetchMessages();
+      // Refetch count separately since deleteMessage doesn't return count info
+      await refetchCount();
       toast.success("Message deleted");
     } catch (error) {
       console.error("[AdminNotificationsDropdown] Error deleting message:", error);

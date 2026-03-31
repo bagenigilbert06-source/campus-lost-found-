@@ -10,7 +10,7 @@ export interface IClaim extends Document {
   studentUId: string; // Firebase UID
   claimMessage: string;
   proofOfOwnership: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'needs_more_proof';
   adminNote?: string;
   adminId?: string;
   adminEmail?: string;
@@ -32,7 +32,7 @@ const ClaimSchema = new Schema<IClaim>(
     proofOfOwnership: { type: String, required: true },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'approved', 'rejected', 'needs_more_proof'],
       default: 'pending',
       index: true,
     },
@@ -47,6 +47,9 @@ const ClaimSchema = new Schema<IClaim>(
 // Compound indexes for efficient queries
 ClaimSchema.index({ itemId: 1, status: 1 });
 ClaimSchema.index({ studentEmail: 1, createdAt: -1 });
-ClaimSchema.index({ createdAt: -1 });
+ClaimSchema.index({ studentId: 1, createdAt: -1 }); // For student claims with date sorting
+ClaimSchema.index({ status: 1, createdAt: -1 }); // For status-based queries sorted by date
+ClaimSchema.index({ createdAt: -1 }); // For date-based sorting across all queries
+ClaimSchema.index({ studentId: 1, status: 1 }); // For student's claims by status
 
 export const Claim = model<IClaim>('Claim', ClaimSchema);

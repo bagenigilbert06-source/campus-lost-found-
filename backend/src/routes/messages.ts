@@ -17,39 +17,119 @@ function isAdminUser(req: AuthRequest): boolean {
   return (req.user?.role === 'admin') || (email ? ADMIN_EMAILS.includes(email) : false);
 }
 
-// List messages by role / recipient / conversation
+/**
+ * Log query diagnostics for slow queries (>100ms)
+ * Helps identify COLLSCAN operations and inefficient indexes
+ */
+async function logSlowQueryDiagnostics(db_duration: number, query: any, collection_name: string): Promise<void> {
+  if (db_duration > 100) {
+    try {
+      const explanation = await Message.collection.find(query).explain('executionStats');
+      const executionStats = explanation?.executionStats;
+      if (executionStats) {
+        const docsExamined = executionStats.totalDocsExamined || 0;
+        const docsReturned = executionStats.nReturned || 0;
+        const executionStages = executionStats.executionStages?.stage;
+        
+        console.warn(
+          `[${collection_name}] SLOW QUERY (${db_duration}ms): ` +
+          `Query=${JSON.stringify(query)} | ` +
+          `DocsExamined=${docsExamined} | DocsReturned=${docsReturned} | ` +
+          `Ratio=${(docsExamined / Math.max(docsReturned, 1)).toFixed(2)}x | ` +
+          `ExecutionStage=${executionStages}`
+        );
+      }
+    } catch (err) {
+      console.warn(`[${collection_name}] Failed to get explain stats:`, (err as any).message);
+    }
+  }
+}
+
+// List messages by role / recipient / conversation - OPTIMIZED with filters, pagination, and field selection
 router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  const startTime = Date.now();
   try {
-    const query: any = {};
+    // Parse pagination parameters
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const skip = (page - 1) * limit;
 
-    if (req.query.conversationId) query.conversationId = req.query.conversationId;
-    if (req.query.itemId) query.itemId = req.query.itemId;
-    if (req.query.recipientEmail) query.recipientEmail = req.query.recipientEmail;
-    if (req.query.senderEmail) query.senderEmail = req.query.senderEmail;
-    if (req.query.recipientRole) query.recipientRole = req.query.recipientRole;
-    if (req.query.senderRole) query.senderRole = req.query.senderRole;
+    // Select only necessary fields to reduce payload size
+    const selectFields = '_id conversationId itemId senderId senderEmail senderRole recipientEmail recipientRole content isRead createdAt';
 
-    // Admin can view all
+    // Admin can view all with full filtering
     if (isAdminUser(req)) {
-      // If no query, show latest 100 for admin to avoid explosion
-      const messages = await Message.find(query).sort({ createdAt: -1 }).limit(100).lean();
-      return res.json({ success: true, data: messages });
+      const adminQuery: any = {};
+      
+      // For admin, apply all query filters as-is
+      if (req.query.conversationId) adminQuery.conversationId = req.query.conversationId;
+      if (req.query.itemId) adminQuery.itemId = req.query.itemId;
+      if (req.query.recipientEmail) adminQuery.recipientEmail = (req.query.recipientEmail as string).toLowerCase();
+      if (req.query.senderEmail) adminQuery.senderEmail = (req.query.senderEmail as string).toLowerCase();
+      if (req.query.recipientRole) adminQuery.recipientRole = req.query.recipientRole;
+      if (req.query.senderRole) adminQuery.senderRole = req.query.senderRole;
+
+      const dbQueryTime = Date.now();
+      const [messages, total] = await Promise.all([
+        Message.find(adminQuery)
+          .select(selectFields)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Message.countDocuments(adminQuery),
+      ]);
+      const dbDuration = Date.now() - dbQueryTime;
+      const responseTime = Date.now() - startTime;
+
+      logSlowQueryDiagnostics(dbDuration, adminQuery, 'Messages');
+      console.log(`[Messages] Admin query timing - DB: ${dbDuration}ms, Total: ${responseTime}ms, Docs: ${messages.length}/${total}, Query: ${JSON.stringify(adminQuery)}`);
+
+      return res.json({ success: true, data: messages, total, page, limit });
     }
 
-    // Non-admin user: only their own messages
+    // Non-admin user: only their own messages - enforce user boundary
     if (!req.user?.email) {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
 
     const email = req.user.email.toLowerCase();
-    query.$or = [
-      { recipientEmail: email },
-      { senderEmail: email }
-    ];
+    
+    // Build user query that respects their boundaries
+    const userQuery: any = {
+      $or: [
+        { recipientEmail: email },
+        { senderEmail: email }
+      ]
+    };
 
-    const messages = await Message.find(query).sort({ createdAt: -1 }).lean();
-    return res.json({ success: true, data: messages });
+    // Allow safe filters for non-admin users (ignore email filters, apply other criteria)
+    if (req.query.itemId) userQuery.itemId = req.query.itemId;
+    if (req.query.conversationId) userQuery.conversationId = req.query.conversationId;
+    // Allow filtering by role of the OTHER party
+    if (req.query.senderRole) userQuery.senderRole = req.query.senderRole;
+    if (req.query.recipientRole) userQuery.recipientRole = req.query.recipientRole;
+
+    const dbQueryTime = Date.now();
+    const [messages, total] = await Promise.all([
+      Message.find(userQuery)
+        .select(selectFields)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Message.countDocuments(userQuery),
+    ]);
+    const dbDuration = Date.now() - dbQueryTime;
+    const responseTime = Date.now() - startTime;
+
+    logSlowQueryDiagnostics(dbDuration, userQuery, 'Messages');
+    console.log(`[Messages] User query timing (${email}) - DB: ${dbDuration}ms, Total: ${responseTime}ms, Docs: ${messages.length}/${total}, Query: ${JSON.stringify(userQuery)}`);
+
+    return res.json({ success: true, data: messages, total, page, limit });
   } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[Messages] Route error after ${duration}ms:`, error);
     next(error);
   }
 });

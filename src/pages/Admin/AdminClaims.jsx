@@ -45,10 +45,7 @@ const AdminClaims = () => {
   useEffect(() => {
     // Initial load shows spinner once.
     fetchAllData(true);
-
-    // Periodic refresh in background without forcing full page loading state.
-    const interval = setInterval(() => fetchAllData(false), 20000);
-    return () => clearInterval(interval);
+    // No background polling - removed 20s interval to reduce unnecessary requests
   }, []);
 
   const fetchAllData = async (showLoading = false) => {
@@ -67,6 +64,7 @@ const AdminClaims = () => {
 
   const fetchClaims = async () => {
     try {
+      // Fetch claims with limit to optimize performance
       const res = await claimsService.getClaims();
       const claimList = Array.isArray(res.data)
         ? res.data
@@ -88,7 +86,8 @@ const AdminClaims = () => {
 
   const fetchMessages = async () => {
     try {
-      const res = await messagesService.getMessages({ role: "admin" });
+      // Fetch messages with limit to optimize performance
+      const res = await messagesService.getMessages({ limit: 100 });
       const messageList = Array.isArray(res.data)
         ? res.data
         : res.data?.data || [];

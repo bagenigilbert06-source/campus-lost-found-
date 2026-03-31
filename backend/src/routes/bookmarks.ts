@@ -61,6 +61,57 @@ router.post(
 );
 
 /**
+ * POST /api/bookmarks/check-batch
+ * Check bookmark status for multiple items in one request
+ * Reduces N+1 problem when checking many items
+ */
+router.post(
+  '/check-batch',
+  hybridAuthMiddleware,
+  [
+    body('itemIds').isArray({ min: 1 }).withMessage('itemIds must be a non-empty array'),
+  ],
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({
+          success: false,
+          message: errors.array()[0].msg,
+          errors: errors.array(),
+        });
+        return;
+      }
+
+      const { itemIds } = req.body;
+      const userId = req.user?.uid;
+
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+
+      // Fetch all bookmarks for these items in one query
+      const bookmarks = await Bookmark.find({ userId, itemId: { $in: itemIds } });
+      const bookmarkedIds = new Set(bookmarks.map(b => b.itemId));
+
+      // Build response mapping itemId -> isBookmarked
+      const result: Record<string, boolean> = {};
+      itemIds.forEach((itemId: string) => {
+        result[itemId] = bookmarkedIds.has(itemId);
+      });
+
+      res.json({
+        success: true,
+        bookmarks: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /api/bookmarks/check/:itemId
  * Check if an item is bookmarked by the current user
  */

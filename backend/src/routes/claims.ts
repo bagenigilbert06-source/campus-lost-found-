@@ -20,22 +20,76 @@ function isAdminUser(req: AuthRequest): boolean {
   return (req.user?.role === 'admin') || (email ? ADMIN_EMAILS.includes(email) : false);
 }
 
-// Get claims for a user by email or all claims for admin
+/**
+ * Log query diagnostics for slow queries (>100ms)
+ * Helps identify COLLSCAN operations and inefficient indexes
+ */
+async function logSlowQueryDiagnostics(db_duration: number, query: any, collection_name: string): Promise<void> {
+  if (db_duration > 100) {
+    try {
+      const explanation = await Claim.collection.find(query).explain('executionStats');
+      const executionStats = explanation?.executionStats;
+      if (executionStats) {
+        const docsExamined = executionStats.totalDocsExamined || 0;
+        const docsReturned = executionStats.nReturned || 0;
+        const executionStages = executionStats.executionStages?.stage;
+        
+        console.warn(
+          `[${collection_name}] SLOW QUERY (${db_duration}ms): ` +
+          `Query=${JSON.stringify(query)} | ` +
+          `DocsExamined=${docsExamined} | DocsReturned=${docsReturned} | ` +
+          `Ratio=${(docsExamined / Math.max(docsReturned, 1)).toFixed(2)}x | ` +
+          `ExecutionStage=${executionStages}`
+        );
+      }
+    } catch (err) {
+      console.warn(`[${collection_name}] Failed to get explain stats:`, (err as any).message);
+    }
+  }
+}
+
+// Get claims for a user by email or all claims for admin - OPTIMIZED with pagination and field selection
 router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  const startTime = Date.now();
   try {
     const status = req.query.status as string;
     const itemId = req.query.itemId as string;
     const studentEmail = req.query.studentEmail as string;
+
+    // Parse pagination parameters
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const skip = (page - 1) * limit;
 
     const query: any = {};
 
     if (status) query.status = status;
     if (itemId) query.itemId = itemId;
 
+    // Select only necessary fields to reduce payload size
+    const selectFields = '_id itemId itemTitle studentEmail studentName studentPhone status adminNote createdAt';
+
     if (isAdminUser(req)) {
       // Admin can list all claims
-      const claims = await Claim.find(query).sort({ createdAt: -1 }).lean();
-      return res.json({ success: true, data: claims, total: claims.length });
+      const dbQueryTime = Date.now();
+      const [claims, total] = await Promise.all([
+        Claim.find(query)
+          .select(selectFields)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Claim.countDocuments(query),
+      ]);
+      const dbDuration = Date.now() - dbQueryTime;
+      const responseTime = Date.now() - startTime;
+
+      // Log diagnostics for slow queries
+      logSlowQueryDiagnostics(dbDuration, query, 'Claims');
+
+      console.log(`[Claims] Admin query timing - DB: ${dbDuration}ms, Total: ${responseTime}ms, Docs: ${claims.length}/${total}, Query: ${JSON.stringify(query)}`);
+
+      return res.json({ success: true, data: claims, total, page, limit });
     }
 
     const email = studentEmail || req.user?.email;
@@ -44,9 +98,28 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
     }
 
     query.studentEmail = email.toLowerCase().trim();
-    const claims = await Claim.find(query).sort({ createdAt: -1 }).lean();
-    return res.json({ success: true, data: claims, total: claims.length });
+    const dbQueryTime = Date.now();
+    const [claims, total] = await Promise.all([
+      Claim.find(query)
+        .select(selectFields)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Claim.countDocuments(query),
+    ]);
+    const dbDuration = Date.now() - dbQueryTime;
+    const responseTime = Date.now() - startTime;
+
+    // Log diagnostics for slow queries
+    logSlowQueryDiagnostics(dbDuration, query, 'Claims');
+
+    console.log(`[Claims] User query timing (${email}) - DB: ${dbDuration}ms, Total: ${responseTime}ms, Docs: ${claims.length}/${total}, Query: ${JSON.stringify(query)}`);
+
+    return res.json({ success: true, data: claims, total, page, limit });
   } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[Claims] Route error after ${duration}ms:`, error);
     next(error);
   }
 });

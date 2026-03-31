@@ -3,8 +3,9 @@ import AuthContext from '../context/Authcontext/AuthContext';
 import { messagesService } from '../services/apiService';
 
 /**
- * Custom hook to get real-time message count (received from admin only)
- * Polls for updates every 30 seconds
+ * Custom hook to get real-time message count (received from admin only).
+ * Now uses backend count filtering instead of fetching all messages.
+ * No polling - only fetches on mount or when user changes.
  */
 export const useMessageCount = () => {
   const { user } = useContext(AuthContext);
@@ -22,19 +23,16 @@ export const useMessageCount = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch all messages
-      const response = await messagesService.getMessages();
+      // Fetch ONLY messages received by this user from admin
+      // Backend will handle filtering and counting
+      const response = await messagesService.getMessages({
+        recipientEmail: user.email,
+        senderRole: 'admin',
+        limit: 1, // We only need count, fetch minimal data
+      });
       
-      // Filter: Only count messages received from admin
-      const allMessages = response.data || [];
-      const receivedFromAdminCount = allMessages.filter((msg) => {
-        return (
-          msg.recipientEmail === user.email &&
-          msg.senderRole === "admin"
-        );
-      }).length;
-      
-      setMessageCount(receivedFromAdminCount);
+      const count = response.total || 0;
+      setMessageCount(count);
     } catch (err) {
       console.error('[useMessageCount] Error fetching message count:', err);
       setError(err.message || 'Failed to fetch message count');
@@ -46,13 +44,9 @@ export const useMessageCount = () => {
 
   useEffect(() => {
     if (user) {
-      // Fetch immediately when component mounts
+      // Fetch immediately when component mounts or user changes
       fetchMessageCount();
-
-      // Poll for updates every 30 seconds
-      const interval = setInterval(fetchMessageCount, 30000);
-      
-      return () => clearInterval(interval);
+      // No polling - removed the 30s interval
     }
   }, [user, fetchMessageCount]);
 
@@ -60,7 +54,7 @@ export const useMessageCount = () => {
     messageCount,
     loading,
     error,
-    refetch: fetchMessageCount,
+    refetch: fetchMessageCount, // Exported for manual refetch after actions
   };
 };
 
