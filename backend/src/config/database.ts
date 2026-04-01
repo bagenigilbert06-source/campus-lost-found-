@@ -1,25 +1,47 @@
 import mongoose, { Connection } from 'mongoose';
 import { initializeGridFS } from '../services/gridfsService.js';
 
-let mongooseConnection: Connection;
+// Use global variable to reduce re-connection overhead in serverless environments
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoConnection: Connection | null | undefined;
+}
 
 export async function connectDB(): Promise<void> {
   const MONGODB_URI = process.env.MONGODB_URI;
 
   if (!MONGODB_URI) {
-    const errorMsg = `
-      [Database] MONGODB_URI is not set!
-      
-      To fix this:
-      1. Create a MongoDB Atlas account: https://www.mongodb.com/cloud/atlas
-      2. Create a cluster and database user
-      3. Get your connection string from the Atlas Dashboard
-      4. Add to .env.local: MONGODB_URI=mongodb+srv://user:password@cluster0.mongodb.net/dbname
-      
-      See MONGODB_SETUP.md for detailed instructions.
-    `;
+    const errorMsg = `\n[Database] MONGODB_URI is not set!\n`;
     console.error(errorMsg);
     throw new Error('MONGODB_URI environment variable is not set');
+  }
+
+  // Early return if already connected
+  if (mongoose.connection.readyState === 1) {
+    console.log('[Database] Using existing Mongoose connection (ready)');
+    return;
+  }
+
+  if (mongoose.connection.readyState === 2) {
+    console.log('[Database] Mongoose is currently connecting. Waiting...');
+    // Wait until connection is established or errors out
+    await new Promise((resolve, reject) => {
+      const interval = setInterval(() => {
+        if (mongoose.connection.readyState === 1) {
+          clearInterval(interval);
+          resolve(undefined);
+        } else if (mongoose.connection.readyState === 0) {
+          clearInterval(interval);
+          reject(new Error('Mongoose connection lost while connecting'));
+        }
+      }, 100);
+    });
+    return;
+  }
+
+  if (globalThis._mongoConnection && globalThis._mongoConnection.readyState === 1) {
+    console.log('[Database] Using cached connection from globalThis');
+    return;
   }
 
   try {
@@ -27,60 +49,32 @@ export async function connectDB(): Promise<void> {
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 5000,
+      family: 4,
+      autoIndex: false,
+      autoCreate: false,
     });
-    mongooseConnection = mongoose.connection;
+
+    globalThis._mongoConnection = mongoose.connection;
+
     console.log('[Database] MongoDB connected successfully');
     console.log(`[Database] Database: ${mongoose.connection.name}`);
-    
-    // Initialize GridFS for image storage
-    try {
-      // Get the MongoDB database from mongoose connection
-      const db = mongoose.connection.db as any;
-      if (!db) {
-        throw new Error('MongoDB database object is not available');
-      }
-      initializeGridFS(db);
-      console.log('[Database] GridFS initialized successfully');
-    } catch (gridfsError: any) {
-      console.error('[Database] GridFS initialization error:', gridfsError.message);
-      throw gridfsError;
+
+    const db = mongoose.connection.db as any;
+    if (!db) {
+      throw new Error('MongoDB database object is not available');
     }
+
+    initializeGridFS(db);
+    console.log('[Database] GridFS initialized successfully');
   } catch (error: any) {
-    console.error('[Database] MongoDB connection error:', error.message);
-    
-    // Provide helpful error messages based on error type
-    if (error.code === 'ENOTFOUND' || error.message.includes('ENOTFOUND')) {
-      console.error(`
-        [Database] DNS Resolution Failed
-        
-        Possible causes:
-        1. Invalid MongoDB connection string
-        2. Network/firewall blocking MongoDB Atlas
-        3. IP not whitelisted in MongoDB Atlas Network Access
-        4. Invalid credentials in connection string
-        
-        Solutions:
-        1. Check .env.local for correct MONGODB_URI
-        2. Verify your IP is whitelisted in MongoDB Atlas
-        3. Try with 0.0.0.0/0 (allows all IPs) temporarily
-        4. See MONGODB_SETUP.md for detailed help
-      `);
-    } else if (error.message.includes('authentication failed')) {
-      console.error(`
-        [Database] Authentication Failed
-        
-        Possible causes:
-        1. Incorrect username or password
-        2. Special characters in password not URL-encoded
-        3. User doesn't have database access role
-        
-        Solutions:
-        1. Verify username and password in MONGODB_URI
-        2. URL-encode special characters (@ = %40, # = %23)
-        3. Ensure user has "Atlas admin" role in MongoDB Atlas
-      `);
+    console.error('[Database] MongoDB connection error:', error.message || error);
+
+    if (error.code === 'ENOTFOUND' || (error.message && error.message.includes('ENOTFOUND'))) {
+      console.error('[Database] DNS resolution failed. Check your URI and network access.');
+    } else if (error.message && error.message.includes('authentication failed')) {
+      console.error('[Database] Authentication failed. Check your MongoDB credentials.');
     }
-    
+
     throw error;
   }
 }
