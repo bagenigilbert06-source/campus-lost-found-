@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import { useNavigate } from "react-router-dom";
 import AuthContext from "../../context/Authcontext/AuthContext";
 import { Helmet } from "react-helmet-async";
@@ -21,7 +22,6 @@ import PaginationComponent from "../../components/PaginationComponent";
 import BookmarkButton from "../../components/BookmarkButton";
 import ImageLightbox from "../../components/ImageLightbox";
 
-const API_BASE = "http://localhost:3001/api";
 const ITEMS_PER_PAGE = 12;
 
 // Helper to safely extract string values from potentially problematic API data

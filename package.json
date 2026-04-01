@@ -10,6 +10,7 @@
     "build:backend": "cd backend && pnpm run build",
     "build:frontend": "vite build",
     "build": "pnpm run build:backend && pnpm run build:frontend",
+    "deploy": "pnpm run build:frontend && firebase deploy --only hosting",
     "lint": "eslint .",
     "preview": "vite preview",
     "validate-config": "node scripts/validate-config.js",

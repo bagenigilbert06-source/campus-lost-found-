@@ -24,8 +24,9 @@ const SmartSearchHelper = ({
     setIsLoadingSuggestions(true);
 
     try {
+      const apiHost = import.meta.env.VITE_API_BASE_URL || (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/gemini/improve-search`,
+        `${apiHost}/gemini/improve-search`,
         { query: searchQuery },
         { timeout: 15000 }
       );

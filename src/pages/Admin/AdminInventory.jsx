@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { Helmet } from "react-helmet-async";
@@ -27,7 +28,6 @@ import EmptyState from "../../components/admin/EmptyState";
 import LoadingState from "../../components/admin/LoadingState";
 import ConfirmationDialog from "../../components/ConfirmationDialog";
 
-const API_BASE = "http://localhost:3001/api";
 
 const AdminInventory = () => {
   const { user } = useContext(AuthContext);

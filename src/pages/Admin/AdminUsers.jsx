@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fi';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { schoolConfig } from '../../config/schoolConfig';
+import { getApiUrl } from '../../utils/apiConfig.js';
 import useAdminUsers from '../../hooks/useAdminUsers';
 import AdminTable from '../../components/admin/AdminTable';
 import AdminStatCard from '../../components/admin/AdminStatCard';
@@ -37,7 +38,7 @@ const AdminUsers = () => {
 
   const handleUserStatusChange = async (userId, isActive) => {
     try {
-      await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001'}/api/users/${userId}/status`, {
+      await fetch(getApiUrl(`users/${userId}/status`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

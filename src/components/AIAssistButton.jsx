@@ -50,8 +50,9 @@ const AIAssistButton = ({
         return;
       }
 
+      const apiHost = import.meta.env.VITE_API_BASE_URL || (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/gemini/improve-item`,
+        `${apiHost}/gemini/improve-item`,
         {
           title,
           description,

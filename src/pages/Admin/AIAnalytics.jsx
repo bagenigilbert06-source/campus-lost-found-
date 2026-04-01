@@ -19,7 +19,7 @@ import AdminContainer from "../../components/admin/AdminContainer";
 import LoadingState from "../../components/admin/LoadingState";
 import EmptyState from "../../components/admin/EmptyState";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api';
 
 const AIAnalytics = () => {
   const { user } = useContext(AuthContext);

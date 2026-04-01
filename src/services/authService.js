@@ -3,7 +3,7 @@ import { getIdToken } from 'firebase/auth';
 import auth from '../firebase/firebase.init';
 
 // Backend API URL
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const authService = {
   /**

@@ -1,28 +1,47 @@
 import axios from 'axios';
 import { getIdToken } from 'firebase/auth';
 import auth from '../firebase/firebase.init';
+import { getApiBaseUrl } from '../utils/apiConfig.js';
 
-// Configure API base URL - update this when deploying
-// Vercel frontend+backend on same domain can use relative /api path.
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Configure API base URL for production and local dev
+export const API_BASE = getApiBaseUrl();
+
+const getAuthToken = async () => {
+  try {
+    if (auth?.currentUser) {
+      return await getIdToken(auth.currentUser, false);
+    }
+    return localStorage.getItem('firebaseToken');
+  } catch (error) {
+    return null;
+  }
+};
 
 const apiClient = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
 });
 
+// Global default interceptor for all axios usage
+axios.interceptors.request.use(async (config) => {
+  const token = await getAuthToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // Interceptor to add Firebase ID token
 apiClient.interceptors.request.use(async (config) => {
   try {
-    // Try to get Firebase ID token if user is logged in
-    if (auth.currentUser) {
-      const token = await getIdToken(auth.currentUser);
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    const token = await getAuthToken();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
     }
   } catch (error) {
-    // User not logged in, continue without token
+    // User not logged in or token fetch failed, continue without token
     console.debug('[API] Firebase token not available, continuing without auth');
   }
   return config;
@@ -253,6 +272,23 @@ export const claimsService = {
   },
 };
 
+export const bookmarksService = {
+  addBookmark: async (itemId) => {
+    const response = await apiClient.post('/bookmarks', { itemId });
+    return response.data;
+  },
+
+  removeBookmark: async (itemId) => {
+    const response = await apiClient.delete(`/bookmarks/${itemId}`);
+    return response.data;
+  },
+
+  checkBatchBookmarks: async (itemIds) => {
+    const response = await apiClient.post('/bookmarks/check-batch', { itemIds });
+    return response.data;
+  },
+};
+
 export const messagesService = {
   getMessages: async (params = {}) => {
     const response = await apiClient.get('/messages', { params });
@@ -292,5 +328,6 @@ export default {
   matchingService,
   notificationService,
   claimsService,
+  bookmarksService,
   messagesService,
 };

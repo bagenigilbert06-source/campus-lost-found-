@@ -3,8 +3,8 @@ import React from 'react';
 const LoadingState = ({ count = 3, type = 'card' }) => {
   if (type === 'full') {
     return (
-      <div className="flex items-center justify-center h-96">
-        <span className="loading loading-dots loading-lg text-zetech-primary"></span>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }

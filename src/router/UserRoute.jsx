@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import AuthContext from '../context/Authcontext/AuthContext';
+import LoadingScreen from '../components/LoadingScreen';
 
 // UserRoute - Protected route for student/user pages only
 // Blocks admin users and redirects them to admin dashboard
@@ -8,11 +9,7 @@ const UserRoute = ({ children }) => {
     const { user, loading, isAdmin } = useContext(AuthContext);
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-screen">
-                <span className="loading loading-dots loading-md"></span>
-            </div>
-        );
+        return <LoadingScreen message="Checking user session..." />;
     }
 
     // Not logged in - redirect to signin

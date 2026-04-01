@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { API_BASE } from '../../utils/apiConfig.js';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import axios from 'axios';
@@ -19,7 +20,6 @@ import AuthContext from '../../context/Authcontext/AuthContext';
 import { schoolConfig } from '../../config/schoolConfig';
 import { notificationService, claimsService, itemsService } from '../../services/apiService';
 
-const API_BASE = 'http://localhost:3001/api';
 
 const QUICK_LINKS = [
   {

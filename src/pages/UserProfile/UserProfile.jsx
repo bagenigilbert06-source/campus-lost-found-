@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import { useNavigate } from "react-router-dom";
 import { updateProfile } from "firebase/auth";
 import auth from "../../firebase/firebase.init";
@@ -23,7 +24,6 @@ import {
 } from "react-icons/fa";
 import { uploadProfilePhoto } from "../../utils/storageUtils";
 
-const API_BASE = "http://localhost:3001/api";
 
 const UserProfile = () => {
   const { user, updateUserProfile } = useContext(AuthContext);

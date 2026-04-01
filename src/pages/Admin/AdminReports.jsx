@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import axios from "axios";
 import { Helmet } from "react-helmet-async";
 import toast from "react-hot-toast";
@@ -13,7 +14,6 @@ import { schoolConfig } from "../../config/schoolConfig";
 import AdminContainer from "../../components/admin/AdminContainer";
 import LoadingState from "../../components/admin/LoadingState";
 
-const API_BASE = "http://localhost:3001/api";
 
 const AdminReports = () => {
   const [items, setItems] = useState([]);

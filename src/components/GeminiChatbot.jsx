@@ -145,7 +145,7 @@ const suggestedPrompts = [
 ];
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
+  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
 
 // Local storage keys
 const STORAGE_KEYS = {
@@ -761,7 +761,7 @@ const GeminiChatbot = ({ isAuthenticated = false, context = "" }) => {
       }));
 
       const response = await axios.post(
-        `${API_BASE_URL}/api/gemini/chat`,
+        `${API_BASE_URL}/gemini/chat`,
         {
           message: trimmed,
           context: buildContext(),

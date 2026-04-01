@@ -3,7 +3,8 @@
  * Handles image uploads to MongoDB via backend API
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { API_BASE } from './apiConfig.js';
+import { normalizeImageUrl } from './imageUtils.js';
 
 /**
  * Upload a profile photo to MongoDB GridFS via backend
@@ -88,12 +89,19 @@ export const uploadProfilePhoto = async (file, firebaseUid) => {
       return data.url;
     }
 
-    const base = API_BASE.replace(/\/+$/g, '');
-    if (data.url.startsWith('/')) {
-      return `${base}${data.url}`;
+    let resolvedUrl;
+    if (/^https?:\/\//i.test(data.url)) {
+      resolvedUrl = data.url;
+    } else {
+      const base = API_BASE.replace(/\/+$/g, '');
+      if (data.url.startsWith('/')) {
+        resolvedUrl = `${base}${data.url}`;
+      } else {
+        resolvedUrl = `${base}/${data.url}`;
+      }
     }
 
-    return `${base}/${data.url}`;
+    return normalizeImageUrl(resolvedUrl);
   } catch (error) {
     console.error('Error uploading profile photo:', error);
     throw new Error(`Failed to upload photo: ${error.message}`);
@@ -183,12 +191,19 @@ export const uploadItemPhoto = async (file, firebaseUid) => {
       return data.url;
     }
 
-    const base = API_BASE.replace(/\/+$/g, '');
-    if (data.url.startsWith('/')) {
-      return `${base}${data.url}`;
+    let resolvedUrl;
+    if (/^https?:\/\//i.test(data.url)) {
+      resolvedUrl = data.url;
+    } else {
+      const base = API_BASE.replace(/\/+$/g, '');
+      if (data.url.startsWith('/')) {
+        resolvedUrl = `${base}${data.url}`;
+      } else {
+        resolvedUrl = `${base}/${data.url}`;
+      }
     }
 
-    return `${base}/${data.url}`;
+    return normalizeImageUrl(resolvedUrl);
   } catch (error) {
     console.error('Error uploading item photo:', error);
     throw new Error(`Failed to upload photo: ${error.message}`);

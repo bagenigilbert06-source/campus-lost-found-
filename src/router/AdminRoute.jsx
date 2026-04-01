@@ -2,6 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import AuthContext from '../context/Authcontext/AuthContext';
 import { Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import LoadingScreen from '../components/LoadingScreen';
 
 // AdminRoute - Protected route for admin pages only
 // Redirects non-admins to home, unauthenticated to admin-login
@@ -15,11 +16,7 @@ const AdminRoute = ({ children }) => {
     }, [loading, user, isAdmin]);
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-screen bg-gray-100">
-                <div className="w-16 h-16 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        );
+        return <LoadingScreen message="Verifying admin access..." />;
     }
 
     // Admin user - allow access

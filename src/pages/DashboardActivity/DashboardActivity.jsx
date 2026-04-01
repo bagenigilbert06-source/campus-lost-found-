@@ -1,11 +1,12 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import { useNavigate } from "react-router-dom";
 import AuthContext from "../../context/Authcontext/AuthContext";
 import { Helmet } from "react-helmet-async";
 import { schoolConfig } from "../../config/schoolConfig";
 import toast from "react-hot-toast";
 import axios from "axios";
-import { itemsService, claimsService, notificationService } from "../../services/apiService";
+import { itemsService, claimsService, notificationService, messagesService } from "../../services/apiService";
 import {
   FaHistory,
   FaBox,
@@ -40,7 +41,6 @@ const DashboardActivity = () => {
     }
 
     const fetchActivity = async () => {
-      const API_BASE = 'http://localhost:3001/api';
 
       try {
         setLoading(true);
@@ -55,17 +55,10 @@ const DashboardActivity = () => {
             return [];
           }),
           // Optimize getMessage with limit parameter to reduce payload
-          axios
-            .get(`${API_BASE}/messages`, {
-              params: { 
-                limit: 50, // Only fetch recent messages
-              },
-              withCredentials: true,
-            })
-            .catch((error) => {
-              console.error('[DashboardActivity] Error fetching messages:', error);
-              return { data: [] };
-            }),
+          messagesService.getMessages({ limit: 50 }).catch((error) => {
+            console.error('[DashboardActivity] Error fetching messages:', error);
+            return [];
+          }),
           notificationService.getNotifications().catch((error) => {
             console.error('[DashboardActivity] Error fetching notifications:', error);
             return { notifications: [] };
@@ -81,9 +74,9 @@ const DashboardActivity = () => {
           ? claimsRes.data
           : claimsRes.data?.data || [];
 
-        const messages = Array.isArray(messagesRes.data)
-        ? messagesRes.data
-        : messagesRes.data?.data || [];
+        const messages = Array.isArray(messagesRes)
+          ? messagesRes
+          : [];
 
       const notifications = Array.isArray(notificationsRes.notifications)
         ? notificationsRes.notifications

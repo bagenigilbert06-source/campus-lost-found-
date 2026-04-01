@@ -1,4 +1,5 @@
 import React from "react";
+import { API_BASE } from '../utils/apiConfig.js';
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // Layouts
@@ -162,19 +163,23 @@ const router = createBrowserRouter([
       {
         path: "update/:id",
         element: <UserRoute><UpdateItems /></UserRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          return Array.isArray(data) ? data[0] : data.data || data;
-        })
+        loader: ({ params }) => {
+          return fetch(`${API_BASE}/items/${params.id}`).then(res => res.json()).then(data => {
+            return Array.isArray(data) ? data[0] : data.data || data;
+          });
+        }
       },
       {
         path: "items/:id",
         element: <UserRoute><PostDetails /></UserRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          return Array.isArray(data) ? data[0] : data.data || data;
-        }).catch(error => {
-          console.error('Error loading item:', error);
-          return null;
-        })
+        loader: ({ params }) => {
+          return fetch(`${API_BASE}/items/${params.id}`).then(res => res.json()).then(data => {
+            return Array.isArray(data) ? data[0] : data.data || data;
+          }).catch(error => {
+            console.error('Error loading item:', error);
+            return null;
+          });
+        }
       },
     ]
   },
@@ -228,9 +233,11 @@ const router = createBrowserRouter([
       {
         path: "/items/:id",
         element: <PrivateRoute><PostDetails /></PrivateRoute>,
-        loader: ({ params }) => fetch(`http://localhost:3001/api/items/${params.id}`).then(res => res.json()).then(data => {
-          return Array.isArray(data) ? data[0] : data.data || data;
-        })
+        loader: ({ params }) => {
+          return fetch(`${API_BASE}/items/${params.id}`).then(res => res.json()).then(data => {
+            return Array.isArray(data) ? data[0] : data.data || data;
+          });
+        }
       },
       {
         path: "*",

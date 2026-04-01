@@ -30,18 +30,19 @@ export const healthChecks = {
 
   // Check if API URL is configured
   apiUrl: () => {
-    const apiUrl = import.meta.env.VITE_API_URL;
+    const apiUrl = import.meta.env.VITE_API_URL || '/api';
     return {
       status: apiUrl ? 'OK' : 'MISSING',
-      url: apiUrl || 'Not set (defaulting to http://localhost:3001/api)',
+      url: apiUrl || '/api',
     };
   },
 
   // Check backend connectivity
   backendConnection: async () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const apiUrl = import.meta.env.VITE_API_URL || '/api';
+    const backendHost = apiUrl.replace('/api', '');
     try {
-      const response = await fetch(`${apiUrl.replace('/api', '')}/health`, {
+      const response = await fetch(`${backendHost}/health`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

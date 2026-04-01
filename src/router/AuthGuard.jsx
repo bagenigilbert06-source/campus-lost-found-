@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import AuthContext from '../context/Authcontext/AuthContext';
 import { schoolConfig } from '../config/schoolConfig';
+import LoadingScreen from '../components/LoadingScreen';
 
 // AuthGuard - Prevents authenticated users from accessing auth pages (/signin, /register, /admin-login)
 // Only redirects if user is FULLY authenticated AND auth state is settled
@@ -11,11 +12,7 @@ const AuthGuard = ({ children }) => {
 
     // While auth state is being checked, show loading spinner
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-screen">
-                <span className="loading loading-dots loading-md"></span>
-            </div>
-        );
+        return <LoadingScreen message="Checking authentication..." />;
     }
 
     // If user is already logged in AND auth state is settled (loading = false),

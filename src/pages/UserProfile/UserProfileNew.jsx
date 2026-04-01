@@ -6,6 +6,7 @@ import { schoolConfig } from '../../config/schoolConfig';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { API_BASE } from '../../utils/apiConfig.js';
 import {
   FaUser,
   FaCog,
@@ -78,7 +79,7 @@ const UserProfile = () => {
       setLoading(true);
       
       // Fetch user profile
-      const profileRes = await axios.get('http://localhost:3001/api/users/profile', {
+      const profileRes = await axios.get(`${API_BASE}/users/profile`, {
         params: { email: user?.email },
         withCredentials: true
       }).catch(() => ({ data: {} }));
@@ -100,7 +101,7 @@ const UserProfile = () => {
       }
 
       // Fetch activity log
-      const activityRes = await axios.get('http://localhost:3001/api/users/activity', {
+      const activityRes = await axios.get(`${API_BASE}/users/activity`, {
         params: { email: user?.email, limit: 10 },
         withCredentials: true
       }).catch(() => ({ data: { data: [] } }));
@@ -108,7 +109,7 @@ const UserProfile = () => {
       setActivityLog(activityRes.data?.data || []);
 
       // Fetch stats
-      const statsRes = await axios.get('http://localhost:3001/api/users/stats', {
+      const statsRes = await axios.get(`${API_BASE}/users/stats`, {
         params: { email: user?.email },
         withCredentials: true
       }).catch(() => ({ data: { data: {} } }));
@@ -154,7 +155,7 @@ const UserProfile = () => {
 
     setLoading(true);
     try {
-      const response = await axios.put('http://localhost:3001/api/users/profile', {
+      const response = await axios.put(`${API_BASE}/users/profile`, {
         ...personalData,
         email: user?.email,
         profileImage
@@ -194,7 +195,7 @@ const UserProfile = () => {
 
     setLoading(true);
     try {
-      const response = await axios.put('http://localhost:3001/api/users/password', {
+      const response = await axios.put(`${API_BASE}/users/password`, {
         email: user?.email,
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
@@ -222,7 +223,7 @@ const UserProfile = () => {
   const handleSaveSettings = async () => {
     setLoading(true);
     try {
-      const response = await axios.put('http://localhost:3001/api/users/settings', {
+      const response = await axios.put(`${API_BASE}/users/settings`, {
         email: user?.email,
         settings
       }, {

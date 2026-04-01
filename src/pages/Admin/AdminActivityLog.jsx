@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 import { schoolConfig } from '../../config/schoolConfig';
+import { API_BASE } from '../../utils/apiConfig.js';
 import { 
   FaClock,
   FaPlus,
@@ -15,6 +16,7 @@ import EmptyState from '../../components/admin/EmptyState';
 import LoadingState from '../../components/admin/LoadingState';
 import PaginationComponent from '../../components/PaginationComponent';
 
+const API_BASE_URL = API_BASE;
 const ITEMS_PER_PAGE = 12;
 
 const AdminActivityLog = () => {
@@ -29,7 +31,7 @@ const AdminActivityLog = () => {
 
   const fetchItems = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/api/items');
+      const res = await axios.get(`${API_BASE_URL}/items`);
       console.log('[v0] Activity log items response:', res.data);
       // Handle both array and object with data property
       const itemsArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);

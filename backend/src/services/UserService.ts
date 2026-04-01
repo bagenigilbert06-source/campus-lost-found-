@@ -1,28 +1,14 @@
 import { User, IUser } from '../models/User.js';
 import { NotFound } from '../middleware/errorHandler.js';
 
-// Admin emails list
-const ADMIN_EMAILS = [
-  'bagenigilbert@zetech.ac.ke',
-  'admin@zetech.ac.ke',
-  'security@zetech.ac.ke'
-];
-
 export class UserService {
   /**
-   * Determine role based on email
-   */
-  private determineRole(email: string): 'admin' | 'student' {
-    return ADMIN_EMAILS.includes(email.toLowerCase()) ? 'admin' : 'student';
-  }
-
-  /**
-   * Get or create user for Firebase/Google auth
+   * Get or create user for Firebase auth
    */
   async getOrCreateUser(
-    uid: string, 
-    email: string, 
-    displayName: string, 
+    uid: string,
+    email: string,
+    displayName: string,
     photoURL?: string,
     role?: string
   ): Promise<IUser & { isNew?: boolean }> {
@@ -31,9 +17,9 @@ export class UserService {
     let isNew = false;
 
     if (!user) {
-      // Check if user exists with this email (might have registered with local auth)
+      // Check if user exists with this email (might have migrated from local auth)
       const existingByEmail = await User.findOne({ email: email.toLowerCase() });
-      
+
       if (existingByEmail) {
         // User exists with different auth provider, update their Firebase UID
         if (!existingByEmail.firebaseUid) {
@@ -44,15 +30,15 @@ export class UserService {
       } else {
         // Create new user
         isNew = true;
-        const userRole = role || this.determineRole(email);
-        
+        const userRole = role || 'student'; // Default to student, admin can be set later
+
         user = new User({
           _id: uid,
           email: email.toLowerCase(),
           displayName,
           profileImage: photoURL || '',
           role: userRole,
-          authProvider: 'google',
+          authProvider: 'firebase',
           firebaseUid: uid,
           isActive: true,
           notificationPreferences: {

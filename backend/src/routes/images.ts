@@ -1,7 +1,7 @@
 import express, { Router, Request, Response, NextFunction } from 'express';
 import multer, { Multer } from 'multer';
 import mongoose from 'mongoose';
-import { hybridAuthMiddleware } from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { uploadFile, downloadFile, deleteFile, getFileInfo } from '../services/gridfsService.js';
 
@@ -30,7 +30,7 @@ const upload: Multer = multer({
  */
 router.post(
   '/profile',
-  hybridAuthMiddleware,
+  authMiddleware,
   upload.single('file'),
   async (req: any, res: Response, next: NextFunction) => {
     try {
@@ -55,7 +55,8 @@ router.post(
         mimeType: String(req.file.mimetype),
       });
 
-      const absoluteUrl = `${req.protocol}://${req.get('host')}/api/images/download/${fileId.toString()}`;
+      const backendBaseUrl = (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      const absoluteUrl = `${backendBaseUrl}/api/images/download/${fileId.toString()}`;
       res.json({
         success: true,
         fileId: fileId.toString(),
@@ -86,7 +87,7 @@ router.post(
  */
 router.post(
   '/item',
-  hybridAuthMiddleware,
+  authMiddleware,
   upload.single('file'),
   async (req: any, res: Response, next: NextFunction) => {
     try {
@@ -111,7 +112,8 @@ router.post(
         mimeType: String(req.file.mimetype),
       });
 
-      const absoluteUrl = `${req.protocol}://${req.get('host')}/api/images/download/${fileId.toString()}`;
+      const backendBaseUrl = (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      const absoluteUrl = `${backendBaseUrl}/api/images/download/${fileId.toString()}`;
       res.json({
         success: true,
         fileId: fileId.toString(),
@@ -189,7 +191,7 @@ router.get(
  */
 router.delete(
   '/:fileId',
-  hybridAuthMiddleware,
+  authMiddleware,
   async (req: any, res: Response, next: NextFunction) => {
     try {
       const { fileId } = req.params;

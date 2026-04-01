@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { Helmet } from "react-helmet-async";
@@ -25,7 +26,6 @@ import AdminContainer from "../../components/admin/AdminContainer";
 import EmptyState from "../../components/admin/EmptyState";
 import LoadingState from "../../components/admin/LoadingState";
 
-const API_BASE = "http://localhost:3001/api";
 
 const AdminDashboard = () => {
   const { user } = useContext(AuthContext);

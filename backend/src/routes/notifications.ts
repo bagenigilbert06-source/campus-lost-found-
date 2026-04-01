@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { hybridAuthMiddleware, AuthRequest } from '../middleware/auth.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { userService } from '../services/UserService.js';
 import { notificationService } from '../services/NotificationService.js';
 import { Notification } from '../models/Notification.js';
@@ -7,7 +7,7 @@ import { Notification } from '../models/Notification.js';
 const router: import('express').Router = Router();
 
 // Get user's notifications (default endpoint)
-router.get('/', hybridAuthMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'User not authenticated' });
@@ -40,7 +40,7 @@ router.get('/', hybridAuthMiddleware, async (req: AuthRequest, res, next) => {
 });
 
 // Get notification preferences
-router.get('/preferences', hybridAuthMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/preferences', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'User not authenticated' });
@@ -58,7 +58,7 @@ router.get('/preferences', hybridAuthMiddleware, async (req: AuthRequest, res, n
 });
 
 // Update notification preferences
-router.put('/preferences', hybridAuthMiddleware, async (req: AuthRequest, res, next) => {
+router.put('/preferences', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'User not authenticated' });
@@ -76,7 +76,7 @@ router.put('/preferences', hybridAuthMiddleware, async (req: AuthRequest, res, n
 });
 
 // Send test email notification
-router.post('/send-test', hybridAuthMiddleware, async (req: AuthRequest, res, next) => {
+router.post('/send-test', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'User not authenticated' });
@@ -104,7 +104,7 @@ router.post('/send-test', hybridAuthMiddleware, async (req: AuthRequest, res, ne
 });
 
 // Get user's notifications history
-router.get('/history', hybridAuthMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/history', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'User not authenticated' });

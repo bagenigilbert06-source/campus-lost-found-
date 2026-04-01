@@ -3,9 +3,10 @@ import { useContext, useEffect } from "react";
 import AuthContext from "../context/Authcontext/AuthContext";
 import { useNavigate } from "react-router-dom";
 import auth from "../firebase/firebase.init";
+import { API_BASE } from "../services/apiService";
 
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: API_BASE,
   withCredentials: true,
 });
 

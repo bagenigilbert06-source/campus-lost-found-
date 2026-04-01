@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import { Helmet } from "react-helmet-async";
 import { schoolConfig } from "../../config/schoolConfig";
 import SmartSearchHelper from "../../components/SmartSearchHelper";
@@ -18,7 +19,6 @@ import toast from "react-hot-toast";
 import AuthContext from "../../context/Authcontext/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = "http://localhost:3001/api";
 
 const SearchItems = () => {
   const { user } = useContext(AuthContext);

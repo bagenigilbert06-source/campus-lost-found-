@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import AuthContext from "../../context/Authcontext/AuthContext";
 import { Link } from "react-router-dom";
 import { itemsService, claimsService } from "../../services/apiService";
@@ -26,7 +27,6 @@ const MyItemsPage = () => {
   const [activeTab, setActiveTab] = useState("items");
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const API_BASE = "http://localhost:3001/api";
 
   useEffect(() => {
     if (!user?.email) return;

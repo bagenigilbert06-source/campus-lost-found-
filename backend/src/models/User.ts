@@ -16,7 +16,7 @@ export interface IUser {
   emergency_phone?: string;
   bio?: string;
   role: 'student' | 'admin';
-  authProvider: 'local' | 'google';
+  authProvider: 'firebase';
   firebaseUid?: string; // Only for Google auth users
   isActive: boolean;
   createdAt: Date;
@@ -65,11 +65,11 @@ const UserSchema = new Schema<IUser>(
       default: 'student',
       required: true 
     },
-    authProvider: { 
-      type: String, 
-      enum: ['local', 'google'], 
-      default: 'local',
-      required: true 
+    authProvider: {
+      type: String,
+      enum: ['firebase'],
+      default: 'firebase',
+      required: true
     },
     firebaseUid: { type: String }, // Only set for Google auth
     isActive: { type: Boolean, default: true },

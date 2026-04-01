@@ -49,7 +49,6 @@ app.use(cors({
       'http://localhost:3000', // Alternative dev port
       'http://localhost:3001', // Backend dev port
       process.env.FRONTEND_URL, // Deployed frontend URL
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined, // Vercel preview URLs
     ].filter(Boolean);
 
     if (allowedOrigins.includes(origin)) {

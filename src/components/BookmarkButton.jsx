@@ -3,10 +3,8 @@ import { motion } from 'framer-motion';
 import { FaBookmark as FaBookmarkSolid } from 'react-icons/fa';
 import { FaRegBookmark } from 'react-icons/fa';
 import AuthContext from '../context/Authcontext/AuthContext';
-import axios from 'axios';
+import { bookmarksService } from '../services/apiService';
 import Swal from 'sweetalert2';
-import { getIdToken } from 'firebase/auth';
-import auth from '../firebase/firebase.init';
 
 /**
  * BookmarkButton Component
@@ -41,20 +39,6 @@ const BookmarkButton = ({
     lg: 'p-3',
   };
 
-  // Get the Firebase ID token
-  const getFirebaseToken = async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const token = await getIdToken(currentUser);
-        return token;
-      }
-    } catch (error) {
-      console.error('Error getting Firebase token:', error);
-    }
-    return null;
-  };
-
   const handleBookmarkToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -70,22 +54,10 @@ const BookmarkButton = ({
 
     setIsLoading(true);
     try {
-      const token = await getFirebaseToken();
-      if (!token) {
-        throw new Error('Failed to get authentication token');
-      }
-
       if (bookmarked) {
-        await axios.delete(
-          `http://localhost:3001/api/bookmarks/${itemId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await bookmarksService.removeBookmark(itemId);
       } else {
-        await axios.post(
-          `http://localhost:3001/api/bookmarks`,
-          { itemId },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await bookmarksService.addBookmark(itemId);
       }
       const newStatus = !bookmarked;
       setBookmarked(newStatus);

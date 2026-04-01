@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
-import axios from 'axios';
-import { getIdToken } from 'firebase/auth';
-import auth from '../firebase/firebase.init';
+import { bookmarksService } from '../services/apiService';
 import AuthContext from '../context/Authcontext/AuthContext';
 
 /**
@@ -27,19 +25,8 @@ export const useBatchBookmarks = (itemIds = []) => {
       setLoading(true);
       setError(null);
 
-      const token = await getIdToken(auth.currentUser);
-      if (!token) return;
-
-      const response = await axios.post(
-        'http://localhost:3001/api/bookmarks/check-batch',
-        { itemIds },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        }
-      );
-
-      setBookmarks(response.data.bookmarks || {});
+      const response = await bookmarksService.checkBatchBookmarks(itemIds);
+      setBookmarks(response.bookmarks || {});
     } catch (err) {
       console.error('[useBatchBookmarks] Error fetching bookmarks:', err);
       setError(err.message);

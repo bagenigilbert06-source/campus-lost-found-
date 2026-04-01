@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo } from "react";
+import { API_BASE } from '../../utils/apiConfig.js';
 import { useLoaderData, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import AuthContext from "./../../context/Authcontext/AuthContext";
@@ -27,7 +28,6 @@ import ClaimItemModal from "../../components/ClaimItemModal";
 import ImageLightbox from "../../components/ImageLightbox";
 import BookmarkButton from "../../components/BookmarkButton";
 
-const API_BASE = "http://localhost:3001/api";
 
 const PostDetails = () => {
   const { user } = useContext(AuthContext);

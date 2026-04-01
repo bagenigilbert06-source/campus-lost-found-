@@ -1,156 +1,17 @@
 import { Router, Response, NextFunction } from 'express';
-import { authMiddleware, localAuthMiddleware, AuthRequest } from '../middleware/auth.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { userService } from '../services/UserService.js';
-import { localAuthService } from '../services/LocalAuthService.js';
 import { body, validationResult } from 'express-validator';
-import { BadRequest } from '../middleware/errorHandler.js';
 
 const router: import('express').Router = Router();
 
 // ============================================
-// LOCAL AUTH ROUTES (Email/Password)
-// ============================================
-
-/**
- * POST /auth/local/register
- * Register a new user with email and password
- */
-router.post('/local/register', [
-  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('displayName').trim().notEmpty().withMessage('Display name is required'),
-  body('photoURL').optional().isURL(),
-], async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ 
-        success: false, 
-        message: errors.array()[0].msg,
-        errors: errors.array() 
-      });
-      return;
-    }
-
-    const { email, password, displayName, photoURL } = req.body;
-    
-    const result = await localAuthService.register(email, password, displayName, photoURL);
-    
-    if (!result.success) {
-      res.status(400).json(result);
-      return;
-    }
-
-    res.status(201).json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * POST /auth/local/login
- * Login with email and password
- */
-router.post('/local/login', [
-  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
-  body('password').notEmpty().withMessage('Password is required'),
-], async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ 
-        success: false, 
-        message: errors.array()[0].msg,
-        errors: errors.array() 
-      });
-      return;
-    }
-
-    const { email, password } = req.body;
-    
-    const result = await localAuthService.login(email, password);
-    
-    if (!result.success) {
-      res.status(401).json(result);
-      return;
-    }
-
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * POST /auth/local/verify
- * Verify a local JWT token
- */
-router.post('/local/verify', async (req, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    
-    if (!token) {
-      res.status(401).json({ success: false, message: 'No token provided' });
-      return;
-    }
-
-    const result = await localAuthService.verifyToken(token);
-    
-    if (!result.success) {
-      res.status(401).json(result);
-      return;
-    }
-
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * PUT /auth/local/password
- * Update password for local auth users
- */
-router.put('/local/password', localAuthMiddleware, [
-  body('currentPassword').notEmpty().withMessage('Current password is required'),
-  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
-], async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ success: false, message: 'Not authenticated' });
-      return;
-    }
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ 
-        success: false, 
-        message: errors.array()[0].msg 
-      });
-      return;
-    }
-
-    const { currentPassword, newPassword } = req.body;
-    const result = await localAuthService.updatePassword(req.user.uid, currentPassword, newPassword);
-    
-    if (!result.success) {
-      res.status(400).json(result);
-      return;
-    }
-
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ============================================
-// FIREBASE/GOOGLE AUTH ROUTES
+// FIREBASE AUTH ROUTES
 // ============================================
 
 /**
  * POST /auth/register
- * Register or sync Firebase/Google user to MongoDB
+ * Register or sync Firebase user to MongoDB
  */
 router.post('/register', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -163,7 +24,7 @@ router.post('/register', authMiddleware, async (req: AuthRequest, res: Response,
     const emailToUse = (bodyEmail || req.user.email || '').trim();
 
     if (!emailToUse) {
-      throw BadRequest('Email is required to register or sync user profile.');
+      throw new Error('Email is required to register or sync user profile.');
     }
 
     // Get or create user in MongoDB
@@ -172,7 +33,7 @@ router.post('/register', authMiddleware, async (req: AuthRequest, res: Response,
       emailToUse,
       (displayName || req.user.displayName || 'User').trim(),
       (photoURL || req.user.photoURL || '').trim(),
-      role // Pass role for Google users
+      role // Pass role for admin setup
     );
 
     res.status(user.isNew ? 201 : 200).json({
@@ -205,11 +66,8 @@ router.post('/verify', authMiddleware, async (req: AuthRequest, res: Response, n
       return;
     }
 
-    const user = await userService.getOrCreateUser(
-      req.user.uid,
-      req.user.email || '',
-      'User'
-    );
+    // Get user from database
+    const user = await userService.getUserById(req.user.uid);
 
     res.json({
       success: true,
@@ -221,6 +79,7 @@ router.post('/verify', authMiddleware, async (req: AuthRequest, res: Response, n
         location: user.location,
         role: user.role,
         authProvider: user.authProvider,
+        createdAt: user.createdAt,
       },
     });
   } catch (error) {
@@ -229,148 +88,59 @@ router.post('/verify', authMiddleware, async (req: AuthRequest, res: Response, n
 });
 
 /**
- * GET /auth/me
- * Get current user (works with both Firebase and local tokens)
+ * POST /auth/update-profile
+ * Update user profile information
  */
-router.get('/me', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    
-    if (!token) {
-      res.status(401).json({ success: false, message: 'No token provided' });
-      return;
-    }
-
-    // Try local token verification first
-    const localResult = await localAuthService.verifyToken(token);
-    if (localResult.success && localResult.user) {
-      res.json({ success: true, user: localResult.user });
-      return;
-    }
-
-    // Fall back to Firebase verification
-    try {
-      const { getFirebaseAuth } = await import('../config/firebase.js');
-      const decodedToken = await getFirebaseAuth().verifyIdToken(token);
-      
-      const user = await userService.getUserById(decodedToken.uid);
-      res.json({ 
-        success: true, 
-        user: {
-          _id: user._id,
-          email: user.email,
-          displayName: user.displayName,
-          profileImage: user.profileImage,
-          location: user.location,
-          role: user.role,
-          authProvider: user.authProvider,
-        }
-      });
-    } catch (firebaseError) {
-      res.status(401).json({ success: false, message: 'Invalid or expired token' });
-    }
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * PUT /auth/profile
- * Update user profile (works with both auth methods)
- */
-router.put('/profile', [
-  body('displayName').optional().isString().trim(),
-  body('location').optional().isString().trim(),
-  body('profileImage').optional().isURL(),
+router.post('/update-profile', authMiddleware, [
+  body('displayName').optional().trim().notEmpty().withMessage('Display name cannot be empty'),
+  body('location').optional().trim(),
+  body('phone').optional().trim(),
+  body('studentId').optional().trim(),
+  body('department').optional().trim(),
+  body('address').optional().trim(),
+  body('emergency_contact').optional().trim(),
+  body('emergency_phone').optional().trim(),
+  body('bio').optional().trim(),
 ], async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    
-    if (!token) {
-      res.status(401).json({ success: false, message: 'Not authenticated' });
-      return;
-    }
-
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw BadRequest('Invalid input fields');
-    }
-
-    // Get user ID from token (try local first, then Firebase)
-    let userId: string | null = null;
-    
-    const localResult = await localAuthService.verifyToken(token);
-    if (localResult.success && localResult.user) {
-      userId = localResult.user._id;
-    } else {
-      try {
-        const { getFirebaseAuth } = await import('../config/firebase.js');
-        const decodedToken = await getFirebaseAuth().verifyIdToken(token);
-        userId = decodedToken.uid;
-      } catch (e) {
-        res.status(401).json({ success: false, message: 'Invalid token' });
-        return;
-      }
-    }
-
-    if (!userId) {
-      res.status(401).json({ success: false, message: 'User not found' });
+      res.status(400).json({
+        success: false,
+        message: errors.array()[0].msg,
+        errors: errors.array()
+      });
       return;
     }
 
-    const user = await userService.updateUserProfile(userId, req.body);
-    res.json({ success: true, user });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * PUT /auth/notifications
- * Update notification preferences
- */
-router.put('/notifications', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    
-    if (!token) {
-      res.status(401).json({ success: false, message: 'Not authenticated' });
+    if (!req.user) {
+      res.status(401).json({ message: 'User not authenticated' });
       return;
     }
 
-    // Get user ID from token
-    let userId: string | null = null;
-    
-    const localResult = await localAuthService.verifyToken(token);
-    if (localResult.success && localResult.user) {
-      userId = localResult.user._id;
-    } else {
-      try {
-        const { getFirebaseAuth } = await import('../config/firebase.js');
-        const decodedToken = await getFirebaseAuth().verifyIdToken(token);
-        userId = decodedToken.uid;
-      } catch (e) {
-        res.status(401).json({ success: false, message: 'Invalid token' });
-        return;
-      }
-    }
+    const updateData = req.body;
+    const user = await userService.updateUserProfile(req.user.uid, updateData);
 
-    if (!userId) {
-      res.status(401).json({ success: false, message: 'User not found' });
-      return;
-    }
-
-    const { emailOnMatch, emailOnRecovery, emailOnVerification, emailWeeklyDigest } = req.body;
-
-    const preferences = {
-      emailOnMatch: typeof emailOnMatch === 'boolean' ? emailOnMatch : true,
-      emailOnRecovery: typeof emailOnRecovery === 'boolean' ? emailOnRecovery : true,
-      emailOnVerification: typeof emailOnVerification === 'boolean' ? emailOnVerification : true,
-      emailWeeklyDigest: typeof emailWeeklyDigest === 'boolean' ? emailWeeklyDigest : false,
-    };
-
-    const user = await userService.updateNotificationPreferences(userId, preferences);
-    res.json({ success: true, preferences: user.notificationPreferences });
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        profileImage: user.profileImage,
+        location: user.location,
+        phone: user.phone,
+        studentId: user.studentId,
+        department: user.department,
+        address: user.address,
+        emergency_contact: user.emergency_contact,
+        emergency_phone: user.emergency_phone,
+        bio: user.bio,
+        role: user.role,
+        authProvider: user.authProvider,
+      },
+    });
   } catch (error) {
     next(error);
   }

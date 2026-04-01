@@ -57,6 +57,43 @@ export const isValidImageUrl = (url) => {
 };
 
 /**
+ * Normalize image URLs to avoid mixed-content and localhost references
+ *
+ * - http://localhost should use the API_BASE or current origin
+ * - /api paths map to configured backend URL or current origin
+ */
+export const normalizeImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
+
+  const backendUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  // Redirect local dev host to backend/proxy host in prod context
+  if (/^https?:\/\/localhost(:\d+)?/.test(trimmed)) {
+    if (backendUrl) {
+      return `${backendUrl}${trimmed.replace(/^https?:\/\/localhost(:\d+)?/, '')}`;
+    }
+    if (origin) {
+      return `${origin}${trimmed.replace(/^https?:\/\/localhost(:\d+)?/, '')}`;
+    }
+    return trimmed;
+  }
+
+  // If relative API image path is used, resolve it to proper backend URL/origin
+  if (trimmed.startsWith('/api/images')) {
+    if (backendUrl) {
+      return `${backendUrl}${trimmed}`;
+    }
+    if (origin) {
+      return `${origin}${trimmed}`;
+    }
+  }
+
+  return trimmed;
+};
+
+/**
  * Get image alt text based on item properties
  * @param {Object} item - The item object
  * @returns {string} - Alt text for accessibility

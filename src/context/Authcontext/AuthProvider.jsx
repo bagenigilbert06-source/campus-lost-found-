@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import AuthContext from './AuthContext';
 import { 
   createUserWithEmailAndPassword, 
@@ -23,12 +23,14 @@ import {
   clearIntendedPath,
   getFinalRedirectPath 
 } from '../../utils/authRedirectManager';
+import { normalizeImageUrl } from '../../utils/imageUtils';
+import LoadingScreen from '../../components/LoadingScreen';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null);
     const [userRole, setUserRole] = useState(null);
 
     // Create user with Firebase, then register profile in MongoDB
@@ -204,7 +206,7 @@ const AuthProvider = ({ children }) => {
      * Track the currently synced user to avoid redundant sync calls
      * This prevents multiple /auth/register calls for the same user during auth state changes
      */
-    const lastSyncedUserRef = React.useRef(null);
+    const lastSyncedUserRef = useRef(null);
 
     // Monitor Firebase authentication state and handle redirects
     useEffect(() => {
@@ -216,9 +218,15 @@ const AuthProvider = ({ children }) => {
             try {
                 // Step 1: Check if user is returning from Google sign-in redirect
                 try {
+                    console.log('Checking for Google sign-in redirect result...');
                     const redirectResult = await handleGoogleSignInRedirectResult(auth);
                     
                     if (redirectResult && redirectResult.user && isComponentMounted) {
+                        console.log('Redirect result found:', {
+                            user: redirectResult.user.email,
+                            uid: redirectResult.user.uid,
+                            provider: redirectResult.providerId
+                        });
                         // User successfully signed in via redirect
                         const firebaseUser = redirectResult.user;
                         redirectResultHandled = true;
@@ -226,11 +234,18 @@ const AuthProvider = ({ children }) => {
                         // Store token
                         const token = await getIdToken(firebaseUser);
                         localStorage.setItem('firebaseToken', token);
+                        console.log('Token stored after redirect');
                         
                         // NOTE: Profile sync is handled by onAuthStateChanged listener to avoid duplicates
+                    } else {
+                        console.log('No redirect result found');
                     }
                 } catch (redirectError) {
-                    console.error('Handling redirect result:', redirectError.code, redirectError.message);
+                    console.error('Handling redirect result failed:', {
+                        code: redirectError.code,
+                        message: redirectError.message,
+                        fullError: redirectError
+                    });
                     // Continue - auth state listener will verify user state
                 } finally {
                     // Clear redirect state flag after handling
@@ -242,6 +257,13 @@ const AuthProvider = ({ children }) => {
                 if (isComponentMounted) {
                     unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
                         if (!isComponentMounted) return;
+
+                        console.log('Auth state changed:', {
+                            hasUser: !!currentUser,
+                            email: currentUser?.email,
+                            uid: currentUser?.uid,
+                            redirectHandled: redirectResultHandled
+                        });
 
                         try {
                             if (currentUser?.email) {
@@ -266,6 +288,9 @@ const AuthProvider = ({ children }) => {
 
                                 // Fetch profile from backend to ensure latest persisted photo and name are loaded
                                 let mergedUser = { ...currentUser };
+                                if (mergedUser.photoURL) {
+                                  mergedUser.photoURL = normalizeImageUrl(mergedUser.photoURL);
+                                }
                                 try {
                                     const profileRes = await axios.get(`${API_URL}/users/profile`, {
                                         params: { email: currentUser.email },
@@ -274,7 +299,7 @@ const AuthProvider = ({ children }) => {
                                     const profileData = profileRes.data?.data;
                                     if (profileData) {
                                         if (profileData.profileImage) {
-                                            mergedUser.photoURL = profileData.profileImage;
+                                            mergedUser.photoURL = normalizeImageUrl(profileData.profileImage);
                                         }
                                         if (profileData.displayName) {
                                             mergedUser.displayName = profileData.displayName;
@@ -287,8 +312,14 @@ const AuthProvider = ({ children }) => {
                                 // Update state with user and role
                                 setUser(mergedUser);
                                 setUserRole(role);
+                                console.log('User state updated:', {
+                                    email: mergedUser.email,
+                                    role: role,
+                                    hasPhoto: !!mergedUser.photoURL
+                                });
                             } else {
                                 // User is logged out
+                                console.log('User logged out');
                                 setUser(null);
                                 setUserRole(null);
                                 localStorage.removeItem('firebaseToken');
@@ -362,6 +393,10 @@ const AuthProvider = ({ children }) => {
         signInWithGoogle,
         updateUserProfile,
     };
+
+    if (loading) {
+        return <LoadingScreen message="" />;
+    }
 
     return (
         <AuthContext.Provider value={authInfo}>

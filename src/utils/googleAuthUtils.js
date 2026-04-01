@@ -80,7 +80,8 @@ export const signInWithGoogleSmartFlow = async (
     }
 
     const recommendedMethod = getRecommendedAuthMethod();
-    const shouldTryPopup = recommendedMethod === 'popup';
+    // For better compatibility, prefer redirect flow to avoid COOP policy issues
+    const shouldTryPopup = false; // recommendedMethod === 'popup';
 
     // Desktop: Try popup first for better UX
     if (shouldTryPopup) {

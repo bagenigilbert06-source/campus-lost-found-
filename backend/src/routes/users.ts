@@ -1,11 +1,24 @@
 import { Router, Response, NextFunction } from 'express';
-import { optionalAuthMiddleware, hybridAuthMiddleware, adminOnlyMiddleware, AuthRequest } from '../middleware/auth.js';
+import { optionalAuthMiddleware, authMiddleware, adminOnlyMiddleware, AuthRequest } from '../middleware/auth.js';
 import { userService } from '../services/UserService.js';
 import { Item } from '../models/Item.js';
 import { User } from '../models/User.js';
 import { BadRequest, NotFound } from '../middleware/errorHandler.js';
 
 const router: import('express').Router = Router();
+
+// Normalize image URLs to avoid insecure localhost references in production
+const normalizeImageUrl = (url: string | undefined | null) => {
+  if (!url || typeof url !== 'string') return url;
+  if (/^https?:\/\/localhost(:\d+)?/.test(url)) {
+    const backendBaseUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
+    if (backendBaseUrl) {
+      return `${backendBaseUrl}${url.replace(/^https?:\/\/localhost(:\d+)?/, '')}`;
+    }
+    return url.replace(/^http:\/\//, 'https://');
+  }
+  return url;
+};
 
 /**
  * GET /users/profile?email=...
@@ -82,7 +95,7 @@ router.get('/profile', optionalAuthMiddleware, async (req: AuthRequest, res: Res
       data: {
         email: user.email,
         displayName: user.displayName,
-        profileImage: user.profileImage,
+        profileImage: normalizeImageUrl(user.profileImage),
         location: user.location,
         phone: user.phone,
         studentId: user.studentId,
@@ -199,7 +212,7 @@ router.get('/stats', optionalAuthMiddleware, async (req: AuthRequest, res: Respo
  * PUT /users/profile
  * Update user profile data (displayName, location, profileImage, notification preferences)
  */
-router.put('/profile', hybridAuthMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/profile', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { 
       email, 
@@ -268,7 +281,7 @@ router.put('/profile', hybridAuthMiddleware, async (req: AuthRequest, res: Respo
       data: {
         email: updatedUser.email,
         displayName: updatedUser.displayName,
-        profileImage: updatedUser.profileImage,
+        profileImage: normalizeImageUrl(updatedUser.profileImage),
         location: updatedUser.location,
         phone: updatedUser.phone,
         studentId: updatedUser.studentId,
@@ -315,7 +328,7 @@ router.patch('/:id/status', adminOnlyMiddleware, async (req: AuthRequest, res: R
   }
 });
 
-router.put('/settings', hybridAuthMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.put('/settings', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { email, settings } = req.body;
 

@@ -1,5 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
-import { hybridAuthMiddleware, AuthRequest } from '../middleware/auth.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { Bookmark } from '../models/Bookmark.js';
 import { body, validationResult } from 'express-validator';
 
@@ -11,7 +11,7 @@ const router: import('express').Router = Router();
  */
 router.post(
   '/',
-  hybridAuthMiddleware,
+  authMiddleware,
   [
     body('itemId').trim().notEmpty().withMessage('Item ID is required'),
   ],
@@ -67,7 +67,7 @@ router.post(
  */
 router.post(
   '/check-batch',
-  hybridAuthMiddleware,
+  authMiddleware,
   [
     body('itemIds').isArray({ min: 1 }).withMessage('itemIds must be a non-empty array'),
   ],
@@ -117,7 +117,7 @@ router.post(
  */
 router.get(
   '/check/:itemId',
-  hybridAuthMiddleware,
+  authMiddleware,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { itemId } = req.params;
@@ -145,7 +145,7 @@ router.get(
  */
 router.delete(
   '/:itemId',
-  hybridAuthMiddleware,
+  authMiddleware,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { itemId } = req.params;
@@ -182,7 +182,7 @@ router.delete(
  */
 router.get(
   '/',
-  hybridAuthMiddleware,
+  authMiddleware,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.uid;
