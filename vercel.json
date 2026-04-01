@@ -1,17 +1,12 @@
 {
-  "version": 3,
+  "version": 2,
+  "buildCommand": "cd backend && npm run build && cd .. && npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": "dist",
   "builds": [
     {
       "src": "api/[...all].ts",
       "use": "@vercel/node"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist",
-        "buildCommand": "pnpm run build"
-      }
     }
   ],
   "routes": [
@@ -24,7 +19,7 @@
       "dest": "/$1"
     },
     {
-      "src": "(.*)",
+      "src": "/(.*)",
       "dest": "/index.html"
     }
   ]

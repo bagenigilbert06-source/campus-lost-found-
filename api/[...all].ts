@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import app from '../backend/src/app.js';
-import { connectDB } from '../backend/src/config/database.js';
-import { initializeFirebase } from '../backend/src/config/firebase.js';
+import app from '../backend/dist/app.js';
+import { connectDB } from '../backend/dist/config/database.js';
+import { initializeFirebase } from '../backend/dist/config/firebase.js';
 
 let _initialized = false;
 

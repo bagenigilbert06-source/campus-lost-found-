@@ -7,62 +7,28 @@ export function initializeFirebase(): admin.app.App {
     return firebaseApp;
   }
 
-  // Normalize and sanitize the raw private key coming from environment variables.
-  // Common issues:
-  // - Newlines are escaped as "\\n" (common when storing in .env or in some CI systems)
-  // - The value might be wrapped in extra quotes
-  // - The value might already be a JSON string with escapes
-  let rawPk = process.env.FIREBASE_PRIVATE_KEY;
+  // For production (Vercel), use environment variables
+  // For development, fall back to service account file if available
+  let credential: admin.credential.Credential;
 
-  if (rawPk && typeof rawPk === 'string') {
-    // Work with a narrowed local variable to preserve string type across try/catch
-    let pk: string = rawPk.trim();
+  if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    // Production: Use environment variables
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
 
-    // If the value looks like a JSON-encoded string (starts and ends with a quote), try to parse it
-    if ((pk.startsWith('"') && pk.endsWith('"')) || (pk.startsWith("'") && pk.endsWith("'"))) {
-      try {
-        // JSON.parse will unescape sequences like \n -> newline
-        pk = JSON.parse(pk) as string;
-      } catch (err) {
-        // Fall back to stripping surrounding quotes if JSON.parse fails
-        pk = pk.substring(1, pk.length - 1);
-      }
-    }
-
-    // Replace any remaining escaped newlines (\n) with actual newlines
-    pk = pk.replace(/\\n/g, '\n');
-
-    // Assign back to the outer variable
-    rawPk = pk;
-  }
-
-  const serviceAccount = {
-    type: process.env.FIREBASE_TYPE,
-    project_id: process.env.FIREBASE_PROJECT_ID,
-    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    private_key: rawPk,
-    client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    client_id: process.env.FIREBASE_CLIENT_ID,
-    auth_uri: process.env.FIREBASE_AUTH_URI,
-    token_uri: process.env.FIREBASE_TOKEN_URI,
-    auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
-    client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
-  };
-
-  // Validate private key early to give clearer developer guidance
-  const pk = serviceAccount.private_key;
-  if (!pk || typeof pk !== 'string' || !pk.includes('BEGIN PRIVATE KEY')) {
-    console.error(`\n[Firebase] FIREBASE_PRIVATE_KEY is not set or is invalid.\n` +
-      `Ensure you have pasted the service account private key into your environment.\n` +
-      `Recommended (in development): add to backend/.env.local as\n` +
-      `FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n<KEY_CONTENT>\\n-----END PRIVATE KEY-----\\n"\n` +
-      `Or set it in your shell with: export FIREBASE_PRIVATE_KEY=$'-----BEGIN PRIVATE KEY-----\\n<KEY_CONTENT>\\n-----END PRIVATE KEY-----\\n'\n` +
-      `Do NOT commit your service account key to source control.`);
-    throw new Error('FIREBASE_PRIVATE_KEY environment variable is missing or invalid');
+    credential = admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: privateKey,
+    });
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // Development: Use service account file
+    credential = admin.credential.applicationDefault();
+  } else {
+    throw new Error('Firebase credentials not configured. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY for production, or GOOGLE_APPLICATION_CREDENTIALS for development.');
   }
 
   firebaseApp = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+    credential,
   });
 
   return firebaseApp;

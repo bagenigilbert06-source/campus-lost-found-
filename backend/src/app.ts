@@ -25,8 +25,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', process.env.FRONTEND_URL || 'http://localhost:5173', 'http://localhost:3001'],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || 'http://localhost:5173', 'http://localhost:3001'],
+      imgSrc: ["'self'", 'data:', 'https:', process.env.FRONTEND_URL || 'http://localhost:5173', 'http://localhost:3001'],
+      connectSrc: ["'self'", 'https:', process.env.FRONTEND_URL || 'http://localhost:5173', 'http://localhost:3001'],
       fontSrc: ["'self'", 'https:', 'data:'],
       objectSrc: ["'none'"],
       frameAncestors: ["'self'"],
@@ -38,7 +38,25 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'http://localhost:5173', // Vite dev server
+      'http://localhost:3000', // Alternative dev port
+      'http://localhost:3001', // Backend dev port
+      process.env.FRONTEND_URL, // Deployed frontend URL
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined, // Vercel preview URLs
+    ].filter(Boolean);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));
