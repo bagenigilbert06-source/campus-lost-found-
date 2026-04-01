@@ -126,6 +126,9 @@ importers:
       '@playwright/test':
         specifier: ^1.48.0
         version: 1.58.2
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
       '@types/node':
         specifier: ^20.8.0
         version: 20.19.37
