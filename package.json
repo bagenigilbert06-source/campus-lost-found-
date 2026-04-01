@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:backend": "pnpm run dev",
-    "build:backend": "pnpm run build",
+    "dev:backend": "cd backend && pnpm run dev",
+    "build:backend": "cd backend && pnpm run build",
     "build:frontend": "vite build",
     "build": "pnpm run build:backend && pnpm run build:frontend",
     "lint": "eslint .",
