@@ -1,5 +1,5 @@
-import app from '../backend/dist/app.js';
-import { initializeServerless } from '../backend/dist/serverless.js';
+import app from './app.js';
+import { initializeServerless } from './serverless.js';
 
 // Initialize once at module load (cold start)
 let initialized = false;
