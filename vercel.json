@@ -1,18 +1,11 @@
 {
   "version": 2,
+  "buildCommand": "pnpm run build",
+  "installCommand": "pnpm install --frozen-lockfile",
   "builds": [
     {
       "src": "api/index.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist",
-        "buildCommand": "pnpm run build",
-        "installCommand": "pnpm install --frozen-lockfile"
-      }
     }
   ],
   "routes": [
