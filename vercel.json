@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "pnpm install",
+  "installCommand": "NODE_OPTIONS='--no-deprecation' pnpm install",
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "env": {
