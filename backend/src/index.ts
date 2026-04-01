@@ -1,6 +1,5 @@
 import app from './app.js';
-import { connectDB } from './config/database.js';
-import { initializeFirebase } from './config/firebase.js';
+import { initializeServerless } from './serverless.js';
 
 const PORT = process.env.PORT || 3001;
 
@@ -8,11 +7,7 @@ async function bootstrap(): Promise<void> {
   try {
     console.log('[Backend] Bootstrapping starting...');
 
-    await connectDB();
-    console.log('[Backend] Connected to MongoDB');
-
-    initializeFirebase();
-    console.log('[Backend] Firebase initialized');
+    await initializeServerless();
 
     if (!process.env.VERCEL) {
       app.listen(PORT, () => {

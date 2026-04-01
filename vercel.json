@@ -8,14 +8,14 @@
   },
   "builds": [
     {
-      "src": "api/[...all].ts",
+      "src": "api/index.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/[...all].ts"
+      "dest": "/api/index.js"
     },
     {
       "src": "^/(assets/.*|favicon\\.ico|robots\\.txt|sitemap\\.xml)$",

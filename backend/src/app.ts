@@ -98,15 +98,4 @@ app.use((req: Request, res: Response) => {
 
 app.use(errorHandler);
 
-// Initialize database and Firebase for serverless environments
-if (process.env.VERCEL) {
-  connectDB().then(() => {
-    console.log('[App] Database connected');
-  }).catch((error) => {
-    console.error('[App] Database connection failed:', error);
-  });
-  initializeFirebase();
-  console.log('[App] Firebase initialized');
-}
-
 export default app;

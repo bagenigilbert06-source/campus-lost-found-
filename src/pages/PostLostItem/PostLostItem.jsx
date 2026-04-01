@@ -23,7 +23,7 @@ import AuthContext from "../../context/Authcontext/AuthContext";
 import { schoolConfig } from "../../config/schoolConfig";
 
 const MAX_IMAGES = 3;
-const API_URL = "http://localhost:3001/api/items";
+const API_URL = (import.meta.env.VITE_API_URL || '/api') + '/items';
 
 const categories = [
   "Electronics",

@@ -8,16 +8,27 @@ const LatestItems = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://localhost:3001/api/items')
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
+    fetch(`${apiUrl}/items`)
             .then((res) => res.json())
             .then((response) => {
                 const data = Array.isArray(response) ? response : response.data || [];
-                console.log("[v0] Items response:", response);
-                const sortedItems = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+                console.log("[LatestItems] Items response:", response);
+
+                const sortedItems = data
+                    .map((item) => ({
+                      ...item,
+                      _sortDate: new Date(item.dateLost || item.createdAt || item.date || Date.now()),
+                    }))
+                    .sort((a, b) => b._sortDate - a._sortDate);
+
                 const latestItems = sortedItems.slice(0, 6);
                 setItems(latestItems);
             })
-            .catch((error) => console.error('Error fetching items:', error))
+            .catch((error) => {
+                console.error('Error fetching items:', error);
+                setItems([]);
+            })
             .finally(() => setLoading(false));
     }, []);
 

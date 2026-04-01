@@ -97,8 +97,9 @@ const SearchItems = () => {
     try {
       setLoading(true);
 
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
       const response = await fetch(
-        `${API_BASE}/items?status=active&verificationStatus=verified`
+        `${apiUrl}/items?status=active&verificationStatus=verified`
       );
 
       if (!response.ok) {
@@ -106,7 +107,8 @@ const SearchItems = () => {
       }
 
       const data = await response.json();
-      setItems(data.data || data || []);
+      const normalizedItems = Array.isArray(data) ? data : data.data || [];
+      setItems(normalizedItems);
     } catch (error) {
       console.error("[SearchItems] Error fetching items:", error);
       toast.error("Failed to load items");

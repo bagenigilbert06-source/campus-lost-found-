@@ -3,7 +3,8 @@ import { getIdToken } from 'firebase/auth';
 import auth from '../firebase/firebase.init';
 
 // Configure API base URL - update this when deploying
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Vercel frontend+backend on same domain can use relative /api path.
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE,
