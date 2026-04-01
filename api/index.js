@@ -28,6 +28,11 @@ async function ensureInitialized() {
 
 // Export handler for Vercel
 export default async function handler(req, res) {
+  // Always allow health check endpoint without waiting for DB/Firebase init.
+  if (req.url && req.url.startsWith('/api/health')) {
+    return app(req, res);
+  }
+
   try {
     await ensureInitialized();
   } catch (error) {
