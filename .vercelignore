@@ -36,11 +36,9 @@ PERFORMANCE_FIXES_SUMMARY.md
 GET_STARTED.md
 NPM_INSTALL_FIX.md
 
-# Backend source (not needed after build)
-backend/src/
+# Backend test/development artifacts
 backend/tests/
 backend/jest.config.js
-backend/tsconfig.json
 
 # Scripts
 scripts/
