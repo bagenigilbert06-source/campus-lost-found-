@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "pnpm install && cd backend && pnpm install && cd ..",
+  "installCommand": "pnpm install",
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "builds": [
