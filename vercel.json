@@ -12,6 +12,10 @@
       "dest": "api/index.js"
     },
     {
+      "src": "^/(assets/.*|favicon\\.ico|robots\\.txt|sitemap\\.xml)$",
+      "dest": "/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
