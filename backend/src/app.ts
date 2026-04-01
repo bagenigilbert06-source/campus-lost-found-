@@ -16,6 +16,8 @@ import claimsRoutes from './routes/claims.js';
 import usersRoutes from './routes/users.js';
 import imagesRoutes from './routes/images.js';
 import geminiRoutes from './routes/gemini.js';
+import { connectDB } from './config/database.js';
+import { initializeFirebase } from './config/firebase.js';
 
 const app: Express = express();
 
@@ -95,5 +97,16 @@ app.use((req: Request, res: Response) => {
 });
 
 app.use(errorHandler);
+
+// Initialize database and Firebase for serverless environments
+if (process.env.VERCEL) {
+  connectDB().then(() => {
+    console.log('[App] Database connected');
+  }).catch((error) => {
+    console.error('[App] Database connection failed:', error);
+  });
+  initializeFirebase();
+  console.log('[App] Firebase initialized');
+}
 
 export default app;
