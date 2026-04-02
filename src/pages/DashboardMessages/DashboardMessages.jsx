@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
@@ -12,6 +12,7 @@ import LoadingScreen from '../../components/LoadingScreen';
 const DashboardMessages = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
@@ -107,6 +108,20 @@ const DashboardMessages = () => {
     [conversations, selectedConversationId]
   );
 
+  useEffect(() => {
+    const requestedThread = searchParams.get('thread');
+    const hasThread = requestedThread && conversations.some((c) => c.conversationId === requestedThread);
+
+    if (hasThread) {
+      setSelectedConversationId(requestedThread);
+      return;
+    }
+
+    if (!selectedConversationId && conversations.length > 0) {
+      setSelectedConversationId(conversations[0].conversationId);
+    }
+  }, [searchParams, conversations, selectedConversationId]);
+
   const markConversationAsRead = async (conversation) => {
     if (!conversation || conversation.unreadCount === 0) return;
 
@@ -131,6 +146,7 @@ const DashboardMessages = () => {
 
   const handleSelectConversation = (conversationId) => {
     setSelectedConversationId(conversationId);
+    setSearchParams({ thread: conversationId });
     const conversation = conversations.find((c) => c.conversationId === conversationId);
     markConversationAsRead(conversation);
   };
@@ -182,20 +198,27 @@ const DashboardMessages = () => {
   };
 
   const handleConversationDelete = async (conversationId) => {
-    if (!window.confirm('Delete this entire conversation?')) return;
+    if (!window.confirm('Delete this conversation? This hides it from your view.')) return;
     try {
-      const conversation = conversations.find((c) => c.conversationId === conversationId);
-      if (!conversation) return;
-      await Promise.all(conversation.messages.map((m) => messagesService.deleteMessage(m._id).catch(() => null)));
+      console.log('[DashboardMessages] Deleting conversation:', conversationId);
+      await messagesService.deleteConversation(conversationId);
       const nextConversations = conversations.filter((c) => c.conversationId !== conversationId);
       setConversations(nextConversations);
       if (selectedConversationId === conversationId) {
         setSelectedConversationId(nextConversations[0]?.conversationId || null);
+        setSearchParams(nextConversations[0] ? { thread: nextConversations[0].conversationId } : {});
       }
-      toast.success('Conversation deleted');
+      toast.success('Conversation hidden successfully');
     } catch (error) {
       console.error('[DashboardMessages] delete conversation failed:', error);
-      toast.error('Could not delete conversation');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Could not delete conversation';
+
+      // If the backend doesn't support conversation deletion yet, provide a helpful message
+      if (error?.response?.status === 404) {
+        toast.error('Conversation deletion not available yet. Please contact support if this conversation contains inappropriate content.');
+      } else {
+        toast.error(`Failed to delete conversation: ${errorMessage}`);
+      }
     }
   };
 
@@ -285,7 +308,9 @@ const DashboardMessages = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-semibold truncate">{conversation.studentEmail || conversation.adminEmail || 'Unknown'}</p>
-                          <p className="text-xs text-slate-400 whitespace-nowrap">{dateTag}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-slate-400 whitespace-nowrap">{dateTag}</p>
+                          </div>
                         </div>
                         <p className="mt-1 text-xs text-slate-500 truncate">{preview}</p>
                         {conversation.unreadCount > 0 && (
@@ -321,12 +346,6 @@ const DashboardMessages = () => {
                         className="text-xs px-2 py-1 bg-slate-100 rounded-md hover:bg-slate-200"
                       >
                         Mark read
-                      </button>
-                      <button
-                        onClick={() => handleConversationDelete(selectedConversation.conversationId)}
-                        className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded-md hover:bg-red-100"
-                      >
-                        Delete
                       </button>
                     </div>
                   </div>

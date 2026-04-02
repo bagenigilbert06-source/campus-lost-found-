@@ -19,7 +19,8 @@ import AllRecoveredItems from "../pages/AllRecovered/AllRecoveredItems";
 import UpdateItems from "../pages/UpdateItems/UpdateItems";
 import ErrorPage from "../pages/ErrorPage/ErrorPage";
 import AboutUs from "../pages/AboutUs/AboutUs";
-import Contact from "../pages/Contact/Contact";
+import Contact from "../pages/Contact/Contact";  // For public landing page
+import DashboardContact from "../pages/DashboardContact/DashboardContact";  // For authenticated users
 import FeaturesPage from "../pages/Features/FeaturesPage";
 import ServicesPage from "../pages/Services/ServicesPage";
 import FAQPage from "../pages/FAQ/FAQPage";
@@ -37,6 +38,8 @@ import CampusDirectory from "../pages/Directory/CampusDirectory";
 import UserProfile from "../pages/UserProfile/UserProfile";
 import SearchItems from "../pages/SearchItems/SearchItems";
 import PostLostItem from "../pages/PostLostItem/PostLostItem";
+import AuthContext from "../context/Authcontext/AuthContext";
+import LoadingScreen from "../components/LoadingScreen";
 import DashboardSearch from "../pages/DashboardSearch/DashboardSearch";
 import DashboardMessages from "../pages/DashboardMessages/DashboardMessages";
 import DashboardActivity from "../pages/DashboardActivity/DashboardActivity";
@@ -47,6 +50,20 @@ import PrivateRoute from "./PrivetRoute";
 import AdminRoute from "./AdminRoute";
 import UserRoute from "./UserRoute";
 import AuthGuard from "./AuthGuard";
+
+const ContactRoute = () => {
+  const { user, loading } = React.useContext(AuthContext);
+
+  if (loading) {
+    return <LoadingScreen message="Checking user session..." />;
+  }
+
+  if (user) {
+    return <Navigate to="/app/contact" replace />;
+  }
+
+  return <Contact />;
+};
 
 const router = createBrowserRouter([
   // ============================================
@@ -161,6 +178,14 @@ const router = createBrowserRouter([
         element: <UserRoute><NotificationSettings /></UserRoute>,
       },
       {
+        path: 'contact',
+        element: <UserRoute><DashboardContact /></UserRoute>,
+      },
+      {
+        path: 'help',
+        element: <Navigate to="/app/contact" replace />,
+      },
+      {
         path: "update/:id",
         element: <UserRoute><UpdateItems /></UserRoute>,
         loader: ({ params }) => {
@@ -215,7 +240,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/contact",
-        element: <Contact />
+        element: <ContactRoute />
       },
       {
         path: '/directory',

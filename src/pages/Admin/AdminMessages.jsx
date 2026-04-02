@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
-import { FaEnvelope, FaTrash, FaArrowLeft, FaSearch, FaReply, FaEye, FaUser, FaUserShield } from 'react-icons/fa';
+import { FaEnvelope, FaTrash, FaArrowLeft, FaSearch, FaReply, FaEye, FaUser, FaUserShield, FaEllipsisV, FaTimes } from 'react-icons/fa';
 import AuthContext from '../../context/Authcontext/AuthContext';
 import { messagesService } from '../../services/apiService';
 import PaginationComponent from '../../components/PaginationComponent';
@@ -20,6 +20,7 @@ const AdminMessages = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedConversation, setSelectedConversation] = useState(null);
+  const [conversationMenuOpenId, setConversationMenuOpenId] = useState(null);
   const [replyContent, setReplyContent] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
@@ -88,16 +89,41 @@ const AdminMessages = () => {
     }
   };
 
-  const deleteMessage = async (messageId) => {
-    if (window.confirm('Are you sure you want to delete this message?')) {
-      try {
-        await messagesService.deleteMessage(messageId);
-        toast.success('Message deleted successfully');
-        await fetchMessages();
-      } catch (error) {
-        console.error('[AdminMessages] Error deleting message:', error);
-        toast.error('Failed to delete message');
+  const deleteMessage = async (messageId, forEveryone = false) => {
+    const confirmText = forEveryone
+      ? 'Permanently delete this message for everyone? This cannot be undone.'
+      : 'Hide this message from your view?';
+
+    if (!window.confirm(confirmText)) return;
+
+    try {
+      await messagesService.deleteMessage(messageId, forEveryone);
+      toast.success(forEveryone ? 'Message deleted for everyone' : 'Message hidden from your view');
+      await fetchMessages();
+    } catch (error) {
+      console.error('[AdminMessages] Error deleting message:', error);
+      toast.error('Failed to delete message');
+    }
+  };
+
+  const deleteConversation = async (conversationId, forEveryone = false) => {
+    const confirmText = forEveryone
+      ? 'Permanently delete conversation for everyone? This cannot be undone.'
+      : 'Hide this conversation from your view?';
+
+    if (!window.confirm(confirmText)) return;
+
+    try {
+      await messagesService.deleteConversation(conversationId, forEveryone);
+      toast.success(forEveryone ? 'Conversation deleted for everyone' : 'Conversation hidden from your view');
+      await fetchMessages();
+      if (forEveryone || selectedConversation?.conversationId === conversationId) {
+        const nextConv = conversations.find((c) => c.conversationId !== conversationId);
+        setSelectedConversation(nextConv || null);
       }
+    } catch (error) {
+      console.error('[AdminMessages] Error deleting conversation:', error);
+      toast.error('Failed to delete conversation');
     }
   };
 
@@ -259,7 +285,7 @@ const AdminMessages = () => {
               <div className="flex items-center justify-center p-12">
                 <div className="h-8 w-8 rounded-full border-3 border-emerald-200 border-t-emerald-600 animate-spin" />
               </div>
-            ) : filteredMessages.length === 0 ? (
+            ) : filteredConversations.length === 0 ? (
               <div className="p-12 text-center">
                 <FaEnvelope size={40} className="mx-auto mb-4 text-slate-300" />
                 <p className="text-slate-500 text-lg">
@@ -272,6 +298,7 @@ const AdminMessages = () => {
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Student</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Subject</th>
                       <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Last Message</th>
                       <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Item</th>
                       <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Date</th>
@@ -308,6 +335,9 @@ const AdminMessages = () => {
                             )}
                           </div>
                         </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          {conversation.lastMessage.subject || 'General'}
+                        </td>
                         <td className="px-6 py-4">
                           <p className="text-slate-600 line-clamp-2">{conversation.lastMessage.content}</p>
                         </td>
@@ -336,6 +366,43 @@ const AdminMessages = () => {
                               <FaEye size={14} />
                               <span className="text-sm">View</span>
                             </button>
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConversationMenuOpenId(conversation.conversationId === conversationMenuOpenId ? null : conversation.conversationId);
+                                }}
+                                className="inline-flex items-center justify-center p-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition"
+                                aria-label="Conversation actions"
+                                title="Conversation actions"
+                              >
+                                <FaEllipsisV className="text-sm" />
+                              </button>
+                              {conversation.conversationId === conversationMenuOpenId && (
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-40">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConversationMenuOpenId(null);
+                                      deleteConversation(conversation.conversationId, false);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                  >
+                                    Hide for me
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConversationMenuOpenId(null);
+                                      deleteConversation(conversation.conversationId, true);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                                  >
+                                    Delete for everyone
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -388,12 +455,52 @@ const AdminMessages = () => {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedConversation(null)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
-                  >
-                    <FaTimes className="w-5 h-5 text-gray-600" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => markAsRead(selectedConversation)}
+                      className="text-xs px-2 py-1 bg-slate-100 rounded-md hover:bg-slate-200"
+                    >
+                      Mark read
+                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setConversationMenuOpenId((prev) => (prev === 'header' ? null : 'header'))}
+                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition"
+                        aria-label="Conversation actions"
+                      >
+                        <FaEllipsisV className="text-sm" />
+                      </button>
+                      {conversationMenuOpenId === 'header' && (
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-40">
+                          <button
+                            onClick={() => {
+                              setConversationMenuOpenId(null);
+                              deleteConversation(selectedConversation.conversationId, false);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                          >
+                            Hide for me
+                          </button>
+                          <button
+                            onClick={() => {
+                              setConversationMenuOpenId(null);
+                              deleteConversation(selectedConversation.conversationId, true);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                          >
+                            Delete for everyone
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setSelectedConversation(null)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition"
+                      aria-label="Close conversation"
+                    >
+                      <FaTimes className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -402,13 +509,36 @@ const AdminMessages = () => {
                 {selectedConversation.messages
                   .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
                   .map((message) => (
-                    <MessageBubble
-                      key={message._id}
-                      message={message}
-                      isCurrentUser={message.senderEmail === user?.email}
-                      showRole={true}
-                      className="mb-4"
-                    />
+                    <div key={message._id} className="mb-4 group">
+                      <div className="flex justify-end gap-2 mb-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteMessage(message._id, false);
+                          }}
+                          className="text-[11px] text-slate-600 hover:text-slate-800"
+                          title="Hide this message (admin view)"
+                        >
+                          Hide
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteMessage(message._id, true);
+                          }}
+                          className="text-[11px] text-red-600 hover:text-red-800"
+                          title="Delete this message for everyone"
+                        >
+                          Delete everyone
+                        </button>
+                      </div>
+                      <MessageBubble
+                        message={message}
+                        isCurrentUser={message.senderEmail === user?.email}
+                        showRole={true}
+                        className="mb-4"
+                      />
+                    </div>
                   ))}
                 <div ref={messagesEndRef} />
               </div>

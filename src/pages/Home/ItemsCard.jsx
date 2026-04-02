@@ -2,6 +2,7 @@ import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { FaCheckCircle, FaClock } from 'react-icons/fa';
+import { normalizeImageUrl } from '../../utils/imageUtils';
 
 const PlaceholderImage = memo(function PlaceholderImage() {
   return (
@@ -51,8 +52,10 @@ const ItemsCard = memo(function ItemsCard({ item, delay = 0 }) {
   const isVerified = verificationStatus === 'verified';
 
   const imageUrl = useMemo(() => {
-    if (Array.isArray(images) && images.length > 0) return images[0];
-    return image || '';
+    let rawUrl = '';
+    if (Array.isArray(images) && images.length > 0) rawUrl = images[0];
+    else rawUrl = image || '';
+    return normalizeImageUrl(rawUrl);
   }, [images, image]);
 
   const handleNavigate = useCallback(() => {

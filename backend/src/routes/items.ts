@@ -12,6 +12,51 @@ import { User } from '../models/User.js';
 
 const router: import('express').Router = Router();
 
+// Normalize item image URLs created inside backend
+const normalizeImageUrl = (url: string | undefined | null) => {
+  if (!url || typeof url !== 'string') return url;
+  console.debug('[backend normalizeImageUrl] input:', url);
+
+  if (/^https?:\/\//.test(url)) {
+    if (/localhost/.test(url)) {
+      const backendBaseUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
+      if (backendBaseUrl) {
+        const mapped = url.replace(/^https?:\/\/localhost(:\d+)?/, backendBaseUrl);
+        console.debug('[backend normalizeImageUrl] localhost replaced with backend:', mapped);
+        return mapped;
+      }
+    }
+    return url;
+  }
+
+  const backendBaseUrl = (process.env.BACKEND_URL || '').replace(/\/$/, '');
+  if (backendBaseUrl) {
+    const mapped = url.startsWith('/') ? `${backendBaseUrl}${url}` : `${backendBaseUrl}/${url}`;
+    console.debug('[backend normalizeImageUrl] output:', mapped);
+    return mapped;
+  }
+
+  const fallback = `https://campus-lost-found-backend-ectt.onrender.com${url.startsWith('/') ? url : `/${url}`}`;
+  console.debug('[backend normalizeImageUrl] fallback output:', fallback);
+  return fallback;
+};
+
+const normalizeItemImages = (item: any) => {
+  if (!item) return item;
+
+  const patched = { ...item };
+
+  if (Array.isArray(patched.images)) {
+    patched.images = patched.images.map((img: any) => normalizeImageUrl(img));
+  }
+
+  if (patched.image) {
+    patched.image = normalizeImageUrl(patched.image);
+  }
+
+  return patched;
+};
+
 // Get all items (with filters)
 router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
@@ -40,10 +85,11 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
     const limit = parseInt(req.query.limit as string) || 10;
 
     const { items, total } = await itemService.getItems(filters, page, limit);
+    const normalizedItems = items.map((item) => normalizeItemImages(item.toObject ? item.toObject() : item));
 
     res.json({
       success: true,
-      data: items,
+      data: normalizedItems,
       pagination: {
         total,
         page,
@@ -64,6 +110,10 @@ router.get('/admin/dashboard', optionalAuthMiddleware, async (req: AuthRequest, 
     const openMessages = await Message.find({ recipientRole: 'admin', isRead: false }).lean();
     const recentActivity = allItems.slice(0, 5);
     const pendingItems = allItems.filter(item => !item.verificationStatus || item.verificationStatus === 'pending').slice(0, 5);
+
+    const normalizedAllItems = allItems.map((item) => normalizeItemImages(item.toObject ? item.toObject() : item));
+    const normalizedPendingItems = pendingItems.map((item) => normalizeItemImages(item.toObject ? item.toObject() : item));
+    const normalizedRecentActivity = recentActivity.map((item) => normalizeItemImages(item.toObject ? item.toObject() : item));
 
     const stats = {
       totalItems: allItems.length,
@@ -88,8 +138,8 @@ router.get('/admin/dashboard', optionalAuthMiddleware, async (req: AuthRequest, 
       success: true,
       data: {
         stats,
-        pendingItems,
-        recentActivity,
+        pendingItems: normalizedPendingItems,
+        recentActivity: normalizedRecentActivity,
       },
     });
   } catch (error) {
@@ -155,7 +205,7 @@ router.get('/recovered', optionalAuthMiddleware, async (req: AuthRequest, res, n
 
     res.json({
       success: true,
-      data: recoveredItems,
+      data: recoveredItems.map((item) => normalizeItemImages(item.toObject ? item.toObject() : item)),
       message: recoveredItems.length > 0 ? 'Recovered items found' : 'No recovered items found',
     });
   } catch (error) {
@@ -167,7 +217,10 @@ router.get('/recovered', optionalAuthMiddleware, async (req: AuthRequest, res, n
 router.get('/user/:userId', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const { items } = await itemService.getItems({ userId: req.params.userId });
-    res.json({ success: true, data: items });
+    res.json({
+      success: true,
+      data: items.map((item) => normalizeItemImages(item.toObject ? item.toObject() : item)),
+    });
   } catch (error) {
     next(error);
   }
@@ -177,7 +230,7 @@ router.get('/user/:userId', optionalAuthMiddleware, async (req: AuthRequest, res
 router.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const item = await itemService.getItemById(req.params.id);
-    res.json({ success: true, data: item });
+    res.json({ success: true, data: normalizeItemImages(item.toObject ? item.toObject() : item) });
   } catch (error) {
     next(error);
   }
@@ -216,6 +269,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
 
     if (!title || !description || !category || !location || !dateLost || !resolvedType) {
       throw BadRequest('Missing required fields');
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateLost.toString())) {
+      throw BadRequest('dateLost must be in yyyy-MM-dd format');
+    }
+
+    if (Number.isNaN(new Date(dateLost).getTime())) {
+      throw BadRequest('dateLost is not a valid date');
     }
 
     if (!['Lost', 'Found', 'Recovered'].includes(resolvedType)) {
@@ -268,8 +329,24 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
 
     // Process date field if present
     const updateData = { ...req.body };
-    if (updateData.dateLost && typeof updateData.dateLost === 'string') {
-      updateData.dateLost = new Date(updateData.dateLost);
+
+    if (updateData.dateLost) {
+      if (typeof updateData.dateLost === 'string') {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(updateData.dateLost)) {
+          throw BadRequest('dateLost must be in yyyy-MM-dd format');
+        }
+
+        const parsedDate = new Date(updateData.dateLost);
+        if (Number.isNaN(parsedDate.getTime())) {
+          throw BadRequest('dateLost is not a valid date');
+        }
+
+        updateData.dateLost = parsedDate;
+      }
+
+      if (!(updateData.dateLost instanceof Date) || Number.isNaN(updateData.dateLost.getTime())) {
+        throw BadRequest('dateLost is not a valid date');
+      }
     }
 
     const item = await itemService.updateItem(req.params.id, req.user.uid, updateData, isAdmin);

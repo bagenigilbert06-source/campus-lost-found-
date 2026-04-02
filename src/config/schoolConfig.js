@@ -1,8 +1,8 @@
-// Zetech University Configuration
+// Zetech Foundit Configuration
 export const schoolConfig = {
   // School Information
-  name: 'Zetech University',
-  shortName: 'ZTU',
+  name: 'Zetech Foundit',
+  shortName: 'ZTF',
   slogan: 'Innovation Meets Education',
   emailDomain: '@zetech.ac.ke',
   

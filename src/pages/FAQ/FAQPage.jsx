@@ -122,10 +122,10 @@ const FAQPage = memo(function FAQPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Helmet>
-        <title>{`FAQ - ${schoolConfig.name} Lost & Found`}</title>
+        <title>{`FAQ - ${schoolConfig.name}`}</title>
         <meta
           name="description"
-          content="Frequently asked questions about Zetech Lost & Found. Find answers about reporting items, security, claiming items, and notifications."
+          content="Frequently asked questions about Zetech Foundit. Find answers about reporting items, security, claiming items, and notifications."
         />
       </Helmet>
 

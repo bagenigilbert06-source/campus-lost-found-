@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { API_BASE } from '../../utils/apiConfig.js';
+import { normalizeImageUrl } from '../../utils/imageUtils';
 import { useNavigate } from "react-router-dom";
 import { updateProfile } from "firebase/auth";
 import auth from "../../firebase/firebase.init";
@@ -89,6 +90,17 @@ const UserProfile = () => {
 
       if (profileRes.data?.data) {
         const profileData = profileRes.data.data;
+        
+        // Helper function to format date for date input
+        const formatDateForInput = (dateValue) => {
+          if (!dateValue) return '';
+          if (dateValue.includes('T')) {
+            // ISO format - extract just the date part
+            return dateValue.split('T')[0];
+          }
+          return dateValue; // Already in yyyy-MM-dd format
+        };
+        
         setPersonalData((prev) => ({
           ...prev,
           fullName: profileData.displayName || prev.fullName,
@@ -96,14 +108,14 @@ const UserProfile = () => {
           studentId: profileData.studentId || prev.studentId,
           department: profileData.department || prev.department,
           address: profileData.address || prev.address,
-          dateOfBirth: profileData.dateOfBirth || prev.dateOfBirth,
+          dateOfBirth: formatDateForInput(profileData.dateOfBirth) || prev.dateOfBirth,
           emergency_contact: profileData.emergency_contact || prev.emergency_contact,
           emergency_phone: profileData.emergency_phone || prev.emergency_phone,
           bio: profileData.bio || prev.bio,
         }));
 
         if (profileData.profileImage) {
-          setProfileImage(profileData.profileImage);
+          setProfileImage(normalizeImageUrl(profileData.profileImage));
         }
 
         if (profileData.displayName) {
@@ -186,12 +198,13 @@ const UserProfile = () => {
       }
       const downloadURL = await uploadProfilePhoto(file, firebaseUid);
 
+      const resolvedProfilePhoto = normalizeImageUrl(downloadURL);
       // Update local state
-      setProfileImage(downloadURL);
+      setProfileImage(resolvedProfilePhoto);
 
       // Update Firebase auth profile and app context
       if (auth?.currentUser) {
-        await updateProfile(auth.currentUser, { photoURL: downloadURL });
+        await updateProfile(auth.currentUser, { photoURL: resolvedProfilePhoto });
       }
       if (updateUserProfile) {
         updateUserProfile({ photoURL: downloadURL });

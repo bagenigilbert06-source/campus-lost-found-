@@ -8,7 +8,7 @@ import {
   FaHistory,
   FaBox,
   FaComment,
-  FaLifeRing,
+  FaHeadset,
   FaSignOutAlt,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
@@ -57,6 +57,12 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
         icon: FaHistory,
         description: "Recent account activity",
       },
+      // {
+      //   label: "Contact Support",
+      //   path: "/app/contact",
+      //   icon: FaHeadset,
+      //   description: "Contact Lost & Found office",
+      // },
       {
         label: "Profile",
         path: "/app/profile",
@@ -132,13 +138,17 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
               onClick={onClose}
               className="flex items-center gap-3"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-sm font-bold text-white">
-                Z
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/80 shadow-sm">
+                <img
+                  src="/zetech-logo.png"
+                  alt="Zetech Foundit logo"
+                  className="h-12 w-12 object-contain"
+                />
               </div>
 
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-semibold text-slate-900">
-                  Zetech Lost &amp; Found
+                <h2 className="truncate text-base font-semibold text-slate-900">
+                  Zetech Foundit
                 </h2>
                 <p className="truncate text-xs text-slate-500">
                   Student workspace
@@ -206,12 +216,12 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
           <div className="shrink-0 border-t border-slate-200 bg-white p-3">
             <div className="space-y-2">
               <Link
-                to="/contact"
+                to="/app/contact"
                 onClick={onClose}
                 className="group flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2.5"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 ring-1 ring-emerald-100">
-                  <FaLifeRing className="h-4 w-4" />
+                  <FaHeadset className="h-4 w-4" />
                 </div>
 
                 <div className="min-w-0">

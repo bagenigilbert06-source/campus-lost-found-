@@ -15,8 +15,8 @@ const Home = () => {
     return (
         <div className='min-h-screen'>
             <Helmet>
-                <title>{`Home - ${schoolConfig.name} Lost & Found`}</title>
-                <meta name="description" content="Zetech Lost & Found - Find, report, and recover items easily on campus. Join our community to reunite with your belongings." />
+                <title>{`Home - ${schoolConfig.name}`}</title>
+                <meta name="description" content="Zetech Foundit - Find, report, and recover items easily on campus. Join our community to reunite with your belongings." />
             </Helmet>
             <section><Banner /></section>
             <section><Features /></section>

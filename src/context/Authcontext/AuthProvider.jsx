@@ -64,9 +64,12 @@ const AuthProvider = ({ children }) => {
                 photoURL: photoURL || '',
             });
 
-            // Step 4: Get Firebase ID token
-            const token = await getIdToken(firebaseUser);
+            // Step 4: Get Firebase ID token (force refresh for fresh login flow)
+            const token = await getIdToken(firebaseUser, true);
             localStorage.setItem('firebaseToken', token);
+
+            // Ensure axios global auth header is set early for immediate protected requests
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
             // Step 5: Register user profile in MongoDB
             try {
@@ -101,9 +104,10 @@ const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const token = await getIdToken(userCredential.user);
+            const token = await getIdToken(userCredential.user, true);
             localStorage.setItem('firebaseToken', token);
-            
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
             // NOTE: Profile sync is handled by onAuthStateChanged listener to avoid duplicates
             
             setLoading(false);
@@ -182,7 +186,8 @@ const AuthProvider = ({ children }) => {
         if (!firebaseUser?.email) return;
 
         try {
-            const token = await getIdToken(firebaseUser);
+            const token = await getIdToken(firebaseUser, true);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             
             await axios.post(`${API_URL}/auth/register`, {
                 email: firebaseUser.email,
@@ -278,9 +283,11 @@ const AuthProvider = ({ children }) => {
                                 // This avoids repeated register calls on every auth state change
                                 if (lastSyncedUserRef.current !== currentUser.uid) {
                                     lastSyncedUserRef.current = currentUser.uid;
-                                    syncUserProfileToDatabase(currentUser).catch(err => 
-                                      console.warn('Background sync error:', err.message)
-                                    );
+                                    try {
+                                      await syncUserProfileToDatabase(currentUser);
+                                    } catch (err) {
+                                      console.warn('Background sync error:', err?.message || err);
+                                    }
                                 }
 
                                 // Determine user role

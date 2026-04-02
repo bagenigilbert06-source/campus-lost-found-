@@ -18,6 +18,7 @@ import {
 import toast from "react-hot-toast";
 import AuthContext from "../../context/Authcontext/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { normalizeImageUrl } from "../../utils/imageUtils";
 
 
 const SearchItems = () => {
@@ -565,8 +566,9 @@ function LoadingItemCard() {
 }
 
 function ItemCard({ item, onClaim }) {
-  const imageUrl =
-    item.images && item.images.length > 0 ? item.images[0] : item.image;
+  const imageUrl = normalizeImageUrl(
+    (item.images && item.images.length > 0 ? item.images[0] : item.image) || ''
+  );
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {

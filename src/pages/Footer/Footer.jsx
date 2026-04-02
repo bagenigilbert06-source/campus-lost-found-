@@ -1,6 +1,7 @@
-import React, { memo } from 'react';
+import React, { memo, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { schoolConfig } from '../../config/schoolConfig';
+import AuthContext from '../../context/Authcontext/AuthContext';
 import {
   FaMapMarkerAlt,
   FaPhone,
@@ -34,6 +35,9 @@ const FooterLink = memo(function FooterLink({ to, href, children, icon: Icon }) 
 });
 
 const Footer = () => {
+  const { user } = useContext(AuthContext);
+  const contactLink = user ? '/app/contact' : '/contact';
+
   return (
     <footer className="border-t border-slate-800 bg-slate-950 text-white">
       <div className="mx-auto max-w-7xl px-4 pb-8 pt-14 sm:px-6 md:pt-16">
@@ -42,11 +46,12 @@ const Footer = () => {
           {/* Brand */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-full
-                           bg-emerald-600 text-sm font-bold text-white"
-              >
-                {schoolConfig.shortName}
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white">
+                <img
+                  src="/zetech-logo.png"
+                  alt="Zetech Foundit logo"
+                  className="h-10 w-10 object-contain"
+                />
               </div>
 
               <div className="min-w-0">
@@ -73,8 +78,8 @@ const Footer = () => {
             <div className="flex flex-col gap-3">
               <FooterLink to="/">Home</FooterLink>
               <FooterLink to="/aboutUs">About Us</FooterLink>
-              <FooterLink to="/contact">Contact</FooterLink>
-              <FooterLink to="/signin">Sign In</FooterLink>
+              <FooterLink to={contactLink}>Contact</FooterLink>
+              {!user && <FooterLink to="/signin">Sign In</FooterLink>}
             </div>
           </div>
 
@@ -85,7 +90,7 @@ const Footer = () => {
             </h6>
             <div className="flex flex-col gap-3">
               <FooterLink to="/aboutUs">About Us</FooterLink>
-              <FooterLink to="/contact">Contact</FooterLink>
+              <FooterLink to={contactLink}>Contact</FooterLink>
               <FooterLink href="#">Terms of Use</FooterLink>
               <FooterLink href="#">Privacy Policy</FooterLink>
             </div>
@@ -126,7 +131,7 @@ const Footer = () => {
         {/* Bottom */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <p className="text-center text-sm text-slate-400 md:text-left">
-            © {new Date().getFullYear()} {schoolConfig.name} Lost & Found. All Rights Reserved.
+            © {new Date().getFullYear()} {schoolConfig.name}. All Rights Reserved.
           </p>
 
           <div className="flex items-center justify-center gap-3 text-sm md:justify-end">

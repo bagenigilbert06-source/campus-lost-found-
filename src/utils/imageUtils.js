@@ -1,3 +1,5 @@
+import { API_BASE } from './apiConfig.js';
+
 /**
  * Image Utility Functions for Lost & Found System
  * Handles image validation, loading, and fallbacks
@@ -66,31 +68,69 @@ export const normalizeImageUrl = (url) => {
   if (!url || typeof url !== 'string') return url;
   const trimmed = url.trim();
 
-  const backendUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  console.debug('[normalizeImageUrl] input:', trimmed);
 
-  // Redirect local dev host to backend/proxy host in prod context
+  // Normalize localhost first so we never return local URLs in prod
   if (/^https?:\/\/localhost(:\d+)?/.test(trimmed)) {
-    if (backendUrl) {
-      return `${backendUrl}${trimmed.replace(/^https?:\/\/localhost(:\d+)?/, '')}`;
+    const localPath = trimmed.replace(/^https?:\/\/localhost(:\d+)?/, '');
+    const backendUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    const backendBase = backendUrl.replace(/\/api\/?$/, '');
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const deployedUrl = backendBase || backendUrl || origin || 'https://campus-lost-found-backend-ectt.onrender.com';
+    const mapped = `${deployedUrl}${localPath}`;
+    console.debug('[normalizeImageUrl] localhost rewritten to deployed:', { trimmed, mapped });
+    return mapped;
+  }
+
+  // If URL is already absolute or data URL, handle appropriately
+  if (/^https?:\/\//i.test(trimmed) || /^data:image\//i.test(trimmed)) {
+    // If page is HTTPS, upgrade HTTP URLs to HTTPS to prevent mixed-content warnings
+    const isPageSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    if (isPageSecure && /^http:\/\//i.test(trimmed)) {
+      const upgradedUrl = trimmed.replace(/^http:\/\//i, 'https://');
+      console.debug('[normalizeImageUrl] upgraded HTTP to HTTPS:', { input: trimmed, output: upgradedUrl });
+      return upgradedUrl;
     }
-    if (origin) {
-      return `${origin}${trimmed.replace(/^https?:\/\/localhost(:\d+)?/, '')}`;
-    }
+    console.debug('[normalizeImageUrl] absolute/data URL passed through:', trimmed);
     return trimmed;
   }
 
-  // If relative API image path is used, resolve it to proper backend URL/origin
-  if (trimmed.startsWith('/api/images')) {
-    if (backendUrl) {
-      return `${backendUrl}${trimmed}`;
-    }
-    if (origin) {
-      return `${origin}${trimmed}`;
-    }
+  const backendUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+  const backendBase = backendUrl.replace(/\/api\/?$/, ''); // remove trailing /api if present
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const deployedUrl = backendBase || backendUrl || origin || 'https://campus-lost-found-backend-ectt.onrender.com';
+
+  console.debug('[normalizeImageUrl] environment: ', { backendUrl, backendBase, origin, deployedUrl });
+
+  // Redirect local dev host to configured backend host
+  if (/^https?:\/\/localhost(:\d+)?/.test(trimmed)) {
+    const localPath = trimmed.replace(/^https?:\/\/localhost(:\d+)?/, '');
+    const normalized = `${deployedUrl}${localPath}`;
+    console.debug('[normalizeImageUrl] changed localhost path to deployed URL:', normalized);
+    return normalized;
   }
 
-  return trimmed;
+  // If relative API image path is used, resolve it to proper backend URL/origin
+  if (trimmed.startsWith('/api')) {
+    const normalized = `${deployedUrl}${trimmed}`;
+    console.debug('[normalizeImageUrl] relative /api URL normalized:', normalized);
+    return normalized;
+  }
+
+  if (trimmed.startsWith('/')) {
+    const normalized = `${deployedUrl}${trimmed}`;
+    console.debug('[normalizeImageUrl] root-relative URL normalized:', normalized);
+    return normalized;
+  }
+
+  // Fallback: attempt to treat as relative path from deployed URL
+  const fallback = `${deployedUrl}/${trimmed}`;
+  console.debug('[normalizeImageUrl] fallback URL:', fallback);
+  return fallback;
+};
+
+export const resolveImageUrl = (url) => {
+  return normalizeImageUrl(url);
 };
 
 /**

@@ -2,6 +2,7 @@ import React, { useContext, useRef, useState, useEffect, useCallback, useMemo } 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import AuthContext from "../../context/Authcontext/AuthContext";
+import { schoolConfig } from "../../config/schoolConfig";
 import {
   FaBars,
   FaHome,
@@ -121,7 +122,7 @@ const DashboardNavbar = ({ onToggleSidebar }) => {
       },
       {
         label: "Help & Support",
-        to: "/app/help",
+        to: "/app/contact",
         icon: FaQuestionCircle,
       },
     ],
@@ -152,15 +153,19 @@ const DashboardNavbar = ({ onToggleSidebar }) => {
               to="/app/dashboard"
               className="flex min-w-0 items-center gap-3"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-sm font-bold text-white">
-                Z
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <img
+                  src="/zetech-logo.png"
+                  alt="Zetech Foundit logo"
+                  className="h-12 w-12 object-contain"
+                />
               </div>
 
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900">
-                  Zetech Lost &amp; Found
+                <p className="truncate text-base font-bold text-slate-900">
+                  {schoolConfig.name}
                 </p>
-                <p className="hidden text-xs text-slate-500 sm:block">
+                <p className="hidden text-sm text-slate-500 sm:block">
                   Authenticated workspace
                 </p>
               </div>

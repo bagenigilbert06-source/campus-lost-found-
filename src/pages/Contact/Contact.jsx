@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { Helmet } from 'react-helmet-async';
 import { schoolConfig } from '../../config/schoolConfig';
+import { messagesService } from '../../services/apiService';
 import {
   FaPhone,
   FaEnvelope,
@@ -25,8 +26,10 @@ const Contact = () => {
     }));
   }, []);
 
+  const [isSending, setIsSending] = useState(false);
+
   const handleSubmit = useCallback(
-    (e) => {
+    async (e) => {
       e.preventDefault();
 
       if (!formData.name || !formData.email || !formData.message) {
@@ -43,22 +46,62 @@ const Contact = () => {
         return;
       }
 
-      Swal.fire({
-        icon: 'success',
-        title: 'Message Sent!',
-        text: 'The Lost & Found office will respond shortly.',
-        toast: true,
-        position: 'top',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-      });
+      setIsSending(true);
+      try {
+        const payload = {
+          conversationId: `contact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          itemId: 'contact',
+          subject: `Contact form: ${formData.name}`,
+          senderId: `public-${formData.email}`,
+          senderEmail: formData.email.toLowerCase(),
+          senderRole: 'student',
+          recipientId: 'admin',
+          recipientEmail: 'lost-and-found@zetech.ac.ke',
+          recipientRole: 'admin',
+          content: `Name: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`,
+        };
 
-      setFormData({
-        name: '',
-        email: '',
-        message: '',
-      });
+        try {
+          await messagesService.sendContactMessage({name: formData.name, email: formData.email, subject: `Contact form: ${formData.name}`, message: formData.message});
+        } catch (err) {
+          if (err?.response?.status === 404) {
+            await messagesService.sendMessage(payload);
+          } else {
+            throw err;
+          }
+        }
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Message Sent!',
+          text: 'The Lost & Found office will respond shortly.',
+          toast: true,
+          position: 'top',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+        });
+
+        setFormData({
+          name: '',
+          email: '',
+          message: '',
+        });
+      } catch (error) {
+        console.error('[Contact] send message failed', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Send Failed',
+          text: error.response?.data?.message || 'Unable to send message right now. Please try again.',
+          position: 'top',
+          toast: true,
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+        });
+      } finally {
+        setIsSending(false);
+      }
     },
     [formData]
   );
@@ -222,9 +265,10 @@ const Contact = () => {
 
               <button
                 type="submit"
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white"
+                disabled={isSending}
+                className={`inline-flex w-full items-center justify-center rounded-2xl px-6 py-3.5 text-sm font-semibold text-white ${isSending ? 'bg-slate-400' : 'bg-emerald-600 hover:bg-emerald-700'}`}
               >
-                Send Message
+                {isSending ? 'Sending...' : 'Send Message'}
               </button>
             </form>
           </div>

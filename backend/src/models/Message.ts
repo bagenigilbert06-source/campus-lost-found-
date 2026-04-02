@@ -3,6 +3,7 @@ import { Schema, model, Document } from 'mongoose';
 export interface IMessage extends Document {
   conversationId: string;
   itemId: string;
+  subject?: string;
   senderId: string;
   senderEmail: string;
   senderRole: 'student' | 'admin';
@@ -12,6 +13,10 @@ export interface IMessage extends Document {
   content: string;
   isRead: boolean;
   readAt?: Date;
+  deletedBy?: string[];
+  deletedForEveryone?: boolean;
+  deletedForEveryoneAt?: Date;
+  deletedForEveryoneBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +25,7 @@ const MessageSchema = new Schema<IMessage>(
   {
     conversationId: { type: String, required: true, index: true },
     itemId: { type: String, required: true, index: true },
+    subject: { type: String },
     senderId: { type: String, required: true, index: true },
     senderEmail: { type: String, required: true },
     senderRole: { type: String, enum: ['student', 'admin'], required: true },
@@ -29,6 +35,10 @@ const MessageSchema = new Schema<IMessage>(
     content: { type: String, required: true },
     isRead: { type: Boolean, default: false },
     readAt: { type: Date },
+    deletedBy: { type: [String], default: [] },
+    deletedForEveryone: { type: Boolean, default: false, index: true },
+    deletedForEveryoneAt: { type: Date },
+    deletedForEveryoneBy: { type: String },
   },
   { timestamps: true }
 );

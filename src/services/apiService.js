@@ -274,7 +274,11 @@ export const claimsService = {
 
 export const bookmarksService = {
   addBookmark: async (itemId) => {
-    const response = await apiClient.post('/bookmarks', { itemId });
+    if (!itemId || typeof itemId !== 'string' || itemId.trim() === '') {
+      throw new Error('Invalid itemId provided for bookmark');
+    }
+
+    const response = await apiClient.post('/bookmarks', { itemId: itemId.trim() });
     return response.data;
   },
 
@@ -305,6 +309,11 @@ export const messagesService = {
     return response.data;
   },
 
+  sendContactMessage: async (payload) => {
+    const response = await apiClient.post('/messages/contact', payload);
+    return response.data;
+  },
+
   replyToMessage: async (originalMessageId, content) => {
     const response = await apiClient.post('/messages/reply', { originalMessageId, content });
     return response.data;
@@ -315,14 +324,30 @@ export const messagesService = {
     return response.data;
   },
 
-  deleteMessage: async (messageId) => {
-    const response = await apiClient.delete(`/messages/${messageId}`);
+  deleteMessage: async (messageId, forEveryone = false) => {
+    const response = await apiClient.delete(`/messages/${messageId}${forEveryone ? '?forEveryone=true' : ''}`);
+    return response.data;
+  },
+
+  deleteMessageForEveryone: async (messageId) => {
+    const response = await apiClient.delete(`/messages/${messageId}?forEveryone=true`);
+    return response.data;
+  },
+
+  deleteConversation: async (conversationId, forEveryone = false) => {
+    const encodedId = encodeURIComponent(conversationId);
+    const response = await apiClient.delete(`/messages/conversation/${encodedId}${forEveryone ? '?forEveryone=true' : ''}`);
+    return response.data;
+  },
+
+  deleteConversationForEveryone: async (conversationId) => {
+    const encodedId = encodeURIComponent(conversationId);
+    const response = await apiClient.delete(`/messages/conversation/${encodedId}?forEveryone=true`);
     return response.data;
   },
 };
 
-export default {
-  authService,
+export default {  authService,
   itemsService,
   searchService,
   matchingService,

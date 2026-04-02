@@ -12,8 +12,17 @@ const AdminNotificationsDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const dropdownRef = useRef(null);
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('adminNotificationsDismissed');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) {
+      return [];
+    }
+  });
   const { messageCount, refetch: refetchCount } = useAdminMessageCount();
+  const visibleCount = Math.max(0, messageCount - dismissedIds.length);
+  const dropdownRef = useRef(null);
 
   const fetchMessages = useCallback(async () => {
     if (!user) return;
@@ -55,19 +64,35 @@ const AdminNotificationsDropdown = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const deleteMessage = async (messageId) => {
+  useEffect(() => {
     try {
-      await messagesService.deleteMessage(messageId);
-      // Refetch messages and count after deletion
-      await fetchMessages();
-      // Refetch count separately since deleteMessage doesn't return count info
-      await refetchCount();
-      toast.success("Message deleted");
+      localStorage.setItem('adminNotificationsDismissed', JSON.stringify(dismissedIds));
     } catch (error) {
-      console.error("[AdminNotificationsDropdown] Error deleting message:", error);
-      toast.error("Failed to delete message");
+      console.warn('[AdminNotificationsDropdown] localStorage save failed', error);
     }
+  }, [dismissedIds]);
+
+  const dismissNotification = (messageId) => {
+    setDismissedIds((prev) => Array.from(new Set([...prev, messageId])));
+    toast.success('Notification dismissed');
   };
+
+  const openThread = async (conversationId, messageId) => {
+    if (!conversationId) return;
+    try {
+      if (messageId) {
+        await messagesService.markAsRead(messageId).catch(() => null);
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    setIsOpen(false);
+    navigate(`/admin/messages?thread=${encodeURIComponent(conversationId)}`);
+  };
+
+
+  const visibleMessages = messages.filter((message) => !dismissedIds.includes(message._id));
 
   if (!user) return null;
 
@@ -80,21 +105,21 @@ const AdminNotificationsDropdown = () => {
         aria-label="Open notifications"
       >
         <FaBell size={18} className="text-white" />
-        {messageCount > 0 && (
+        {visibleCount > 0 && (
           <span className="absolute top-1 right-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {messageCount > 9 ? "9+" : messageCount}
+            {visibleCount > 9 ? "9+" : visibleCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-2 w-96 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <div className="absolute top-full left-1/2 z-50 mt-2 w-[min(92vw,22rem)] max-w-[95vw] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:left-auto sm:right-0 sm:translate-x-0 sm:w-96">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Student Messages</h3>
               <p className="mt-1 text-xs text-slate-500">
-                {messageCount} {messageCount === 1 ? "message" : "messages"}
+                {visibleCount} {visibleCount === 1 ? "message" : "messages"} shown
               </p>
             </div>
 
@@ -104,23 +129,25 @@ const AdminNotificationsDropdown = () => {
           </div>
 
           {/* Messages List */}
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[60vh] overflow-y-auto sm:max-h-96">
             {loading ? (
               <div className="flex items-center justify-center p-8">
                 <div className="h-6 w-6 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
               </div>
-            ) : messages.length === 0 ? (
+            ) : visibleMessages.length === 0 ? (
               <div className="p-8 text-center text-slate-500">
                 <FaBell size={28} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No messages from students yet</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {messages.map((message) => {
+                {visibleMessages.map((message) => {
+                  const conversationId = message.conversationId || message._id;
                   return (
                     <div
                       key={message._id}
-                      className="flex items-start justify-between gap-3 px-4 py-4 hover:bg-slate-50 transition-colors"
+                      className="flex items-start justify-between gap-3 px-4 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                      onClick={() => openThread(conversationId, message._id)}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="mb-1 flex items-center gap-2">
@@ -146,10 +173,13 @@ const AdminNotificationsDropdown = () => {
 
                       <button
                         type="button"
-                        onClick={() => deleteMessage(message._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissNotification(message._id);
+                        }}
                         className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors flex-shrink-0"
-                        title="Delete message"
-                        aria-label="Delete message"
+                        title="Dismiss notification"
+                        aria-label="Dismiss notification"
                       >
                         <FaTimes size={13} />
                       </button>
@@ -161,7 +191,7 @@ const AdminNotificationsDropdown = () => {
           </div>
 
           {/* Footer */}
-          {messages.length > 0 && (
+          {visibleMessages.length > 0 && (
             <div className="border-t border-slate-200 px-4 py-3 text-center">
               <button
                 type="button"

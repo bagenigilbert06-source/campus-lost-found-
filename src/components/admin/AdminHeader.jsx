@@ -40,6 +40,7 @@ const AdminHeader = () => {
     { path: '/admin/add-item', label: 'Add Item', icon: FaPlus },
     { path: '/admin/inventory', label: 'Inventory', icon: FaBox },
     { path: '/admin/claims', label: 'Claims', icon: FaComments },
+    { path: '/admin/messages', label: 'Messages', icon: FaComments },
     { path: '/admin/reports', label: 'Reports', icon: FaChartBar },
     { path: '/admin/activity', label: 'Activity', icon: FaClock },
     { path: '/admin/settings', label: 'Settings', icon: FaCog },
@@ -54,11 +55,11 @@ const AdminHeader = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg bg-white bg-opacity-20">
-              <span className="text-white font-bold text-sm">L&F</span>
+            <div className="hidden sm:flex items-center justify-center w-10 h-10 rounded-lg bg-white/20">
+              <img src="/zetech-logo.png" alt="Zetech Foundit logo" className="w-full h-full object-contain rounded" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white">Campus L&F</h1>
+              <h1 className="text-lg font-bold text-white">Zetech Foundit</h1>
               <p className="text-xs text-emerald-100 leading-none">Security Office</p>
             </div>
           </div>

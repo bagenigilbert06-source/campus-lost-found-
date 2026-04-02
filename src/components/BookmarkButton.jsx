@@ -52,6 +52,15 @@ const BookmarkButton = ({
       return;
     }
 
+    if (!itemId || typeof itemId !== 'string' || itemId.trim() === '') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid item',
+        text: 'Cannot bookmark this item. Please try again.',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (bookmarked) {

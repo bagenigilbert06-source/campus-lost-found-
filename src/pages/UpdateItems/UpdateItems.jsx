@@ -56,6 +56,22 @@ const locations = [
 
 const MAX_IMAGES = 5;
 
+// Helper function to safely extract date in yyyy-MM-dd format
+const formatDateForInput = (dateValue) => {
+  if (!dateValue) return new Date().toISOString().split("T")[0];
+  if (typeof dateValue === 'string') {
+    // If it's already in yyyy-MM-dd format, return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return dateValue;
+    }
+    // If it's an ISO string, extract the date part
+    if (dateValue.includes('T')) {
+      return dateValue.split('T')[0];
+    }
+  }
+  return new Date().toISOString().split("T")[0];
+};
+
 const UpdateItems = () => {
   const item = useLoaderData();
   const navigate = useNavigate();
@@ -88,7 +104,7 @@ const UpdateItems = () => {
     description: initialDescription,
     category: initialCategory,
     location: initialLocation,
-    dateLost: new Date(initialDateLost).toISOString().split("T")[0],
+    dateLost: formatDateForInput(initialDateLost),
     distinguishingFeatures: initialFeatures,
   });
 
@@ -159,6 +175,12 @@ const UpdateItems = () => {
 
     if (!formData.location.trim()) {
       toast.error("Location is required");
+      return;
+    }
+
+    // Validate date format
+    if (!formData.dateLost || !/^\d{4}-\d{2}-\d{2}$/.test(formData.dateLost)) {
+      toast.error("Date must be in the required format yyyy-MM-dd");
       return;
     }
 

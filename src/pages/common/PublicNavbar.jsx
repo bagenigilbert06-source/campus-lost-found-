@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { FaBars, FaTimes } from "react-icons/fa";
+import { schoolConfig } from "../../config/schoolConfig";
 
 const PublicNavbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -69,13 +70,12 @@ const PublicNavbar = () => {
       { label: "Features", to: "/features" },
       { label: "Services", to: "/services" },
       { label: "FAQ", to: "/faq" },
-      { label: "Contact", to: "/contact" },
     ],
     []
   );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/70 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Brand */}
@@ -88,13 +88,17 @@ const PublicNavbar = () => {
               if (e.key === "Enter" || e.key === " ") navigate("/");
             }}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-sm font-bold text-white">
-              Z
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/30 shadow-sm">
+              <img
+                src="/zetech-logo.png"
+                alt="Zetech Foundit logo"
+                className="h-12 w-12 object-contain"
+              />
             </div>
 
             <div className="min-w-0">
-              <h1 className="truncate text-sm font-semibold text-slate-900">
-                Zetech Lost &amp; Found
+              <h1 className="truncate text-base font-semibold text-slate-900">
+                {schoolConfig.name}
               </h1>
               <p className="hidden truncate text-xs text-slate-500 sm:block">
                 Find, report, and recover items easily

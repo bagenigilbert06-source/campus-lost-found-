@@ -34,8 +34,28 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
 
     console.debug('[Auth] Token verified successfully for user:', decodedToken.email);
 
-    // Get user from database to include role
-    const user = await userService.getUserById(decodedToken.uid);
+    // Get user from database to include role, if available
+    let user;
+    try {
+      user = await userService.getUserById(decodedToken.uid);
+    } catch (dbErr) {
+      // If user is not found, let the route handle it (e.g., /auth/register creates user)
+      if ((dbErr as any).status === 404 || (dbErr as any).message?.includes('not found')) {
+        console.warn('[Auth] User not found in DB, continuing with decoded token only');
+        req.user = {
+          uid: decodedToken.uid,
+          email: decodedToken.email,
+          email_verified: decodedToken.email_verified,
+          role: 'student',
+          authProvider: 'firebase',
+          displayName: (decodedToken as any).name || (decodedToken as any).displayName || '',
+          photoURL: (decodedToken as any).picture || (decodedToken as any).photoURL || '',
+        };
+        return next();
+      }
+
+      throw dbErr;
+    }
 
     req.user = {
       uid: decodedToken.uid,

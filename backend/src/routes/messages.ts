@@ -69,6 +69,12 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
       if (req.query.recipientRole) adminQuery.recipientRole = req.query.recipientRole;
       if (req.query.senderRole) adminQuery.senderRole = req.query.senderRole;
 
+      adminQuery.deletedForEveryone = { $ne: true };
+      if (req.user?.email) {
+        // Hide admin's own deleted messages from their dropdown if any
+        adminQuery.deletedBy = { $ne: req.user.email.toLowerCase() };
+      }
+
       const dbQueryTime = Date.now();
       const [messages, total] = await Promise.all([
         Message.find(adminQuery)
@@ -100,7 +106,9 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
       $or: [
         { recipientEmail: email },
         { senderEmail: email }
-      ]
+      ],
+      deletedBy: { $ne: email },
+      deletedForEveryone: { $ne: true }
     };
 
     // Allow safe filters for non-admin users (ignore email filters, apply other criteria)
@@ -134,17 +142,53 @@ router.get('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   }
 });
 
+// Create a simple contact message endpoint for public students (no item needed)
+router.post('/contact', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    const { name, email, subject, message } = req.body;
+
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ success: false, message: 'name, email, subject, and message are required' });
+    }
+
+    const conversationId = `contact-${email.toLowerCase()}-${Date.now()}`;
+    const contactPayload = {
+      conversationId,
+      itemId: 'contact',
+      subject,
+      senderId: req.user?.uid || `public-${email}`,
+      senderEmail: email.toLowerCase(),
+      senderRole: 'student',
+      recipientId: 'admin',
+      recipientEmail: 'lost-and-found@zetech.ac.ke',
+      recipientRole: 'admin',
+      content: `Name: ${name}\n${message}`,
+    };
+
+    const created = new Message(contactPayload);
+    await created.save();
+
+    return res.status(201).json({ success: true, data: created });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get a single message by ID
 router.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const message = await Message.findById(req.params.id).lean();
 
-    if (!message) {
+    if (!message || message.deletedForEveryone) {
       return res.status(404).json({ success: false, message: 'Message not found' });
     }
 
     if (!isAdminUser(req) && req.user?.email?.toLowerCase() !== message.recipientEmail && req.user?.email?.toLowerCase() !== message.senderEmail) {
       return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    if (message.deletedBy?.includes(req.user?.email?.toLowerCase() || '')) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
     }
 
     res.json({ success: true, data: message });
@@ -156,9 +200,10 @@ router.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) =
 // Create a message entry
 router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
-    const {
+    let {
       conversationId,
       itemId,
+      subject,
       senderId,
       senderEmail,
       senderRole,
@@ -168,13 +213,23 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res, next) => 
       content,
     } = req.body;
 
-    if (!conversationId || !itemId || !senderEmail || !senderRole || !recipientEmail || !recipientRole || !content) {
+    // Support contact-forms where there is no item id / conversation id yet
+    if (!conversationId) {
+      conversationId = `contact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    itemId = itemId || 'contact';
+    recipientEmail = recipientEmail || 'lost-and-found@zetech.ac.ke';
+    recipientRole = recipientRole || 'admin';
+
+    if (!senderEmail || !senderRole || !recipientEmail || !recipientRole || !content) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
     const message = new Message({
       conversationId,
       itemId,
+      subject,
       senderId: senderId || (req.user?.uid || 'anonymous'),
       senderEmail,
       senderRole,
@@ -231,6 +286,65 @@ router.post('/reply', optionalAuthMiddleware, async (req: AuthRequest, res, next
   }
 });
 
+// Delete entire conversation (soft delete for current user or admin for everyone)
+router.delete('/conversation/:conversationId', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+  try {
+    if (!req.user?.email) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const conversationId = req.params.conversationId;
+    const userEmail = req.user.email.toLowerCase();
+    const forEveryone = req.query.forEveryone === 'true';
+
+    const conversationMessages = await Message.find({ conversationId });
+
+    if (!conversationMessages.length) {
+      console.warn(`[Messages] Delete conversation request for '${conversationId}': no messages found, returning idempotent success`);
+      if (forEveryone && !isAdminUser(req)) {
+        return res.status(403).json({ success: false, message: 'Only admins can delete conversations for everyone' });
+      }
+      return res.json({ success: true, message: 'Conversation not found or already deleted' });
+    }
+
+    if (forEveryone) {
+      if (!isAdminUser(req)) {
+        return res.status(403).json({ success: false, message: 'Only admins can delete conversations for everyone' });
+      }
+
+      await Message.updateMany(
+        { conversationId, deletedForEveryone: { $ne: true } },
+        {
+          $set: {
+            deletedForEveryone: true,
+            deletedForEveryoneAt: new Date(),
+            deletedForEveryoneBy: userEmail,
+          },
+          $addToSet: {
+            deletedBy: userEmail,
+          },
+        }
+      );
+
+      return res.json({ success: true, message: 'Conversation deleted for everyone' });
+    }
+
+    // Soft-delete messages from current user view in conversation
+    await Message.updateMany(
+      {
+        conversationId,
+        deletedBy: { $ne: userEmail },
+        $or: [{ senderEmail: userEmail }, { recipientEmail: userEmail }],
+      },
+      { $addToSet: { deletedBy: userEmail } }
+    );
+
+    return res.json({ success: true, message: 'Conversation deleted for current user' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Mark as read / update message
 router.patch('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
@@ -257,7 +371,7 @@ router.patch('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next)
   }
 });
 
-// Delete message
+// Delete message (soft delete for self / global delete for admins)
 router.delete('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const message = await Message.findById(req.params.id);
@@ -265,12 +379,38 @@ router.delete('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next
       return res.status(404).json({ success: false, message: 'Message not found' });
     }
 
-    if (!isAdminUser(req) && req.user?.email?.toLowerCase() !== message.recipientEmail && req.user?.email?.toLowerCase() !== message.senderEmail) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    const userEmail = req.user?.email?.toLowerCase();
+    const forEveryone = req.query.forEveryone === 'true';
+
+    if (forEveryone) {
+      if (!isAdminUser(req)) {
+        return res.status(403).json({ success: false, message: 'Only admins can delete messages for everyone' });
+      }
+
+      message.deletedForEveryone = true;
+      message.deletedForEveryoneAt = new Date();
+      message.deletedForEveryoneBy = userEmail;
+      message.deletedBy = message.deletedBy || [];
+      if (userEmail) message.deletedBy.push(userEmail);
+
+      await message.save();
+      return res.json({ success: true, message: 'Message deleted for everyone' });
     }
 
-    await message.deleteOne();
-    res.json({ success: true, message: 'Message deleted' });
+    if (!userEmail) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Soft-delete for this user (or admin itself if hiding)
+    if (message.deletedBy?.includes(userEmail)) {
+      return res.json({ success: true, message: 'Message already deleted for this user' });
+    }
+
+    message.deletedBy = message.deletedBy || [];
+    message.deletedBy.push(userEmail);
+    await message.save();
+
+    res.json({ success: true, message: 'Message deleted for current user' });
   } catch (error) {
     next(error);
   }

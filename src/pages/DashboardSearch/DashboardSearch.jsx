@@ -21,6 +21,7 @@ import {
 import PaginationComponent from "../../components/PaginationComponent";
 import BookmarkButton from "../../components/BookmarkButton";
 import ImageLightbox from "../../components/ImageLightbox";
+import { normalizeImageUrl } from "../../utils/imageUtils";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -520,9 +521,9 @@ function LoadingCard() {
 }
 
 function ItemCard({ item, onOpen, onImageClick }) {
-  const imageUrl =
-    item.images && item.images[0] ? item.images[0] : item.image || null;
-  const allImages = item.images || (item.image ? [item.image] : []);
+  const rawImageUrl = item.images && item.images[0] ? item.images[0] : item.image || '';
+  const imageUrl = normalizeImageUrl(rawImageUrl);
+  const allImages = (item.images || (item.image ? [item.image] : [])).map(normalizeImageUrl);
 
   const isLost = getString(item.itemType).toLowerCase() === "lost";
   const status = item.status ? getString(item.status) : "Unclaimed";

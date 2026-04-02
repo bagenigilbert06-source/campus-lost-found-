@@ -15,6 +15,9 @@ import {
   FaComments,
   FaInbox,
   FaArrowRight,
+  FaUser,
+  FaClock,
+  FaPaperPlane,
 } from "react-icons/fa";
 import AdminContainer from "../../components/admin/AdminContainer";
 import EmptyState from "../../components/admin/EmptyState";
@@ -33,6 +36,7 @@ const AdminClaims = () => {
 
   const [claims, setClaims] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [conversationMessages, setConversationMessages] = useState([]);
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [replyContent, setReplyContent] = useState("");
@@ -43,9 +47,7 @@ const AdminClaims = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
-    // Initial load shows spinner once.
     fetchAllData(true);
-    // No background polling - removed 20s interval to reduce unnecessary requests
   }, []);
 
   const fetchAllData = async (showLoading = false) => {
@@ -64,7 +66,6 @@ const AdminClaims = () => {
 
   const fetchClaims = async () => {
     try {
-      // Fetch claims with limit to optimize performance
       const res = await claimsService.getClaims();
       const claimList = Array.isArray(res.data)
         ? res.data
@@ -86,17 +87,12 @@ const AdminClaims = () => {
 
   const fetchMessages = async () => {
     try {
-      // Fetch messages with limit to optimize performance
       const res = await messagesService.getMessages({ limit: 100 });
       const messageList = Array.isArray(res.data)
         ? res.data
         : res.data?.data || [];
 
       setMessages(messageList);
-
-      if (!selectedMessage && messageList.length > 0) {
-        setSelectedMessage(messageList[0]);
-      }
     } catch (error) {
       console.error("[AdminClaims] Error fetching messages:", error);
       toast.error("Failed to load messages");
@@ -136,7 +132,7 @@ const AdminClaims = () => {
         ? res.data
         : res.data?.data || [];
 
-      setMessages(messageList);
+      setConversationMessages(messageList);
       setSelectedMessage(messageList[0] || null);
     } catch (error) {
       console.error("[AdminClaims] Error loading conversation:", error);
@@ -160,7 +156,6 @@ const AdminClaims = () => {
       await messagesService.replyToMessage(selectedMessage._id, replyContent.trim());
       toast.success("Reply sent");
       setReplyContent("");
-      await fetchMessages();
 
       if (selectedClaim?._id) {
         await handleSelectClaim(selectedClaim);
@@ -189,6 +184,11 @@ const AdminClaims = () => {
   const pendingCount = useMemo(() => {
     return claims.filter((claim) => claim.status === "pending").length;
   }, [claims]);
+
+  const currentConversationMessages = useMemo(() => {
+    return conversationMessages
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  }, [conversationMessages]);
 
   if (loading) {
     return (
@@ -232,289 +232,420 @@ const AdminClaims = () => {
             </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <aside className="rounded-[24px] border border-slate-200 bg-white overflow-hidden">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                    <FaClipboardCheck />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">Claims</h2>
-                    <p className="text-sm text-slate-500">
-                      Select a claim to review details
-                    </p>
-                  </div>
-                </div>
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <ClaimsSidebar
+              claims={filteredClaims}
+              selectedClaim={selectedClaim}
+              filterType={filterType}
+              onFilterChange={setFilterType}
+              onClaimSelect={handleSelectClaim}
+            />
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {claimStatuses.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setFilterType(status)}
-                      className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                        filterType === status
-                          ? "bg-emerald-600 text-white"
-                          : "border border-slate-200 bg-slate-50 text-slate-700"
-                      }`}
-                    >
-                      {status === "all" ? "All" : formatLabel(status)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="max-h-[680px] overflow-y-auto">
-                {filteredClaims.length === 0 ? (
-                  <div className="p-5">
-                    <EmptyState
-                      title="No claims found"
-                      description="No claims match this filter."
-                    />
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-200">
-                    {filteredClaims.map((claim) => (
-                      <button
-                        key={claim._id}
-                        type="button"
-                        onClick={() => handleSelectClaim(claim)}
-                        className={`w-full px-4 py-4 text-left ${
-                          selectedClaim?._id === claim._id
-                            ? "bg-emerald-50"
-                            : "bg-white"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {claim.itemTitle || "Untitled item"}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {claim.studentName || "Unknown"} • {claim.studentEmail || "No email"}
-                            </p>
-                          </div>
-
-                          <span className={getClaimBadgeClass(claim.status)}>
-                            {formatLabel(claim.status)}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </aside>
-
-            <main className="rounded-[24px] border border-slate-200 bg-white overflow-hidden">
-              {selectedClaim ? (
-                <>
-                  <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                          {selectedClaim.itemTitle || "Claim Details"}
-                        </h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Review the claimant details, proof, messages, and take action.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleClaimStatusUpdate(selectedClaim._id, "approved")}
-                          disabled={updatingStatus}
-                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                        >
-                          <FaCheck />
-                          Approve
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleClaimStatusUpdate(selectedClaim._id, "needs_more_proof")
-                          }
-                          disabled={updatingStatus}
-                          className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 disabled:opacity-60"
-                        >
-                          <FaExclamationTriangle />
-                          Needs Proof
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleClaimStatusUpdate(selectedClaim._id, "rejected")}
-                          disabled={updatingStatus}
-                          className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 disabled:opacity-60"
-                        >
-                          <FaBan />
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6 p-5 sm:p-6">
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                      <DetailCard title="Claimant Information" icon={<FaUserCheck />}>
-                        <div className="space-y-1 text-sm text-slate-700">
-                          <p className="font-semibold text-slate-900">
-                            {selectedClaim.studentName || "No name"}
-                          </p>
-                          <p>{selectedClaim.studentEmail || "No email"}</p>
-                          <p>{selectedClaim.studentPhone || "No phone"}</p>
-                          <p>Student ID: {selectedClaim.studentId || "Not provided"}</p>
-                        </div>
-                      </DetailCard>
-
-                      <DetailCard title="Claim Information" icon={<FaClipboardCheck />}>
-                        <div className="space-y-1 text-sm text-slate-700">
-                          <p className="font-semibold text-slate-900">
-                            {selectedClaim.itemTitle || "Untitled item"}
-                          </p>
-                          <p>
-                            Claimed:{" "}
-                            {selectedClaim.createdAt
-                              ? new Date(selectedClaim.createdAt).toLocaleString()
-                              : "No date"}
-                          </p>
-                          <p>Status: {formatLabel(selectedClaim.status)}</p>
-                        </div>
-                      </DetailCard>
-
-                      <DetailCard title="Proof of Ownership" icon={<FaCheck />}>
-                        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                          {selectedClaim.proofOfOwnership || "No proof provided."}
-                        </p>
-                      </DetailCard>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                      <section className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
-                        <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-3">
-                          <FaComments className="text-emerald-700" />
-                          <h3 className="text-sm font-semibold text-slate-900">
-                            Conversation
-                          </h3>
-                        </div>
-
-                        <div className="max-h-[360px] space-y-3 overflow-y-auto p-4">
-                          {messages.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-                              No messages yet for this claim.
-                            </div>
-                          ) : (
-                            messages.map((msg) => (
-                              <button
-                                key={msg._id}
-                                type="button"
-                                onClick={() => setSelectedMessage(msg)}
-                                className={`block w-full rounded-2xl p-3 text-left ${
-                                  msg.senderRole === "admin"
-                                    ? "bg-emerald-50"
-                                    : "bg-white"
-                                } ${
-                                  selectedMessage?._id === msg._id
-                                    ? "ring-2 ring-emerald-200"
-                                    : "border border-slate-200"
-                                }`}
-                              >
-                                <p className="text-xs text-slate-500">
-                                  {msg.senderEmail} •{" "}
-                                  {msg.createdAt
-                                    ? new Date(msg.createdAt).toLocaleString()
-                                    : ""}
-                                </p>
-                                <p className="mt-1 text-sm leading-6 text-slate-800">
-                                  {msg.content}
-                                </p>
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </section>
-
-                      <section className="space-y-6">
-                        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                          <div className="border-b border-slate-200 px-4 py-3">
-                            <h3 className="text-sm font-semibold text-slate-900">
-                              Admin Decision Note
-                            </h3>
-                          </div>
-
-                          <div className="p-4">
-                            <textarea
-                              rows={4}
-                              value={adminNote}
-                              onChange={(e) => setAdminNote(e.target.value)}
-                              className="w-full rounded-2xl border border-slate-300 p-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                              placeholder="Add an internal note or message for the student"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                          <div className="border-b border-slate-200 px-4 py-3">
-                            <h3 className="text-sm font-semibold text-slate-900">
-                              Reply to Claimant
-                            </h3>
-                          </div>
-
-                          <div className="space-y-3 p-4">
-                            <textarea
-                              rows={5}
-                              value={replyContent}
-                              onChange={(e) => setReplyContent(e.target.value)}
-                              className="w-full rounded-2xl border border-slate-300 p-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                              placeholder="Write a clear reply to the claimant"
-                            />
-
-                            <button
-                              type="button"
-                              onClick={handleReply}
-                              disabled={sendingReply}
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                            >
-                              <FaReply />
-                              {sendingReply ? "Sending..." : "Send Reply"}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <div className="mb-2 flex items-center gap-2">
-                            <FaInbox className="text-slate-600" />
-                            <p className="text-sm font-semibold text-slate-900">
-                              Latest Claim Message
-                            </p>
-                          </div>
-                          <p className="text-sm leading-6 text-slate-600">
-                            {selectedClaim.claimMessage ||
-                              "No additional message provided."}
-                          </p>
-                        </div>
-                      </section>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="p-8">
-                  <EmptyState
-                    title="No claim selected"
-                    description="Choose a claim from the left panel to review it."
-                  />
-                </div>
-              )}
-            </main>
+            <ClaimReviewPanel
+              selectedClaim={selectedClaim}
+              currentConversationMessages={currentConversationMessages}
+              adminNote={adminNote}
+              replyContent={replyContent}
+              sendingReply={sendingReply}
+              updatingStatus={updatingStatus}
+              onAdminNoteChange={setAdminNote}
+              onReplyContentChange={setReplyContent}
+              onReply={handleReply}
+              onStatusUpdate={handleClaimStatusUpdate}
+            />
           </section>
         </div>
       </AdminContainer>
     </>
   );
 };
+
+function ClaimsSidebar({ claims, selectedClaim, filterType, onFilterChange, onClaimSelect }) {
+  return (
+    <aside className="rounded-[24px] border border-slate-200 bg-white overflow-hidden">
+      <div className="border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <FaClipboardCheck />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Claims</h2>
+            <p className="text-sm text-slate-500">
+              Select a claim to review details
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {claimStatuses.map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => onFilterChange(status)}
+              className={`rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                filterType === status
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {status === "all" ? "All" : formatLabel(status)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="max-h-[680px] overflow-y-auto">
+        {claims.length === 0 ? (
+          <div className="p-5">
+            <EmptyState
+              title="No claims found"
+              description="No claims match this filter."
+            />
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {claims.map((claim) => (
+              <button
+                key={claim._id}
+                type="button"
+                onClick={() => onClaimSelect(claim)}
+                className={`w-full px-5 py-4 text-left transition-colors hover:bg-slate-50 ${
+                  selectedClaim?._id === claim._id
+                    ? "bg-emerald-50 border-r-2 border-emerald-500"
+                    : "bg-white"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900 mb-1">
+                      {claim.itemTitle || "Untitled item"}
+                    </p>
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-slate-600 truncate">
+                        {claim.studentName || "Unknown student"}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {claim.studentEmail || "No email"}
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {claim.createdAt
+                        ? new Date(claim.createdAt).toLocaleDateString()
+                        : "No date"}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={getClaimBadgeClass(claim.status)}>
+                      {formatLabel(claim.status)}
+                    </span>
+                    {claim.status === "pending" && (
+                      <div className="h-2 w-2 rounded-full bg-amber-400"></div>
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function ClaimReviewPanel({
+  selectedClaim,
+  currentConversationMessages,
+  adminNote,
+  replyContent,
+  sendingReply,
+  updatingStatus,
+  onAdminNoteChange,
+  onReplyContentChange,
+  onReply,
+  onStatusUpdate,
+}) {
+  if (!selectedClaim) {
+    return (
+      <div className="rounded-[24px] border border-slate-200 bg-white p-8">
+        <EmptyState
+          title="No claim selected"
+          description="Choose a claim from the left panel to review it."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <main className="rounded-[24px] border border-slate-200 bg-white overflow-hidden">
+      {/* Header with actions */}
+      <div className="border-b border-slate-200 px-6 py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              {selectedClaim.itemTitle || "Claim Details"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Review claimant details, proof, and conversation history.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onStatusUpdate(selectedClaim._id, "approved")}
+              disabled={updatingStatus}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+            >
+              <FaCheck />
+              Approve
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onStatusUpdate(selectedClaim._id, "needs_more_proof")}
+              disabled={updatingStatus}
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-60 transition-colors"
+            >
+              <FaExclamationTriangle />
+              Needs Proof
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onStatusUpdate(selectedClaim._id, "rejected")}
+              disabled={updatingStatus}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60 transition-colors"
+            >
+              <FaBan />
+              Reject
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {/* Info cards */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <DetailCard title="Claimant Information" icon={<FaUserCheck />}>
+            <div className="space-y-2 text-sm">
+              <div>
+                <p className="font-semibold text-slate-900">
+                  {selectedClaim.studentName || "No name provided"}
+                </p>
+              </div>
+              <div className="space-y-1 text-slate-600">
+                <p className="flex items-center gap-2">
+                  <FaEnvelope className="text-xs" />
+                  {selectedClaim.studentEmail || "No email"}
+                </p>
+                <p>{selectedClaim.studentPhone || "No phone"}</p>
+                <p>Student ID: {selectedClaim.studentId || "Not provided"}</p>
+              </div>
+            </div>
+          </DetailCard>
+
+          <DetailCard title="Claim Information" icon={<FaClipboardCheck />}>
+            <div className="space-y-2 text-sm">
+              <div>
+                <p className="font-semibold text-slate-900">
+                  {selectedClaim.itemTitle || "Untitled item"}
+                </p>
+              </div>
+              <div className="space-y-1 text-slate-600">
+                <p className="flex items-center gap-2">
+                  <FaClock className="text-xs" />
+                  {selectedClaim.createdAt
+                    ? new Date(selectedClaim.createdAt).toLocaleString()
+                    : "No date"}
+                </p>
+                <p>Status: <span className={getClaimBadgeClass(selectedClaim.status)}>{formatLabel(selectedClaim.status)}</span></p>
+              </div>
+            </div>
+          </DetailCard>
+
+          <DetailCard title="Proof of Ownership" icon={<FaCheck />}>
+            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
+              {selectedClaim.proofOfOwnership || "No proof provided."}
+            </p>
+          </DetailCard>
+        </div>
+
+        {/* Main content area */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
+          {/* Conversation thread */}
+          <AdminConversationThread messages={currentConversationMessages} />
+
+          {/* Side panel */}
+          <div className="space-y-4">
+            <AdminInternalNotePanel
+              adminNote={adminNote}
+              onAdminNoteChange={onAdminNoteChange}
+            />
+
+            <ClaimReplyComposer
+              replyContent={replyContent}
+              sendingReply={sendingReply}
+              onReplyContentChange={onReplyContentChange}
+              onReply={onReply}
+            />
+
+            {selectedClaim.claimMessage && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <FaInbox className="text-slate-600" />
+                  <p className="text-sm font-semibold text-slate-900">
+                    Claim Message
+                  </p>
+                </div>
+                <p className="text-sm leading-6 text-slate-600">
+                  {selectedClaim.claimMessage}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function AdminConversationThread({ messages }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <FaComments className="text-emerald-700" />
+        <h3 className="text-sm font-semibold text-slate-900">
+          Conversation Thread
+        </h3>
+        <span className="ml-auto text-xs text-slate-500">
+          {messages.length} message{messages.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      <div className="max-h-[500px] overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+            <FaComments className="mx-auto text-slate-400 mb-2" size={24} />
+            <p className="text-sm text-slate-500">No messages yet for this claim.</p>
+          </div>
+        ) : (
+          messages.map((msg, index) => (
+            <ConversationMessageBubble
+              key={msg._id}
+              message={msg}
+              isLast={index === messages.length - 1}
+            />
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ConversationMessageBubble({ message, isLast }) {
+  const isAdmin = message.senderRole === "admin";
+  const isStudent = message.senderRole === "student";
+
+  return (
+    <div className={`flex gap-3 ${isAdmin ? "justify-end" : "justify-start"}`}>
+      {isStudent && (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+          <FaUser />
+        </div>
+      )}
+
+      <div className={`max-w-[70%] ${isAdmin ? "order-first" : ""}`}>
+        <div className={`rounded-2xl px-4 py-3 ${
+          isAdmin
+            ? "bg-emerald-600 text-white"
+            : "bg-slate-100 text-slate-900"
+        }`}>
+          <p className="text-sm leading-6 whitespace-pre-wrap">{message.content}</p>
+        </div>
+
+        <div className={`flex items-center gap-2 mt-1 text-xs ${
+          isAdmin ? "justify-end" : "justify-start"
+        }`}>
+          <span className="text-slate-500">
+            {message.senderEmail}
+          </span>
+          <span className="text-slate-400">
+            {message.createdAt
+              ? new Date(message.createdAt).toLocaleString()
+              : ""}
+          </span>
+        </div>
+      </div>
+
+      {isAdmin && (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+          A
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminInternalNotePanel({ adminNote, onAdminNoteChange }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+      <div className="border-b border-slate-200 px-4 py-3">
+        <h3 className="text-sm font-semibold text-slate-900">
+          Internal Admin Note
+        </h3>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Private notes for this claim (not visible to claimant)
+        </p>
+      </div>
+
+      <div className="p-4">
+        <textarea
+          rows={4}
+          value={adminNote}
+          onChange={(e) => onAdminNoteChange(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-none"
+          placeholder="Add internal notes about this claim..."
+        />
+      </div>
+    </div>
+  );
+}
+
+function ClaimReplyComposer({ replyContent, sendingReply, onReplyContentChange, onReply }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+      <div className="border-b border-slate-200 px-4 py-3">
+        <h3 className="text-sm font-semibold text-slate-900">
+          Reply to Claimant
+        </h3>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Send a message that will appear in the conversation
+        </p>
+      </div>
+
+      <div className="p-4 space-y-3">
+        <textarea
+          rows={4}
+          value={replyContent}
+          onChange={(e) => onReplyContentChange(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-none"
+          placeholder="Write your reply to the claimant..."
+        />
+
+        <button
+          type="button"
+          onClick={onReply}
+          disabled={sendingReply || !replyContent.trim()}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors w-full justify-center"
+        >
+          <FaPaperPlane />
+          {sendingReply ? "Sending..." : "Send Reply"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function HeaderStat({ label, value }) {
   return (
@@ -529,8 +660,8 @@ function HeaderStat({ label, value }) {
 
 function DetailCard({ title, icon, children }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-3">
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
         <span className="text-emerald-700">{icon}</span>
         <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
       </div>

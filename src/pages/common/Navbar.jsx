@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState, useCallback, useMemo } 
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import AuthContext from "../../context/Authcontext/AuthContext";
+import { schoolConfig } from "../../config/schoolConfig";
 
 const Navbar = () => {
   const { user, signOutUser, isAdmin } = useContext(AuthContext);
@@ -113,12 +114,16 @@ const Navbar = () => {
                 if (e.key === "Enter" || e.key === " ") navigate("/");
               }}
             >
-              <div className="brand-logo-shell flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-green-400 to-green-600 flex-shrink-0 shadow-[0_8px_18px_rgba(16,185,129,0.22)]">
-                <span className="text-2xl font-bold text-white">Z</span>
+              <div className="brand-logo-shell flex items-center justify-center w-16 h-16 rounded-lg bg-white/10 flex-shrink-0 shadow-[0_8px_18px_rgba(16,185,129,0.22)]">
+                <img
+                  src="/zetech-logo.png"
+                  alt="Zetech Foundit logo"
+                  className="w-full h-full object-contain rounded"
+                />
               </div>
 
               <div className="min-w-0 brand-text-wrap">
-                <h1 className="brand-title">Zetech Lost &amp; Found</h1>
+                <h1 className="brand-title">{schoolConfig.name}</h1>
                 <p className="brand-subtitle">Find, report, and recover items easily</p>
               </div>
             </div>

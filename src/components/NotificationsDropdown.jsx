@@ -10,10 +10,19 @@ const NotificationsDropdown = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const { messageCount, refetch: refetchCount } = useMessageCount();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('notificationsDismissed');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) {
+      return [];
+    }
+  });
+  const visibleCount = Math.max(0, messageCount - dismissedIds.length);
   const dropdownRef = useRef(null);
-  const { messageCount, refetch: refetchCount } = useMessageCount();
 
   const fetchMessages = useCallback(async () => {
     if (!user) return;
@@ -55,19 +64,35 @@ const NotificationsDropdown = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const deleteMessage = async (messageId) => {
+  useEffect(() => {
     try {
-      await messagesService.deleteMessage(messageId);
-      // Refetch messages and count after deletion
-      await fetchMessages();
-      // Refetch count separately since deleteMessage doesn't return count info
-      await refetchCount();
-      toast.success("Message deleted");
+      localStorage.setItem('notificationsDismissed', JSON.stringify(dismissedIds));
     } catch (error) {
-      console.error("[NotificationsDropdown] Error deleting message:", error);
-      toast.error("Failed to delete message");
+      console.warn('[NotificationsDropdown] localStorage save failed', error);
     }
+  }, [dismissedIds]);
+
+  const dismissNotification = (messageId) => {
+    setDismissedIds((prev) => Array.from(new Set([...prev, messageId])));
+    toast.success('Notification dismissed');
   };
+
+  const openThread = async (conversationId, messageId) => {
+    if (!conversationId) return;
+    try {
+      // mark as read if possible
+      if (messageId) {
+        await messagesService.markAsRead(messageId).catch(() => null);
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    setIsOpen(false);
+    navigate(`/app/messages?thread=${encodeURIComponent(conversationId)}`);
+  };
+
+  const visibleMessages = messages.filter((message) => !dismissedIds.includes(message._id));
 
   if (!user) return null;
 
@@ -80,20 +105,20 @@ const NotificationsDropdown = () => {
         aria-label="Open notifications"
       >
         <FaBell size={17} />
-        {messageCount > 0 && (
+        {visibleCount > 0 && (
           <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {messageCount > 9 ? "9+" : messageCount}
+            {visibleCount > 9 ? "9+" : visibleCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+        <div className="absolute top-full left-1/2 z-50 mt-2 w-[min(92vw,20rem)] max-w-[95vw] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg sm:left-auto sm:right-0 sm:translate-x-0 sm:w-80">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Admin Messages</h3>
               <p className="mt-0.5 text-xs text-slate-500">
-                {messageCount} {messageCount === 1 ? "message" : "messages"}
+                {visibleCount} {visibleCount === 1 ? "message" : "messages"} shown
               </p>
             </div>
 
@@ -102,63 +127,70 @@ const NotificationsDropdown = () => {
             </span>
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[60vh] overflow-y-auto sm:max-h-96">
             {loading ? (
               <div className="flex items-center justify-center p-8">
                 <div className="h-6 w-6 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
               </div>
-            ) : messages.length === 0 ? (
+            ) : visibleMessages.length === 0 ? (
               <div className="p-8 text-center text-slate-500">
                 <FaBell size={28} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No messages yet</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {messages.map((message) => {
-                  return (
-                    <div
-                      key={message._id}
-                      className="flex items-start justify-between gap-3 px-4 py-4 hover:bg-slate-50 transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center gap-2">
-                          <h4 className="truncate text-sm font-semibold text-slate-900">
-                            {message.senderEmail || "Admin"}
-                          </h4>
+                {visibleMessages.map((message) => {
+                    const conversationId = message.conversationId || message._id;
 
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 whitespace-nowrap">
-                            Admin
+                    return (
+                      <div
+                        key={message._id}
+                        className="flex items-start justify-between gap-3 px-4 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                        onClick={() => openThread(conversationId, message._id)}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex items-center gap-2">
+                            <h4 className="truncate text-sm font-semibold text-slate-900">
+                              {message.senderEmail || "Admin"}
+                            </h4>
+
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 whitespace-nowrap">
+                              Admin
+                            </span>
+                          </div>
+
+                          <p className="line-clamp-2 text-xs leading-5 text-slate-600">
+                            {message.content}
+                          </p>
+
+                          <span className="mt-2 block text-[11px] text-slate-400">
+                            {message.createdAt
+                              ? new Date(message.createdAt).toLocaleDateString()
+                              : ""}
                           </span>
                         </div>
 
-                        <p className="line-clamp-2 text-xs leading-5 text-slate-600">
-                          {message.content}
-                        </p>
-
-                        <span className="mt-2 block text-[11px] text-slate-400">
-                          {message.createdAt
-                            ? new Date(message.createdAt).toLocaleDateString()
-                            : ""}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dismissNotification(message._id);
+                          }}
+                          className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors flex-shrink-0"
+                          title="Dismiss notification"
+                          aria-label="Dismiss notification"
+                        >
+                          <FaTimes size={13} />
+                        </button>
                       </div>
+                    );
+                  })}
 
-                      <button
-                        type="button"
-                        onClick={() => deleteMessage(message._id)}
-                        className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors flex-shrink-0"
-                        title="Delete message"
-                        aria-label="Delete message"
-                      >
-                        <FaTimes size={13} />
-                      </button>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </div>
 
-          {messages.length > 0 && (
+          {visibleMessages.length > 0 && (
             <div className="border-t border-slate-200 px-4 py-3 text-center">
               <button
                 type="button"

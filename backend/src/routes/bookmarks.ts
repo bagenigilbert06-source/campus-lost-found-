@@ -38,9 +38,12 @@ router.post(
       // Check if bookmark already exists
       const existingBookmark = await Bookmark.findOne({ userId, itemId });
       if (existingBookmark) {
-        res.status(400).json({ 
-          success: false, 
-          message: 'Item already bookmarked' 
+        // Idempotent behavior: if already bookmarked, return success
+        res.status(200).json({
+          success: true,
+          message: 'Item already bookmarked',
+          bookmark: existingBookmark,
+          alreadyExists: true,
         });
         return;
       }

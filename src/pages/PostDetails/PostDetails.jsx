@@ -519,7 +519,7 @@ const PostDetails = () => {
                   Share Item
                 </button>
 
-                <BookmarkButton itemId={item._id} size="md" showLabel={true} />
+                {item._id && <BookmarkButton itemId={item._id} size="md" showLabel={true} />}
               </div>
             </section>
           </div>

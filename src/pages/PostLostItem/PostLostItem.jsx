@@ -193,6 +193,12 @@ const PostLostItem = () => {
       return false;
     }
 
+    // Enforce yyyy-MM-dd format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.dateLost)) {
+      toast.error('Date must be in the format YYYY-MM-DD');
+      return false;
+    }
+
     return true;
   };
 

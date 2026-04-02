@@ -1,21 +1,31 @@
-import React, { useState, useRef, useEffect, useContext, useCallback, memo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useContext,
+  useCallback,
+  useMemo,
+  memo,
+} from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { 
-  FaTimes, 
-  FaArrowUp, 
-  FaTrash, 
-  FaEdit, 
-  FaCopy, 
-  FaThumbsUp, 
+import {
+  FaTimes,
+  FaArrowUp,
+  FaTrash,
+  FaEdit,
+  FaCopy,
+  FaThumbsUp,
   FaThumbsDown,
   FaDownload,
   FaHistory,
-  FaTrophy,
   FaUndoAlt,
   FaEllipsisV,
   FaCheckCircle,
   FaTimesCircle,
-  FaClock
+  FaClock,
+  FaSearch,
+  FaComments,
+  FaRedo,
 } from "react-icons/fa";
 import { HiOutlineSparkles } from "react-icons/hi";
 import axios from "axios";
@@ -24,10 +34,110 @@ import { getIdToken } from "firebase/auth";
 import auth from "../firebase/firebase.init.js";
 import AuthContext from "../context/Authcontext/AuthContext";
 
+const suggestedPrompts = [
+  "How do I post a lost item?",
+  "How can I report found items?",
+  "What's the claiming process?",
+  "How do I search for items?",
+];
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, "")
+    : "";
+
+const STORAGE_KEYS = {
+  messages: "gemini_chat_messages",
+  sessionId: "gemini_chat_session",
+  rateLimitReset: "gemini_rate_limit_reset",
+  conversations: "gemini_chat_conversations",
+  messageRatings: "gemini_message_ratings",
+};
+
+const CHAT_WIDTH = "w-[calc(100vw-1rem)] sm:w-[420px] md:w-[460px]";
+const CHAT_HEIGHT =
+  "h-[min(82dvh,720px)] sm:h-[min(78dvh,720px)]";
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function safeParse(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function makeId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function toDate(value) {
+  if (value instanceof Date) return value;
+  if (!value) return new Date();
+  return new Date(value);
+}
+
+function formatTime(timestamp) {
+  return toDate(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatFullDate(timestamp) {
+  return toDate(timestamp).toLocaleString();
+}
+
+function serializeMessages(messages) {
+  return messages.map((message) => ({
+    ...message,
+    timestamp: toDate(message.timestamp).toISOString(),
+    editedAt: message.editedAt ? toDate(message.editedAt).toISOString() : null,
+  }));
+}
+
+function deserializeMessages(messages = []) {
+  return messages.map((message) => ({
+    ...message,
+    timestamp: toDate(message.timestamp),
+    editedAt: message.editedAt ? toDate(message.editedAt) : null,
+  }));
+}
+
+function serializeConversations(conversations) {
+  return conversations.map((conversation) => ({
+    ...conversation,
+    createdAt: toDate(conversation.createdAt).toISOString(),
+    messages: serializeMessages(conversation.messages || []),
+  }));
+}
+
+function deserializeConversations(conversations = []) {
+  return conversations.map((conversation) => ({
+    ...conversation,
+    createdAt: toDate(conversation.createdAt),
+    messages: deserializeMessages(conversation.messages || []),
+  }));
+}
+
+function useDebouncedEffect(effect, deps, delay = 250) {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      effect();
+    }, delay);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, delay]);
+}
+
 const GeminiMark = memo(function GeminiMark({ className = "" }) {
   return (
     <div
-      className={`relative flex items-center justify-center ${className}`}
+      className={cn("relative flex items-center justify-center", className)}
       aria-hidden="true"
     >
       <div className="absolute h-3.5 w-3.5 rotate-45 rounded-[0.4rem] bg-emerald-400/90" />
@@ -39,1428 +149,1435 @@ const GeminiMark = memo(function GeminiMark({ className = "" }) {
   );
 });
 
-// Premium Message Renderer for clean, organized content
-const RichMessageRenderer = memo(function RichMessageRenderer({ text, isUserMessage }) {
-  // Parse and format different content types
-  const parseContent = (content) => {
-    // Split by double newlines to create sections
-    const sections = content.split('\n\n').filter(s => s.trim());
-    
-    return sections.map((section, idx) => {
-      section = section.trim();
-      
-      // Check for numbered lists
-      if (/^\d+\.\s/.test(section)) {
-        const items = section.split('\n').filter(s => s.trim());
-        return (
-          <ol key={idx} className="list-decimal list-inside space-y-2 my-3 pl-2">
-            {items.map((item, i) => (
-              <li key={i} className="text-slate-700 leading-relaxed">
-                {item.replace(/^\d+\.\s*/, '').trim()}
-              </li>
-            ))}
-          </ol>
-        );
-      }
-      
-      // Check for bullet lists
-      if (/^[-•*]\s/.test(section)) {
-        const items = section.split('\n').filter(s => s.trim());
-        return (
-          <ul key={idx} className="list-disc list-inside space-y-2 my-3 pl-2">
-            {items.map((item, i) => (
-              <li key={i} className="text-slate-700 leading-relaxed">
-                {item.replace(/^[-•*]\s*/, '').trim()}
-              </li>
-            ))}
-          </ul>
-        );
-      }
-      
-      // Check for code blocks
-      if (section.includes('```')) {
-        const codeMatch = section.match(/```(\w+)?\n([\s\S]*?)\n```/);
+const RichMessageRenderer = memo(function RichMessageRenderer({
+  text,
+  isUserMessage,
+}) {
+  const sections = useMemo(
+    () => String(text || "").split("\n\n").filter((section) => section.trim()),
+    [text]
+  );
+
+  if (isUserMessage) {
+    return (
+      <p className="whitespace-pre-wrap break-words leading-relaxed text-[14px] sm:text-sm">
+        {text}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {sections.map((section, idx) => {
+        const trimmed = section.trim();
+
+        if (/^\d+\.\s/m.test(trimmed) && trimmed.split("\n").length > 1) {
+          const items = trimmed.split("\n").filter(Boolean);
+          return (
+            <ol
+              key={idx}
+              className="list-decimal space-y-2 pl-5 text-[14px] leading-6 text-slate-800"
+            >
+              {items.map((item, itemIndex) => (
+                <li key={itemIndex}>{item.replace(/^\d+\.\s*/, "")}</li>
+              ))}
+            </ol>
+          );
+        }
+
+        if (/^[-•*]\s/m.test(trimmed) && trimmed.split("\n").length > 1) {
+          const items = trimmed.split("\n").filter(Boolean);
+          return (
+            <ul
+              key={idx}
+              className="list-disc space-y-2 pl-5 text-[14px] leading-6 text-slate-800"
+            >
+              {items.map((item, itemIndex) => (
+                <li key={itemIndex}>{item.replace(/^[-•*]\s*/, "")}</li>
+              ))}
+            </ul>
+          );
+        }
+
+        const codeMatch = trimmed.match(/```(\w+)?\n([\s\S]*?)```/);
         if (codeMatch) {
           return (
-            <pre key={idx} className="bg-slate-900 text-slate-50 rounded-lg px-4 py-3 overflow-x-auto my-3 text-xs font-mono border border-slate-700">
-              <code>{codeMatch[2]}</code>
+            <pre
+              key={idx}
+              className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-xs text-slate-100"
+            >
+              <code>{codeMatch[2].trim()}</code>
             </pre>
           );
         }
-      }
-      
-      // Check for bold/emphasis markers
-      let formattedText = section
-        .replace(/\*\*(.*?)\*\*/g, '<strong className="font-semibold text-slate-900">$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em className="italic">$1</em>')
-        .replace(/__([^_]+)__/g, '<strong className="font-bold">$1</strong>');
-      
-      // Detect headers (lines starting with #)
-      if (section.startsWith('#')) {
-        const level = section.match(/^#+/)[0].length;
-        const headerText = section.replace(/^#+\s*/, '');
-        const sizeClasses = {
-          1: 'text-lg font-bold text-slate-900',
-          2: 'text-base font-semibold text-slate-800',
-          3: 'text-sm font-semibold text-slate-800'
-        };
-        return (
-          <h3 key={idx} className={`${sizeClasses[Math.min(level, 3)] || 'font-semibold'} mb-2 mt-3`}>
-            {headerText}
-          </h3>
-        );
-      }
-      
-      // Regular paragraph with enhanced formatting
-      return (
-        <p key={idx} className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap break-words mb-3 last:mb-0">
-          {section}
-        </p>
-      );
-    });
-  };
 
-  return (
-    <div className={`${isUserMessage ? 'text-white' : 'text-slate-900'}`}>
-      {isUserMessage ? (
-        // Simple clean format for user messages
-        <p className="whitespace-pre-wrap break-words leading-relaxed">
-          {text}
-        </p>
-      ) : (
-        // Rich formatted content for bot messages
-        <div className="space-y-2">
-          {parseContent(text)}
-        </div>
-      )}
+        if (trimmed.startsWith("#")) {
+          const level = Math.min(trimmed.match(/^#+/)[0].length, 3);
+          const content = trimmed.replace(/^#+\s*/, "");
+          const classes = {
+            1: "text-base font-semibold text-slate-900",
+            2: "text-[15px] font-semibold text-slate-900",
+            3: "text-sm font-semibold text-slate-900",
+          };
+          return (
+            <h3 key={idx} className={classes[level]}>
+              {content}
+            </h3>
+          );
+        }
+
+        return (
+          <p
+            key={idx}
+            className="whitespace-pre-wrap break-words text-[14px] leading-6 text-slate-800"
+          >
+            {trimmed}
+          </p>
+        );
+      })}
     </div>
   );
 });
 
-const suggestedPrompts = [
-  "How do I post a lost item?",
-  "How can I report found items?",
-  "What's the claiming process?",
-  "How do I search for items?",
-];
+const WelcomeView = memo(function WelcomeView({ onSuggestionClick }) {
+  return (
+    <div className="flex h-full flex-col justify-center px-4 py-6 sm:px-6">
+      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 shadow-sm">
+        <HiOutlineSparkles className="text-2xl text-white" />
+      </div>
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
+      <div className="text-center">
+        <h3 className="text-lg font-semibold text-slate-900">
+          Ask the assistant anything
+        </h3>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Fast, clean, and responsive chat for your lost and found platform.
+        </p>
+      </div>
 
-// Local storage keys
-const STORAGE_KEYS = {
-  messages: "gemini_chat_messages",
-  sessionId: "gemini_chat_session",
-  rateLimitReset: "gemini_rate_limit_reset",
-  conversations: "gemini_chat_conversations",
-  messageRatings: "gemini_message_ratings",
-};
+      <div className="mt-6 grid gap-2">
+        {suggestedPrompts.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => onSuggestionClick(prompt)}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+});
 
-const GeminiChatbot = ({ isAuthenticated = false, context = "" }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [showWelcome, setShowWelcome] = useState(true);
-  const [inputValue, setInputValue] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
-  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
-  const [typingMessage, setTypingMessage] = useState("");
-  const [lastFallbackUsed, setLastFallbackUsed] = useState(false);
-  
-  // New features state
-  const [editingId, setEditingId] = useState(null);
-  const [editingText, setEditingText] = useState("");
-  const [hoveredMessageId, setHoveredMessageId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
-  const [expandedOptions, setExpandedOptions] = useState(null);
-  const [messageRatings, setMessageRatings] = useState({});
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-  const [conversations, setConversations] = useState([]);
-  const [currentConversationId, setCurrentConversationId] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [messageUndoStack, setMessageUndoStack] = useState([]);
-  const [failedMessages, setFailedMessages] = useState({});
+const TypingIndicator = memo(function TypingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.2s]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.1s]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
+        </div>
+      </div>
+    </div>
+  );
+});
 
-  const messagesEndRef = useRef(null);
-  const textareaRef = useRef(null);
-  const rateLimitTimerRef = useRef(null);
-  const menuRef = useRef({});
+const MessageActions = memo(function MessageActions({
+  message,
+  expanded,
+  rating,
+  onToggleMenu,
+  onCopy,
+  onStartEdit,
+  onRate,
+  onDelete,
+}) {
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => onToggleMenu(message.id)}
+        className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+        aria-label="Message options"
+      >
+        <FaEllipsisV className="text-xs" />
+      </button>
 
-  const { user } = useContext(AuthContext);
-  const reduceMotion = useReducedMotion();
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ duration: 0.14 }}
+            className="absolute right-0 top-full z-30 mt-2 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+          >
+            <button
+              type="button"
+              onClick={() => onCopy(message)}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+            >
+              <FaCopy className="text-[11px]" />
+              Copy
+            </button>
 
-  // Helper function to safely convert timestamp to Date object
-  const getDateFromTimestamp = (timestamp) => {
-    if (timestamp instanceof Date) {
-      return timestamp;
-    }
-    if (typeof timestamp === 'string') {
-      return new Date(timestamp);
-    }
-    return new Date();
-  };
+            {message.sender === "user" && !message.isError && (
+              <button
+                type="button"
+                onClick={() => onStartEdit(message)}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+              >
+                <FaEdit className="text-[11px]" />
+                Edit
+              </button>
+            )}
 
-  // New Feature Handlers
-  
-  // Delete message with confirmation
-  const handleDeleteMessage = (messageId) => {
-    if (showDeleteConfirm === messageId) {
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
-      setShowDeleteConfirm(null);
-      toast.success("Message deleted");
-    } else {
-      setShowDeleteConfirm(messageId);
-    }
-  };
+            {message.sender === "bot" && !message.isError && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onRate(message.id, "up")}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-slate-50",
+                    rating === "up" ? "bg-emerald-50 text-emerald-700" : "text-slate-700"
+                  )}
+                >
+                  <FaThumbsUp className="text-[11px]" />
+                  Helpful
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRate(message.id, "down")}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-slate-50",
+                    rating === "down" ? "bg-rose-50 text-rose-700" : "text-slate-700"
+                  )}
+                >
+                  <FaThumbsDown className="text-[11px]" />
+                  Not helpful
+                </button>
+              </>
+            )}
 
-  // Cancel delete
-  const handleCancelDelete = () => {
-    setShowDeleteConfirm(null);
-  };
+            <button
+              type="button"
+              onClick={() => onDelete(message.id)}
+              className="flex w-full items-center gap-2 border-t border-slate-200 px-3 py-2.5 text-left text-xs text-rose-600 hover:bg-rose-50"
+            >
+              <FaTrash className="text-[11px]" />
+              Delete
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
 
-  // Start editing a message
-  const handleStartEdit = (message) => {
-    setEditingId(message.id);
-    setEditingText(message.text);
-  };
+const MessageRow = memo(function MessageRow({
+  message,
+  isEditing,
+  editingText,
+  setEditingText,
+  onSaveEdit,
+  onCancelEdit,
+  expandedOptions,
+  messageRatings,
+  showDeleteConfirm,
+  onToggleMenu,
+  onCopy,
+  onStartEdit,
+  onRate,
+  onDelete,
+  onConfirmDelete,
+  onCancelDelete,
+  onRetry,
+}) {
+  const isUser = message.sender === "user";
 
-  // Save edited message
-  const handleSaveEdit = async (messageId) => {
-    if (!editingText.trim()) {
-      toast.error("Message cannot be empty");
-      return;
-    }
-    
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId 
-        ? { ...msg, text: editingText, edited: true, editedAt: new Date() }
-        : msg
-    ));
-    
-    setEditingId(null);
-    setEditingText("");
-    toast.success("Message updated");
-  };
+  return (
+    <div className={cn("group flex", isUser ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "flex max-w-[92%] items-end gap-2 sm:max-w-[86%]",
+          isUser ? "flex-row-reverse" : "flex-row"
+        )}
+      >
+        {!isUser && (
+          <div className="mb-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white sm:flex">
+            <HiOutlineSparkles className="text-sm" />
+          </div>
+        )}
 
-  // Copy message to clipboard
-  const handleCopyMessage = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success("Message copied!");
-    });
-  };
+        <div className="min-w-0">
+          <div
+            className={cn(
+              "rounded-2xl border px-4 py-3 shadow-sm",
+              isUser
+                ? "rounded-br-md border-emerald-700 bg-emerald-700 text-white"
+                : message.isError
+                ? "rounded-bl-md border-rose-200 bg-rose-50 text-rose-900"
+                : "rounded-bl-md border-slate-200 bg-white text-slate-900"
+            )}
+          >
+            {isEditing ? (
+              <div className="space-y-3">
+                <textarea
+                  value={editingText}
+                  onChange={(event) => setEditingText(event.target.value)}
+                  className="min-h-[90px] w-full resize-none rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none ring-0 placeholder:text-slate-400 focus:border-emerald-500"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSaveEdit(message.id)}
+                    className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCancelEdit}
+                    className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <RichMessageRenderer text={message.text} isUserMessage={isUser} />
+                {message.fallbackUsed && !message.isError && (
+                  <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                    <FaCheckCircle className="text-[10px]" />
+                    Fallback response
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
-  // Rate message
-  const handleRateMessage = (messageId, rating) => {
-    setMessageRatings(prev => ({
-      ...prev,
-      [messageId]: prev[messageId] === rating ? null : rating
-    }));
-  };
+          <div
+            className={cn(
+              "mt-1.5 flex items-center gap-2 px-1 text-[11px] text-slate-400",
+              isUser ? "justify-end" : "justify-start"
+            )}
+          >
+            <span title={formatFullDate(message.timestamp)}>
+              {formatTime(message.timestamp)}
+            </span>
+            {message.edited && <span>edited</span>}
+            {message.isError && (
+              <span className="inline-flex items-center gap-1 text-rose-500">
+                <FaTimesCircle className="text-[10px]" />
+                failed
+              </span>
+            )}
+          </div>
 
-  // Search messages
-  const getFilteredMessages = () => {
-    if (!searchQuery.trim()) return messages;
-    const query = searchQuery.toLowerCase();
-    return messages.filter(msg => 
-      msg.text.toLowerCase().includes(query)
-    );
-  };
+          {showDeleteConfirm === message.id && (
+            <div className="mt-2 flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => onConfirmDelete(message.id)}
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700"
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                onClick={onCancelDelete}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
-  // Export chat as text
-  const handleExportChat = () => {
-    const chatText = messages
-      .map(msg => {
-        const time = getDateFromTimestamp(msg.timestamp).toLocaleTimeString();
-        const sender = msg.sender === "user" ? "You" : "Gemini Assistant";
-        return `[${time}] ${sender}: ${msg.text}`;
-      })
-      .join("\n\n");
-    
-    const element = document.createElement("a");
-    element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(chatText));
-    element.setAttribute("download", `chat-${new Date().toISOString().split('T')[0]}.txt`);
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    toast.success("Chat exported!");
-  };
+          {message.isError && message.canRetry && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => onRetry(message.retryText || message.text)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <FaRedo className="text-[10px]" />
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
 
-  // Export chat as JSON
-  const handleExportJSON = () => {
-    const chatData = {
-      exportDate: new Date().toISOString(),
-      messagesCount: messages.length,
-      messages: messages.map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp.toISOString()
-      }))
-    };
-    
-    const element = document.createElement("a");
-    element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chatData, null, 2)));
-    element.setAttribute("download", `chat-${new Date().toISOString().split('T')[0]}.json`);
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    toast.success("Chat exported as JSON!");
-  };
+        {!isEditing && (
+          <MessageActions
+            message={message}
+            expanded={expandedOptions === message.id}
+            rating={messageRatings[message.id]}
+            onToggleMenu={onToggleMenu}
+            onCopy={onCopy}
+            onStartEdit={onStartEdit}
+            onRate={onRate}
+            onDelete={onDelete}
+          />
+        )}
+      </div>
+    </div>
+  );
+});
 
-  // Save conversation to history
-  const handleSaveConversation = () => {
-    if (messages.length === 0) {
-      toast.error("No messages to save");
-      return;
-    }
-    
-    const newConversation = {
-      id: `conv-${Date.now()}`,
-      title: messages[0]?.text?.substring(0, 50) || "New Conversation",
-      messages: [...messages],
-      createdAt: new Date(),
-      messageCount: messages.length
-    };
-    
-    setConversations(prev => [newConversation, ...prev]);
-    toast.success("Conversation saved!");
-  };
+const MessageList = memo(function MessageList(props) {
+  const {
+    messages,
+    isLoading,
+    messageEndRef,
+    containerRef,
+    onScroll,
+  } = props;
 
-  // Load a conversation from history
-  const handleLoadConversation = (conversation) => {
-    setMessages(conversation.messages);
-    setCurrentConversationId(conversation.id);
-    setShowHistory(false);
-    setShowWelcome(false);
-  };
+  return (
+    <div
+      ref={containerRef}
+      onScroll={onScroll}
+      className="flex-1 space-y-4 overflow-y-auto px-3 py-4 sm:px-4"
+      style={{ overscrollBehavior: "contain" }}
+    >
+      {messages.map((message) => (
+        <MessageRow key={message.id} {...props} message={message} />
+      ))}
 
-  // Delete conversation from history
-  const handleDeleteConversation = (conversationId) => {
-    setConversations(prev => prev.filter(conv => conv.id !== conversationId));
-    if (currentConversationId === conversationId) {
-      setCurrentConversationId(null);
-      setMessages([]);
-      setShowWelcome(true);
-    }
-    toast.success("Conversation deleted");
-  };
+      {isLoading && <TypingIndicator />}
 
-  // Undo last message
-  const handleUndo = () => {
-    if (messages.length > 0) {
-      setMessageUndoStack(prev => [...prev, ...messages]);
-      setMessages(prev => prev.slice(0, -1));
-      toast.success("Message removed");
-    }
-  };
+      <div ref={messageEndRef} />
+    </div>
+  );
+});
 
-  // Retry failed message
-  const handleRetryMessage = (messageId) => {
-    const message = messages.find(m => m.id === messageId);
-    if (message) {
-      setFailedMessages(prev => {
-        const updated = { ...prev };
-        delete updated[messageId];
-        return updated;
-      });
-      toast.success("Retrying message...");
-    }
-  };
+const HistoryDrawer = memo(function HistoryDrawer({
+  open,
+  conversations,
+  currentConversationId,
+  onLoadConversation,
+  onDeleteConversation,
+  onClose,
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.button
+            type="button"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 z-20 bg-slate-950/30"
+            aria-label="Close history"
+          />
+          <motion.aside
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.18 }}
+            className="absolute inset-y-0 right-0 z-30 w-[88%] max-w-[320px] border-l border-slate-200 bg-white"
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">History</h3>
+                <p className="text-xs text-slate-500">
+                  Saved conversations
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <FaTimes className="text-sm" />
+              </button>
+            </div>
 
-  // Format time for tooltip
-  const formatFullDate = (timestamp) => {
-    const date = getDateFromTimestamp(timestamp);
-    return date.toLocaleString();
-  };
+            <div className="h-[calc(100%-61px)] overflow-y-auto p-3">
+              {conversations.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                  No saved conversations yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {conversations.map((conversation) => (
+                    <div
+                      key={conversation.id}
+                      className={cn(
+                        "rounded-2xl border p-3",
+                        currentConversationId === conversation.id
+                          ? "border-emerald-300 bg-emerald-50"
+                          : "border-slate-200 bg-white"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onLoadConversation(conversation)}
+                        className="w-full text-left"
+                      >
+                        <div className="line-clamp-2 text-sm font-medium text-slate-800">
+                          {conversation.title}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {conversation.messageCount || conversation.messages?.length || 0} messages
+                        </div>
+                        <div className="mt-1 text-xs text-slate-400">
+                          {formatFullDate(conversation.createdAt)}
+                        </div>
+                      </button>
 
-  // Load persisted data on mount
-  useEffect(() => {
-    const savedMessages = localStorage.getItem(STORAGE_KEYS.messages);
-    const savedSessionId = localStorage.getItem(STORAGE_KEYS.sessionId);
-    const savedRateLimitReset = localStorage.getItem(STORAGE_KEYS.rateLimitReset);
-    const savedConversations = localStorage.getItem(STORAGE_KEYS.conversations);
-    const savedRatings = localStorage.getItem(STORAGE_KEYS.messageRatings);
+                      <button
+                        type="button"
+                        onClick={() => onDeleteConversation(conversation.id)}
+                        className="mt-3 inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                      >
+                        <FaTrash className="text-[10px]" />
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.aside>
+        </>
+      )}
+    </AnimatePresence>
+  );
+});
 
-    if (savedMessages) {
-      try {
-        const parsed = JSON.parse(savedMessages);
-        // Convert timestamp strings back to Date objects
-        const messagesWithDates = parsed.map((msg) => ({
-          ...msg,
-          timestamp: getDateFromTimestamp(msg.timestamp),
-        }));
-        setMessages(messagesWithDates);
-      } catch (e) {
-        console.error("Failed to parse saved messages:", e);
-      }
-    }
+const ChatHeader = memo(function ChatHeader({
+  showSearch,
+  setShowSearch,
+  searchQuery,
+  setSearchQuery,
+  filteredCount,
+  messageCount,
+  onToggleHistory,
+  onSaveConversation,
+  onExportText,
+  onExportJSON,
+  onClose,
+}) {
+  return (
+    <div className="border-b border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-900 px-3 py-3 text-white sm:px-4">
+      <div className="flex items-center gap-3">
+        <GeminiMark />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold">AI Assistant</div>
+          <div className="text-xs text-white/70">
+            {messageCount > 0 ? `${messageCount} messages` : "Ready to help"}
+          </div>
+        </div>
 
-    // Load conversations
-    if (savedConversations) {
-      try {
-        const parsed = JSON.parse(savedConversations);
-        const conversationsWithDates = parsed.map(conv => ({
-          ...conv,
-          createdAt: getDateFromTimestamp(conv.createdAt),
-          messages: conv.messages.map(msg => ({
-            ...msg,
-            timestamp: getDateFromTimestamp(msg.timestamp)
-          }))
-        }));
-        setConversations(conversationsWithDates);
-      } catch (e) {
-        console.error("Failed to parse conversations:", e);
-      }
-    }
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setShowSearch((prev) => !prev)}
+            className="rounded-xl p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+            aria-label="Search messages"
+          >
+            <FaSearch className="text-sm" />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleHistory}
+            className="rounded-xl p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+            aria-label="Conversation history"
+          >
+            <FaHistory className="text-sm" />
+          </button>
+          <div className="hidden items-center gap-1 sm:flex">
+            <button
+              type="button"
+              onClick={onSaveConversation}
+              className="rounded-xl p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+              aria-label="Save conversation"
+            >
+              <FaComments className="text-sm" />
+            </button>
+            <button
+              type="button"
+              onClick={onExportText}
+              className="rounded-xl p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+              aria-label="Export text"
+            >
+              <FaDownload className="text-sm" />
+            </button>
+            <button
+              type="button"
+              onClick={onExportJSON}
+              className="rounded-xl p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+              aria-label="Export JSON"
+            >
+              <FaClock className="text-sm" />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+            aria-label="Close chat"
+          >
+            <FaTimes className="text-sm" />
+          </button>
+        </div>
+      </div>
 
-    // Load message ratings
-    if (savedRatings) {
-      try {
-        const parsed = JSON.parse(savedRatings);
-        setMessageRatings(parsed);
-      } catch (e) {
-        console.error("Failed to parse ratings:", e);
-      }
-    }
+      <AnimatePresence initial={false}>
+        {showSearch && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.14 }}
+            className="mt-3"
+          >
+            <div className="flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2.5 ring-1 ring-white/10">
+              <FaSearch className="text-xs text-white/70" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search messages"
+                className="w-full bg-transparent text-sm text-white placeholder:text-white/55 outline-none"
+              />
+              <span className="shrink-0 text-[11px] text-white/65">
+                {filteredCount}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
 
-    const newSessionId = savedSessionId || `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setSessionId(newSessionId);
-    localStorage.setItem(STORAGE_KEYS.sessionId, newSessionId);
-    setCurrentConversationId(newSessionId);
-
-    // Check if rate limit is still active
-    if (savedRateLimitReset) {
-      const resetTime = Number(savedRateLimitReset);
-      const now = Date.now();
-      if (resetTime > now) {
-        const remainingMs = resetTime - now;
-        setRateLimitCooldown(Math.ceil(remainingMs / 1000));
-        startRateLimitTimer(remainingMs);
-      } else {
-        localStorage.removeItem(STORAGE_KEYS.rateLimitReset);
-      }
-    }
-
-    setShowWelcome(savedMessages ? false : true);
-  }, []);
-
-  // Persist messages to localStorage
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
-    }
-  }, [messages]);
-
-  // Persist conversations
-  useEffect(() => {
-    if (conversations.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.conversations, JSON.stringify(conversations));
-    }
-  }, [conversations]);
-
-  // Persist message ratings
-  useEffect(() => {
-    if (Object.keys(messageRatings).length > 0) {
-      localStorage.setItem(STORAGE_KEYS.messageRatings, JSON.stringify(messageRatings));
-    }
-  }, [messageRatings]);
-
-  // Rate limit cooldown timer
-  const startRateLimitTimer = (milliseconds) => {
-    if (rateLimitTimerRef.current) {
-      clearInterval(rateLimitTimerRef.current);
-    }
-
-    const endTime = Date.now() + milliseconds;
-    rateLimitTimerRef.current = setInterval(() => {
-      const remaining = endTime - Date.now();
-      if (remaining <= 0) {
-        setRateLimitCooldown(0);
-        clearInterval(rateLimitTimerRef.current);
-        localStorage.removeItem(STORAGE_KEYS.rateLimitReset);
-      } else {
-        setRateLimitCooldown(Math.ceil(remaining / 1000));
-      }
-    }, 1000);
-  };
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "end",
-    });
-  }, [reduceMotion]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading, typingMessage, scrollToBottom]);
-
+const ChatComposer = memo(function ChatComposer({
+  inputValue,
+  setInputValue,
+  onSubmit,
+  onClearChat,
+  isLoading,
+  rateLimitCooldown,
+  error,
+  textareaRef,
+}) {
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+  }, [inputValue, textareaRef]);
 
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`;
-  }, [inputValue]);
+  const onKeyDown = useCallback(
+    (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        onSubmit(event);
+      }
+    },
+    [onSubmit]
+  );
 
-  const handleOpenChat = () => {
-    setIsOpen(true);
-    if (messages.length === 0) {
-      setShowWelcome(true);
+  return (
+    <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
+      <form onSubmit={onSubmit} className="space-y-3">
+        <div className="flex items-end gap-2 rounded-3xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-emerald-500 focus-within:bg-white">
+          <textarea
+            ref={textareaRef}
+            value={inputValue}
+            onChange={(event) => setInputValue(event.target.value)}
+            onKeyDown={onKeyDown}
+            rows={1}
+            placeholder="Type your message..."
+            className="max-h-[120px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !inputValue.trim() || rateLimitCooldown > 0}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            aria-label="Send message"
+          >
+            <FaArrowUp className="text-sm" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+            <FaTimesCircle className="text-sm" />
+            {error}
+          </div>
+        )}
+
+        {rateLimitCooldown > 0 && (
+          <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <FaClock className="text-sm" />
+            Please wait {rateLimitCooldown}s before sending again.
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onClearChat}
+            className="text-xs font-medium text-slate-500 transition hover:text-slate-700"
+          >
+            Clear chat
+          </button>
+          <div className="text-[11px] text-slate-400">
+            Enter to send • Shift+Enter for new line
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+});
+
+const GeminiChatbot = ({ isAuthenticated = false, context = "" }) => {
+  const { user } = useContext(AuthContext);
+  const reduceMotion = useReducedMotion();
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [messages, setMessages] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [messageRatings, setMessageRatings] = useState({});
+  const [inputValue, setInputValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [expandedOptions, setExpandedOptions] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastFallbackUsed, setLastFallbackUsed] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [undoStack, setUndoStack] = useState([]);
+
+  const messageEndRef = useRef(null);
+  const messageContainerRef = useRef(null);
+  const textareaRef = useRef(null);
+  const rateLimitTimerRef = useRef(null);
+
+  const filteredMessages = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return messages;
+    return messages.filter((message) =>
+      String(message.text || "").toLowerCase().includes(query)
+    );
+  }, [messages, searchQuery]);
+
+  const buildContext = useCallback(() => {
+    if (isAuthenticated && user) {
+      return `User is authenticated. ${context || ""}`.trim();
     }
-  };
+    return `User is browsing public pages. ${context || ""}`.trim();
+  }, [context, isAuthenticated, user]);
 
-  const handleCloseChat = () => {
-    setIsOpen(false);
-    setShowWelcome(messages.length === 0);
-    setError(null);
-  };
-
-  const handleInputChange = (e) => {
-    setInputValue(e.target.value);
-  };
-
-  const handleSuggestionClick = (prompt) => {
-    setShowWelcome(false);
-    setInputValue(prompt);
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  };
-
-  const handleClearChat = () => {
-    setMessages([]);
-    setShowWelcome(true);
-    setError(null);
-    setTypingMessage("");
-    localStorage.removeItem(STORAGE_KEYS.messages);
-  };
-
-  const getFirebaseToken = async () => {
+  const getFirebaseToken = useCallback(async () => {
     try {
       const currentUser = auth.currentUser;
       if (currentUser) {
         return await getIdToken(currentUser);
       }
-    } catch (error) {
-      console.error("Error getting Firebase token:", error);
+    } catch (tokenError) {
+      console.error("Error getting Firebase token:", tokenError);
     }
     return null;
-  };
+  }, []);
 
-  const buildContext = () => {
-    if (isAuthenticated && user) {
-      return `User is authenticated. ${context || ""}`.trim();
+  const appendMessage = useCallback((message) => {
+    setMessages((prev) => [...prev, message]);
+  }, []);
+
+  const clearRateLimitTimer = useCallback(() => {
+    if (rateLimitTimerRef.current) {
+      clearInterval(rateLimitTimerRef.current);
+      rateLimitTimerRef.current = null;
     }
-    return `User is browsing public pages. ${context || ""}`.trim();
-  };
+  }, []);
 
-  // Simulate typing animation
-  const typeMessage = async (fullText, messageId) => {
-    let current = "";
-    const typingSpeed = 5; // ms per character
+  const startRateLimitTimer = useCallback(
+    (milliseconds) => {
+      clearRateLimitTimer();
 
-    for (let i = 0; i < fullText.length; i++) {
-      current += fullText[i];
-      setTypingMessage(current);
-      await new Promise((resolve) => setTimeout(resolve, typingSpeed));
-    }
+      const endTime = Date.now() + milliseconds;
+      rateLimitTimerRef.current = setInterval(() => {
+        const remaining = endTime - Date.now();
+        if (remaining <= 0) {
+          clearRateLimitTimer();
+          setRateLimitCooldown(0);
+          localStorage.removeItem(STORAGE_KEYS.rateLimitReset);
+          return;
+        }
+        setRateLimitCooldown(Math.ceil(remaining / 1000));
+      }, 1000);
+    },
+    [clearRateLimitTimer]
+  );
 
-    // Add the complete message
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: messageId,
-        text: fullText,
-        sender: "bot",
-        timestamp: new Date(),
-        fallbackUsed: lastFallbackUsed,
-      },
-    ]);
+  const handleAIError = useCallback(
+    (data, httpStatus, originalUserText = "") => {
+      const errorCode = data?.code;
+      const errorMessage = data?.error || data?.message || "Failed to get response.";
 
-    setTypingMessage("");
-  };
+      if (errorCode === "RATE_LIMIT" || data?.rateLimit?.isLimited) {
+        const resetIn = data?.rateLimit?.resetIn || 60;
+        const resetTime = Date.now() + resetIn * 1000;
 
-  /**
-   * Handle AI service errors (checks response data for error codes)
-   * The backend now returns 200 status for all responses, with error details in data.code
-   */
-  const handleAIError = (data, httpStatus) => {
-    const errorCode = data?.code;
-    const errorMessage = data?.error || data?.message;
+        localStorage.setItem(STORAGE_KEYS.rateLimitReset, String(resetTime));
+        setRateLimitCooldown(resetIn);
+        startRateLimitTimer(resetIn * 1000);
 
-    console.log("[Chatbot] AI Error:", { code: errorCode, httpStatus, message: errorMessage });
+        toast.error(
+          data?.rateLimit?.message ||
+            `Rate limit reached. Please wait ${Math.ceil(resetIn / 60)} minute(s).`,
+          { duration: 6000 }
+        );
 
-    // Handle different error codes from response data
-    if (errorCode === 'RATE_LIMIT' || data?.rateLimit?.isLimited) {
-      // Rate limit from Google API
-      const resetIn = data.rateLimit?.resetIn || 60;
-      const resetTime = Date.now() + resetIn * 1000;
-      localStorage.setItem(STORAGE_KEYS.rateLimitReset, String(resetTime));
-      startRateLimitTimer(resetIn * 1000);
-      setRateLimitCooldown(resetIn);
-
-      const message =
-        data.rateLimit?.message ||
-        `⏳ Google API rate limit reached. Please wait ${Math.ceil(resetIn / 60)} minute(s) before trying again.`;
-
-      toast.error(message, {
-        duration: 8000,
-        icon: "⏱️",
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
-          text: "I'm temporarily handling too many requests. Please try again in a few minutes.",
+        appendMessage({
+          id: makeId("bot-error"),
+          text: "I'm temporarily handling too many requests. Please try again in a moment.",
           sender: "bot",
           timestamp: new Date(),
           isError: true,
-        },
-      ]);
-    } else if (errorCode === 'NOT_CONFIGURED') {
-      // Service not configured
-      toast.error("AI service is not configured. Please contact support.", {
-        duration: 5000,
-        icon: "⚠️",
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
+          canRetry: true,
+          retryText: originalUserText,
+        });
+      } else if (errorCode === "NOT_CONFIGURED") {
+        toast.error("AI service is not configured.", { duration: 5000 });
+        appendMessage({
+          id: makeId("bot-error"),
           text: "The AI service is currently unavailable. Please try again later.",
           sender: "bot",
           timestamp: new Date(),
           isError: true,
-        },
-      ]);
-    } else if (errorCode === 'TIMEOUT') {
-      // Request timeout
-      toast.error("Response timeout. Please try again.", {
-        duration: 5000,
-        icon: "⏱️",
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
+          canRetry: true,
+          retryText: originalUserText,
+        });
+      } else if (errorCode === "TIMEOUT" || httpStatus === 408) {
+        toast.error("Response timeout. Please try again.", { duration: 5000 });
+        appendMessage({
+          id: makeId("bot-error"),
           text: "The request took too long. Please try again.",
           sender: "bot",
           timestamp: new Date(),
           isError: true,
-        },
-      ]);
-    } else if (errorCode === 'INVALID_RESPONSE') {
-      // Invalid response format
-      toast.error("Invalid response format. Please try again.", {
-        duration: 5000,
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
-          text: "I received an invalid response. Please try again.",
-          sender: "bot",
-          timestamp: new Date(),
-          isError: true,
-        },
-      ]);
-    } else if (httpStatus >= 500) {
-      // Server error
-      toast.error("Server error. Please try again later.", {
-        duration: 5000,
-        icon: "⚠️",
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
+          canRetry: true,
+          retryText: originalUserText,
+        });
+      } else if (httpStatus >= 500) {
+        toast.error("Server error. Please try again later.", { duration: 5000 });
+        appendMessage({
+          id: makeId("bot-error"),
           text: "Server error. Please try again later.",
           sender: "bot",
           timestamp: new Date(),
           isError: true,
-        },
-      ]);
-    } else if (httpStatus >= 400) {
-      // Client error
-      toast.error(errorMessage || "Invalid request. Please try again.", {
-        duration: 5000,
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
+          canRetry: true,
+          retryText: originalUserText,
+        });
+      } else if (httpStatus >= 400) {
+        toast.error(errorMessage, { duration: 5000 });
+        appendMessage({
+          id: makeId("bot-error"),
           text: "Sorry, there was an issue with your request.",
           sender: "bot",
           timestamp: new Date(),
           isError: true,
-        },
-      ]);
-    } else {
-      // Generic error
-      toast.error(errorMessage || "Sorry, I encountered an error. Please try again.", {
-        duration: 5000,
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
+          canRetry: true,
+          retryText: originalUserText,
+        });
+      } else {
+        toast.error(errorMessage, { duration: 5000 });
+        appendMessage({
+          id: makeId("bot-error"),
           text: "Sorry, I'm having trouble right now. Please try again.",
           sender: "bot",
           timestamp: new Date(),
           isError: true,
-        },
-      ]);
+          canRetry: true,
+          retryText: originalUserText,
+        });
+      }
+
+      setError(errorMessage);
+    },
+    [appendMessage, startRateLimitTimer]
+  );
+
+  const scrollToBottom = useCallback(
+    (behavior = "smooth") => {
+      if (!autoScrollEnabled) return;
+      messageEndRef.current?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : behavior,
+        block: "end",
+      });
+    },
+    [autoScrollEnabled, reduceMotion]
+  );
+
+  const handleMessageScroll = useCallback((event) => {
+    const target = event.currentTarget;
+    const nearBottom =
+      target.scrollHeight - target.scrollTop - target.clientHeight < 80;
+    setAutoScrollEnabled(nearBottom);
+  }, []);
+
+  useEffect(() => {
+    const rawMessages = localStorage.getItem(STORAGE_KEYS.messages);
+    const rawSessionId = localStorage.getItem(STORAGE_KEYS.sessionId);
+    const rawReset = localStorage.getItem(STORAGE_KEYS.rateLimitReset);
+    const rawConversations = localStorage.getItem(STORAGE_KEYS.conversations);
+    const rawRatings = localStorage.getItem(STORAGE_KEYS.messageRatings);
+
+    const parsedMessages = deserializeMessages(safeParse(rawMessages, []));
+    const parsedConversations = deserializeConversations(
+      safeParse(rawConversations, [])
+    );
+    const parsedRatings = safeParse(rawRatings, {});
+
+    setMessages(parsedMessages);
+    setConversations(parsedConversations);
+    setMessageRatings(parsedRatings);
+    setShowWelcome(parsedMessages.length === 0);
+
+    const createdSessionId = rawSessionId || makeId("session");
+    setSessionId(createdSessionId);
+    setCurrentConversationId(createdSessionId);
+    localStorage.setItem(STORAGE_KEYS.sessionId, createdSessionId);
+
+    if (rawReset) {
+      const resetTime = Number(rawReset);
+      const remaining = resetTime - Date.now();
+      if (remaining > 0) {
+        setRateLimitCooldown(Math.ceil(remaining / 1000));
+        startRateLimitTimer(remaining);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.rateLimitReset);
+      }
     }
 
-    setError(errorMessage || "Failed to get response. Please try again.");
-    setTypingMessage("");
-  };
+    return () => clearRateLimitTimer();
+  }, [clearRateLimitTimer, startRateLimitTimer]);
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
+  useDebouncedEffect(() => {
+    if (messages.length === 0) {
+      localStorage.removeItem(STORAGE_KEYS.messages);
+      return;
+    }
+    localStorage.setItem(
+      STORAGE_KEYS.messages,
+      JSON.stringify(serializeMessages(messages))
+    );
+  }, [messages], 300);
 
-    const trimmed = inputValue.trim();
-    if (!trimmed || isLoading || rateLimitCooldown > 0) return;
+  useDebouncedEffect(() => {
+    if (conversations.length === 0) {
+      localStorage.removeItem(STORAGE_KEYS.conversations);
+      return;
+    }
+    localStorage.setItem(
+      STORAGE_KEYS.conversations,
+      JSON.stringify(serializeConversations(conversations))
+    );
+  }, [conversations], 350);
 
-    setShowWelcome(false);
+  useDebouncedEffect(() => {
+    if (Object.keys(messageRatings).length === 0) {
+      localStorage.removeItem(STORAGE_KEYS.messageRatings);
+      return;
+    }
+    localStorage.setItem(
+      STORAGE_KEYS.messageRatings,
+      JSON.stringify(messageRatings)
+    );
+  }, [messageRatings], 250);
 
-    const userMessage = {
-      id: `${Date.now()}-user`,
-      text: trimmed,
-      sender: "user",
-      timestamp: new Date(),
+  useEffect(() => {
+    if (isOpen) {
+      requestAnimationFrame(() => scrollToBottom("auto"));
+    }
+  }, [isOpen, scrollToBottom]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    requestAnimationFrame(() => scrollToBottom("smooth"));
+  }, [messages.length, isLoading, isOpen, scrollToBottom]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      const menuRoot = event.target.closest?.("[data-message-menu]");
+      if (!menuRoot) {
+        setExpandedOptions(null);
+      }
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsLoading(true);
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, []);
+
+  const handleOpenChat = useCallback(() => {
+    setIsOpen(true);
     setError(null);
-    setTypingMessage("");
+    if (messages.length === 0) {
+      setShowWelcome(true);
+    }
+  }, [messages.length]);
 
+  const handleCloseChat = useCallback(() => {
+    setIsOpen(false);
+    setShowHistory(false);
+    setExpandedOptions(null);
+    setShowDeleteConfirm(null);
+    setEditingId(null);
+    setError(null);
+  }, []);
+
+  const handleSuggestionClick = useCallback((prompt) => {
+    setShowWelcome(false);
+    setInputValue(prompt);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
+
+  const handleClearChat = useCallback(() => {
+    setMessages([]);
+    setUndoStack([]);
+    setShowWelcome(true);
+    setError(null);
+    setExpandedOptions(null);
+    setShowDeleteConfirm(null);
+    localStorage.removeItem(STORAGE_KEYS.messages);
+    toast.success("Chat cleared");
+  }, []);
+
+  const handleCopyMessage = useCallback(async (message) => {
     try {
-      let token = null;
+      await navigator.clipboard.writeText(message.text);
+      toast.success("Message copied");
+      setExpandedOptions(null);
+    } catch {
+      toast.error("Could not copy message");
+    }
+  }, []);
 
-      if (isAuthenticated && auth.currentUser) {
-        token = await getFirebaseToken();
+  const handleStartEdit = useCallback((message) => {
+    setEditingId(message.id);
+    setEditingText(message.text);
+    setExpandedOptions(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(
+    (messageId) => {
+      const value = editingText.trim();
+      if (!value) {
+        toast.error("Message cannot be empty");
+        return;
       }
 
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      // Build message history for context
-      const history = messages.map((msg) => ({
-        role: msg.sender === "user" ? "user" : "assistant",
-        content: msg.text,
-      }));
-
-      const response = await axios.post(
-        `${API_BASE_URL}/gemini/chat`,
-        {
-          message: trimmed,
-          context: buildContext(),
-          sessionId,
-          history,
-        },
-        {
-          headers,
-          timeout: 30000,
-        }
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                text: value,
+                edited: true,
+                editedAt: new Date(),
+              }
+            : message
+        )
       );
 
-      // Check if request was successful (status 200 with success: true)
-      if (response.status === 200) {
-        if (response.data?.success && response.data?.content) {
-          setLastFallbackUsed(response.data.fallbackUsed || false);
-          const messageId = `${Date.now()}-bot`;
-          
-          // Use typing animation for better UX
-          await typeMessage(response.data.content, messageId);
-        } else if (!response.data?.success) {
-          // Handle error response (status 200 with success: false)
-          handleAIError(response.data, response.status);
-        } else {
-          // Should not happen with proper backend, but handle gracefully
-          setError("Failed to get response. Please try again.");
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `${Date.now()}-error`,
-              text: "Sorry, I encountered an error. Please try again.",
-              sender: "bot",
-              timestamp: new Date(),
-              isError: true,
-            },
-          ]);
-        }
+      setEditingId(null);
+      setEditingText("");
+      toast.success("Message updated");
+    },
+    [editingText]
+  );
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditingText("");
+  }, []);
+
+  const handleRateMessage = useCallback((messageId, rating) => {
+    setMessageRatings((prev) => ({
+      ...prev,
+      [messageId]: prev[messageId] === rating ? null : rating,
+    }));
+    setExpandedOptions(null);
+  }, []);
+
+  const handleDeleteMessage = useCallback((messageId) => {
+    setShowDeleteConfirm((prev) => (prev === messageId ? null : messageId));
+    setExpandedOptions(null);
+  }, []);
+
+  const handleConfirmDelete = useCallback((messageId) => {
+    setMessages((prev) => {
+      const deleted = prev.find((message) => message.id === messageId);
+      if (deleted) {
+        setUndoStack((stack) => [...stack.slice(-19), deleted]);
       }
-    } catch (err) {
-      console.error("[Chatbot] Error:", err);
-      handleAIError(err.response?.data, err.response?.status);
+      return prev.filter((message) => message.id !== messageId);
+    });
+    setShowDeleteConfirm(null);
+    toast.success("Message deleted");
+  }, []);
 
-      // Handle network errors and timeouts
-      if (err.code === 'ECONNABORTED') {
-        // Timeout
-        setError("Request timeout. Please try again.");
-        toast.error("Request took too long. Please try again.", {
-          duration: 5000,
-          icon: "⏱️",
-        });
+  const handleCancelDelete = useCallback(() => {
+    setShowDeleteConfirm(null);
+  }, []);
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `${Date.now()}-error`,
-            text: "The request took too long. Please try again.",
-            sender: "bot",
-            timestamp: new Date(),
-            isError: true,
-          },
-        ]);
-      } else if (!err.response) {
-        // Network error (no response from server)
-        setError("Network error. Please check your connection.");
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `${Date.now()}-error`,
-            text: "Connection lost. Please check your internet and try again.",
-            sender: "bot",
-            timestamp: new Date(),
-            isError: true,
-          },
-        ]);
+  const handleUndo = useCallback(() => {
+    setUndoStack((prev) => {
+      if (prev.length === 0) {
+        toast.error("Nothing to undo");
+        return prev;
       }
+      const restored = prev[prev.length - 1];
+      setMessages((messagesPrev) => [...messagesPrev, restored]);
+      toast.success("Message restored");
+      return prev.slice(0, -1);
+    });
+  }, []);
 
-      setTypingMessage("");
-    } finally {
-      setIsLoading(false);
+  const handleSaveConversation = useCallback(() => {
+    if (messages.length === 0) {
+      toast.error("No messages to save");
+      return;
     }
-  };
 
-  const panelMotion = reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 8, scale: 0.99 },
-        animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: 6, scale: 0.99 },
-        transition: { duration: 0.16, ease: "easeOut" },
+    const title =
+      messages.find((message) => message.sender === "user")?.text?.slice(0, 60) ||
+      "New conversation";
+
+    const newConversation = {
+      id: makeId("conversation"),
+      title,
+      messages,
+      createdAt: new Date(),
+      messageCount: messages.length,
+    };
+
+    setConversations((prev) => [newConversation, ...prev]);
+    setCurrentConversationId(newConversation.id);
+    toast.success("Conversation saved");
+  }, [messages]);
+
+  const handleLoadConversation = useCallback((conversation) => {
+    setMessages(deserializeMessages(conversation.messages || []));
+    setCurrentConversationId(conversation.id);
+    setShowHistory(false);
+    setShowWelcome(false);
+    setError(null);
+    toast.success("Conversation loaded");
+  }, []);
+
+  const handleDeleteConversation = useCallback(
+    (conversationId) => {
+      setConversations((prev) =>
+        prev.filter((conversation) => conversation.id !== conversationId)
+      );
+
+      if (currentConversationId === conversationId) {
+        setCurrentConversationId(sessionId);
+        setMessages([]);
+        setShowWelcome(true);
+      }
+
+      toast.success("Conversation deleted");
+    },
+    [currentConversationId, sessionId]
+  );
+
+  const handleExportChat = useCallback(() => {
+    if (messages.length === 0) {
+      toast.error("No messages to export");
+      return;
+    }
+
+    const text = messages
+      .map((message) => {
+        const sender = message.sender === "user" ? "You" : "Assistant";
+        return `[${formatFullDate(message.timestamp)}] ${sender}: ${message.text}`;
+      })
+      .join("\n\n");
+
+    const anchor = document.createElement("a");
+    anchor.href = `data:text/plain;charset=utf-8,${encodeURIComponent(text)}`;
+    anchor.download = `chat-${new Date().toISOString().split("T")[0]}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    toast.success("Chat exported");
+  }, [messages]);
+
+  const handleExportJSON = useCallback(() => {
+    if (messages.length === 0) {
+      toast.error("No messages to export");
+      return;
+    }
+
+    const data = {
+      exportDate: new Date().toISOString(),
+      messagesCount: messages.length,
+      messages: serializeMessages(messages),
+    };
+
+    const anchor = document.createElement("a");
+    anchor.href = `data:application/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(data, null, 2)
+    )}`;
+    anchor.download = `chat-${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    toast.success("JSON exported");
+  }, [messages]);
+
+  const sendPrompt = useCallback(
+    async (promptText) => {
+      const trimmed = promptText.trim();
+      if (!trimmed || isLoading || rateLimitCooldown > 0) return;
+
+      const userMessage = {
+        id: makeId("user"),
+        text: trimmed,
+        sender: "user",
+        timestamp: new Date(),
       };
 
-  const itemMotion = reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 4 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.14, ease: "easeOut" },
-      };
+      setShowWelcome(false);
+      setExpandedOptions(null);
+      setShowDeleteConfirm(null);
+      setInputValue("");
+      setIsLoading(true);
+      setError(null);
+      appendMessage(userMessage);
+
+      try {
+        let token = null;
+        if (isAuthenticated && auth.currentUser) {
+          token = await getFirebaseToken();
+        }
+
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const history = [...messages, userMessage].map((message) => ({
+          role: message.sender === "user" ? "user" : "assistant",
+          content: message.text,
+        }));
+
+        const response = await axios.post(
+          `${API_BASE_URL}/gemini/chat`,
+          {
+            message: trimmed,
+            context: buildContext(),
+            sessionId,
+            history,
+          },
+          {
+            headers,
+            timeout: 30000,
+          }
+        );
+
+        if (response.status === 200 && response.data?.success && response.data?.content) {
+          setLastFallbackUsed(Boolean(response.data?.fallbackUsed));
+          appendMessage({
+            id: makeId("bot"),
+            text: response.data.content,
+            sender: "bot",
+            timestamp: new Date(),
+            fallbackUsed: Boolean(response.data?.fallbackUsed),
+          });
+          return;
+        }
+
+        handleAIError(response.data, response.status, trimmed);
+      } catch (requestError) {
+        console.error("[Chatbot] Error:", requestError);
+
+        if (requestError.code === "ECONNABORTED") {
+          handleAIError(
+            { code: "TIMEOUT", message: "Request timeout. Please try again." },
+            408,
+            trimmed
+          );
+        } else if (!requestError.response) {
+          setError("Network error. Please check your connection.");
+          toast.error("Network error. Please check your connection.");
+          appendMessage({
+            id: makeId("bot-error"),
+            text: "I couldn't reach the server. Please check your connection and try again.",
+            sender: "bot",
+            timestamp: new Date(),
+            isError: true,
+            canRetry: true,
+            retryText: trimmed,
+          });
+        } else {
+          handleAIError(
+            requestError.response?.data,
+            requestError.response?.status,
+            trimmed
+          );
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [
+      API_BASE_URL,
+      appendMessage,
+      buildContext,
+      getFirebaseToken,
+      handleAIError,
+      isAuthenticated,
+      isLoading,
+      messages,
+      rateLimitCooldown,
+      sessionId,
+    ]
+  );
+
+  const handleSubmit = useCallback(
+    async (event) => {
+      event.preventDefault();
+      await sendPrompt(inputValue);
+    },
+    [inputValue, sendPrompt]
+  );
+
+  const handleRetry = useCallback(
+    async (text) => {
+      await sendPrompt(text);
+    },
+    [sendPrompt]
+  );
+
+  const toggleMenu = useCallback((messageId) => {
+    setExpandedOptions((prev) => (prev === messageId ? null : messageId));
+  }, []);
 
   return (
     <>
-      <style>
-        {`
-          .chat-scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-          .chat-scrollbar-hide::-webkit-scrollbar {
-            display: none;
-          }
-        `}
-      </style>
-
-      <button
-        onClick={handleOpenChat}
-        title="Open assistant"
-        className={`fixed bottom-5 right-5 z-40 transition-opacity duration-150 ${
-          isOpen ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
-        }`}
-      >
-        <div className="flex h-13 w-13 items-center justify-center rounded-full border border-emerald-300/30 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-900/15 md:h-14 md:w-14">
-          <HiOutlineSparkles className="text-xl md:text-2xl" />
-        </div>
-      </button>
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={handleOpenChat}
+          className="fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700 sm:bottom-6 sm:right-6"
+          aria-label="Open AI chat"
+        >
+          <HiOutlineSparkles className="text-2xl" />
+        </button>
+      )}
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            {...panelMotion}
-            className="fixed bottom-20 right-3 z-50 flex h-[540px] w-[22rem] max-w-[calc(100vw-0.75rem)] flex-col overflow-hidden rounded-[1.6rem] border border-emerald-100 bg-white shadow-2xl sm:bottom-24 sm:right-5 sm:h-[560px] sm:w-[23.5rem]"
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 18, scale: 0.98 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18 }}
+            className={cn(
+              "fixed bottom-2 right-2 z-50 flex max-h-[90dvh] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl sm:bottom-6 sm:right-6",
+              CHAT_WIDTH,
+              CHAT_HEIGHT
+            )}
           >
-            <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-r from-emerald-600 via-emerald-600 to-emerald-700 px-4 py-3.5 text-white">
-              <div className="flex items-center gap-3">
-                <GeminiMark />
-                <div>
-                  <h3 className="text-sm font-semibold tracking-tight">
-                    Gemini Assistant
-                  </h3>
-                  <p className="text-[11px] text-white/80">
-                    Campus Lost &amp; Found
-                  </p>
-                </div>
-              </div>
+            <ChatHeader
+              showSearch={showSearch}
+              setShowSearch={setShowSearch}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              filteredCount={filteredMessages.length}
+              messageCount={messages.length}
+              onToggleHistory={() => setShowHistory((prev) => !prev)}
+              onSaveConversation={handleSaveConversation}
+              onExportText={handleExportChat}
+              onExportJSON={handleExportJSON}
+              onClose={handleCloseChat}
+            />
 
-              <div className="flex items-center gap-2">
-                {/* Search Button */}
-                <button
-                  onClick={() => setShowSearch(!showSearch)}
-                  title="Search messages"
-                  className="rounded-xl p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
-                  aria-label="Search"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-
-                {/* History Button */}
-                <button
-                  onClick={() => setShowHistory(!showHistory)}
-                  title="Conversation history"
-                  className={`rounded-xl p-2 transition ${showHistory ? 'bg-white/20 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                  aria-label="History"
-                >
-                  <FaHistory className="text-sm" />
-                </button>
-
-                {/* More Options */}
-                {messages.length > 0 && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setExpandedOptions(expandedOptions === 'main' ? null : 'main')}
-                      title="More options"
-                      className="rounded-xl p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
-                      aria-label="More options"
-                    >
-                      <FaEllipsisV className="text-sm" />
-                    </button>
-                    
-                    {expandedOptions === 'main' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50 overflow-hidden"
-                      >
-                        <button
-                          onClick={() => {
-                            handleExportChat();
-                            setExpandedOptions(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition"
-                        >
-                          <FaDownload className="text-xs" /> Export as Text
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleExportJSON();
-                            setExpandedOptions(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition"
-                        >
-                          <FaDownload className="text-xs" /> Export as JSON
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleSaveConversation();
-                            setExpandedOptions(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition"
-                        >
-                          <FaTrophy className="text-xs" /> Save to History
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleUndo();
-                            setExpandedOptions(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition border-t border-slate-200"
-                        >
-                          <FaUndoAlt className="text-xs" /> Undo
-                        </button>
-                      </motion.div>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  onClick={handleCloseChat}
-                  className="rounded-xl p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
-                  aria-label="Close chat"
-                >
-                  <FaTimes className="text-sm" />
-                </button>
-              </div>
-            </div>
-
-            {/* Search Bar */}
-            <AnimatePresence>
-              {showSearch && messages.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="border-b border-slate-200 px-4 py-2.5 bg-slate-50"
-                >
-                  <input
-                    type="text"
-                    placeholder="Search messages..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    autoFocus
-                  />
-                  <div className="mt-1 text-xs text-slate-500">
-                    Found {getFilteredMessages().length} of {messages.length} messages
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex min-h-0 flex-1 flex-col bg-gradient-to-b from-white via-white to-slate-50">
+            <div className="relative flex min-h-0 flex-1 bg-slate-50">
               {showWelcome && messages.length === 0 ? (
-                <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-                  <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 ring-1 ring-emerald-200 shadow-lg"
-                  >
-                    <HiOutlineSparkles className="text-3xl text-emerald-600" />
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.1 }}
-                  >
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">
-                      Welcome
-                    </h2>
-                    <p className="mt-4 max-w-sm text-sm leading-6 text-slate-600 font-medium">
-                      Get instant help with lost and found items. Ask about posting, searching, claiming, or reporting.
-                    </p>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className="mt-8 flex w-full flex-col gap-3"
-                  >
-                    {suggestedPrompts.map((prompt, idx) => (
-                      <motion.button
-                        key={prompt}
-                        initial={{ opacity: 0, x: -12 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.4, delay: 0.3 + idx * 0.05 }}
-                        onClick={() => handleSuggestionClick(prompt)}
-                        className="group rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/50 to-emerald-50/30 px-5 py-3.5 text-left text-sm font-medium text-slate-800 transition-all hover:border-emerald-300 hover:from-emerald-50 hover:shadow-md hover:shadow-emerald-100/50"
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="text-lg">→</span>
-                          {prompt}
-                        </span>
-                      </motion.button>
-                    ))}
-                  </motion.div>
-                </div>
+                <WelcomeView onSuggestionClick={handleSuggestionClick} />
               ) : (
-                <div className="chat-scrollbar-hide flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-                  <div className="space-y-4 max-w-2xl mx-auto">
-                    {(searchQuery.trim() ? getFilteredMessages() : messages).map((msg) => (
-                      <motion.div
-                        key={msg.id}
-                        {...itemMotion}
-                        className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} group`}
-                        onMouseEnter={() => setHoveredMessageId(msg.id)}
-                        onMouseLeave={() => setHoveredMessageId(null)}
-                      >
-                        <div className="flex flex-col gap-1 max-w-[86%]">
-                          <div className="flex items-end gap-2">
-                            {/* Edit Mode */}
-                            {editingId === msg.id ? (
-                              <div className="w-full flex flex-col gap-2 bg-slate-50 rounded-2xl rounded-bl-md border border-slate-300 p-3.5">
-                                <textarea
-                                  value={editingText}
-                                  onChange={(e) => setEditingText(e.target.value)}
-                                  className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                                  rows={3}
-                                  autoFocus
-                                />
-                                <div className="flex gap-2 justify-end">
-                                  <button
-                                    onClick={() => {
-                                      setEditingId(null);
-                                      setEditingText("");
-                                    }}
-                                    className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 rounded-lg transition"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    onClick={() => handleSaveEdit(msg.id)}
-                                    className="px-3 py-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition"
-                                  >
-                                    Save
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div
-                                className={[
-                                  "max-w-full rounded-2xl px-4 py-3 text-[13px] leading-6 sm:text-sm",
-                                  msg.sender === "user"
-                                    ? "rounded-br-md bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-md"
-                                    : msg.isError
-                                    ? "rounded-bl-md border border-red-200 bg-red-50 text-red-700"
-                                    : "rounded-bl-md border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 shadow-sm",
-                                ].join(" ")}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1">
-                                    <RichMessageRenderer 
-                                      text={msg.text} 
-                                      isUserMessage={msg.sender === "user"}
-                                    />
-                                  </div>
-                                  {msg.fallbackUsed && !msg.isError && (
-                                    <span
-                                      className="inline-block ml-2 text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md whitespace-nowrap flex-shrink-0"
-                                      title="Fallback AI used"
-                                    >
-                                      Fallback
-                                    </span>
-                                  )}
-                                </div>
-                                {msg.edited && (
-                                  <p className={`text-[10px] opacity-70 mt-2 ${msg.sender === "user" ? "text-emerald-100" : "text-slate-500"}`}>
-                                    ✏️ edited
-                                  </p>
-                                )}
-                                <div
-                                  title={formatFullDate(msg.timestamp)}
-                                  className={`mt-2.5 block text-[10px] cursor-help font-medium ${
-                                    msg.sender === "user" ? "text-emerald-100" : "text-slate-500"
-                                  }`}
-                                >
-                                  {getDateFromTimestamp(msg.timestamp).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Message Actions Menu */}
-                            {hoveredMessageId === msg.id && editingId !== msg.id && !msg.isError && (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="relative">
-                                  <button
-                                    onClick={() => setExpandedOptions(expandedOptions === msg.id ? null : msg.id)}
-                                    className="p-1.5 rounded-lg hover:bg-slate-200 transition"
-                                    title="Message options"
-                                  >
-                                    <FaEllipsisV className="text-xs text-slate-500" />
-                                  </button>
-
-                                  {expandedOptions === msg.id && (
-                                    <motion.div
-                                      initial={{ opacity: 0, y: -4 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      exit={{ opacity: 0, y: -4 }}
-                                      className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-lg shadow-lg z-50 overflow-hidden border border-slate-200"
-                                    >
-                                      <button
-                                        onClick={() => {
-                                          handleCopyMessage(msg.text);
-                                          setExpandedOptions(null);
-                                        }}
-                                        className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition"
-                                      >
-                                        <FaCopy className="text-xs" /> Copy
-                                      </button>
-
-                                      {msg.sender === "user" && (
-                                        <button
-                                          onClick={() => {
-                                           handleStartEdit(msg);
-                                            setExpandedOptions(null);
-                                          }}
-                                          className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition"
-                                        >
-                                          <FaEdit className="text-xs" /> Edit
-                                        </button>
-                                      )}
-
-                                      {msg.sender === "bot" && (
-                                        <>
-                                          <button
-                                            onClick={() => {
-                                              handleRateMessage(msg.id, 'up');
-                                              setExpandedOptions(null);
-                                            }}
-                                            className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition ${
-                                              messageRatings[msg.id] === 'up' 
-                                                ? 'bg-green-50 text-green-700' 
-                                                : 'text-slate-700 hover:bg-slate-50'
-                                            }`}
-                                          >
-                                            <FaThumbsUp className="text-xs" /> Helpful
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              handleRateMessage(msg.id, 'down');
-                                              setExpandedOptions(null);
-                                            }}
-                                            className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition ${
-                                              messageRatings[msg.id] === 'down' 
-                                                ? 'bg-red-50 text-red-700' 
-                                                : 'text-slate-700 hover:bg-slate-50'
-                                            }`}
-                                          >
-                                            <FaThumbsDown className="text-xs" /> Not helpful
-                                          </button>
-                                        </>
-                                      )}
-
-                                      <button
-                                        onClick={() => {
-                                          handleDeleteMessage(msg.id);
-                                          setExpandedOptions(null);
-                                        }}
-                                        className="w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 transition border-t border-slate-200"
-                                      >
-                                        <FaTrash className="text-xs" /> Delete
-                                      </button>
-                                    </motion.div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Delete Confirmation */}
-                            {showDeleteConfirm === msg.id && (
-                              <div className="flex gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                                <button
-                                  onClick={() => handleDeleteMessage(msg.id)}
-                                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
-                                >
-                                  Confirm Delete
-                                </button>
-                                <button
-                                  onClick={handleCancelDelete}
-                                  className="px-2 py-1 text-xs bg-slate-300 text-slate-700 rounded hover:bg-slate-400 transition"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-
-                    {isLoading && typingMessage === "" && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex justify-start"
-                      >
-                        <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 px-4 py-3 text-sm text-slate-600 flex items-center gap-2">
-                          <div className="flex gap-1">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{animationDelay: '0ms'}}></div>
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{animationDelay: '150ms'}}></div>
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{animationDelay: '300ms'}}></div>
-                          </div>
-                          <span className="ml-1 font-medium">Generating response</span>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {typingMessage && (
-                      <motion.div
-                        {...itemMotion}
-                        className="flex justify-start"
-                      >
-                        <div className="max-w-[86%] rounded-2xl rounded-bl-md border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-3 text-[13px] leading-6 text-slate-900 sm:text-sm shadow-sm">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <RichMessageRenderer 
-                                text={typingMessage}
-                                isUserMessage={false}
-                              />
-                            </div>
-                            {lastFallbackUsed && (
-                              <span
-                                className="inline-block ml-2 text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md whitespace-nowrap flex-shrink-0"
-                                title="Fallback AI used"
-                              >
-                                Fallback
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
+                <MessageList
+                  messages={filteredMessages}
+                  isLoading={isLoading}
+                  messageEndRef={messageEndRef}
+                  containerRef={messageContainerRef}
+                  onScroll={handleMessageScroll}
+                  isEditing={false}
+                  editingId={editingId}
+                  editingText={editingText}
+                  setEditingText={setEditingText}
+                  onSaveEdit={handleSaveEdit}
+                  onCancelEdit={handleCancelEdit}
+                  expandedOptions={expandedOptions}
+                  messageRatings={messageRatings}
+                  showDeleteConfirm={showDeleteConfirm}
+                  onToggleMenu={toggleMenu}
+                  onCopy={handleCopyMessage}
+                  onStartEdit={handleStartEdit}
+                  onRate={handleRateMessage}
+                  onDelete={handleDeleteMessage}
+                  onConfirmDelete={handleConfirmDelete}
+                  onCancelDelete={handleCancelDelete}
+                  onRetry={handleRetry}
+                />
               )}
+
+              <HistoryDrawer
+                open={showHistory}
+                conversations={conversations}
+                currentConversationId={currentConversationId}
+                onLoadConversation={handleLoadConversation}
+                onDeleteConversation={handleDeleteConversation}
+                onClose={() => setShowHistory(false)}
+              />
             </div>
 
-            {/* Conversation History Modal */}
-            <AnimatePresence>
-              {showHistory && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black/50 rounded-[1.6rem] flex items-center justify-center z-[60] backdrop-blur-sm"
-                  onClick={() => setShowHistory(false)}
+            <div className="border-t border-slate-100 bg-white px-3 py-2">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>
+                  {lastFallbackUsed ? "Last answer used fallback" : "Assistant ready"}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 hover:bg-slate-100 hover:text-slate-600"
                 >
-                  <motion.div
-                    initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-gradient-to-br from-white to-slate-50 rounded-2xl m-4 max-h-96 w-full max-w-sm flex flex-col overflow-hidden shadow-2xl border border-slate-200"
-                  >
-                    <div className="border-b border-slate-200 px-5 py-4 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-slate-50">
-                      <div>
-                        <h3 className="font-bold text-slate-900 text-sm">Conversation History</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">{conversations.length} saved</p>
-                      </div>
-                      <button
-                        onClick={() => setShowHistory(false)}
-                        className="p-2 hover:bg-slate-200 rounded-lg transition"
-                      >
-                        <FaTimes className="text-sm text-slate-600" />
-                      </button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto">
-                      {conversations.length === 0 ? (
-                        <div className="p-8 text-center">
-                          <div className="text-4xl mb-2">📁</div>
-                          <p className="text-sm text-slate-500 font-medium">No saved conversations yet</p>
-                          <p className="text-xs text-slate-400 mt-1">Save conversations to access them later</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-slate-100">
-                          {conversations.map((conv) => (
-                            <motion.div
-                              key={conv.id}
-                              whileHover={{ backgroundColor: 'rgba(16, 185, 129, 0.02)' }}
-                              className="p-4 hover:bg-slate-50 transition cursor-pointer group border-l-4 border-l-transparent hover:border-l-emerald-500"
-                            >
-                              <button
-                                onClick={() => handleLoadConversation(conv)}
-                                className="w-full text-left"
-                              >
-                                <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-emerald-600 transition">
-                                  {conv.title}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
-                                  <FaClock className="text-xs" />
-                                  {conv.messageCount} messages
-                                </p>
-                              </button>
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteConversation(conv.id);
-                                }}
-                                className="mt-3 text-xs text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 font-medium hover:bg-red-50 px-2 py-1 rounded"
-                              >
-                                <FaTrash className="text-xs" /> Remove
-                              </motion.button>
-                            </motion.div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <form
-              onSubmit={handleSendMessage}
-              className="border-t border-slate-200 bg-gradient-to-b from-white to-slate-50 p-4 backdrop-blur-sm"
-            >
-              <div className="space-y-3">
-                <div className="flex items-end gap-3">
-                  <div className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 focus-within:border-emerald-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-200 focus-within:shadow-md transition-all">
-                    <textarea
-                      ref={textareaRef}
-                      value={inputValue}
-                      onChange={handleInputChange}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage(e);
-                        }
-                      }}
-                      placeholder="Type your message... (Shift+Enter for new line)"
-                      disabled={isLoading || rateLimitCooldown > 0}
-                      rows={1}
-                      className="max-h-28 min-h-[24px] w-full resize-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed font-medium"
-                    />
-                  </div>
-
-                  <motion.button
-                    type="submit"
-                    disabled={isLoading || !inputValue.trim() || rateLimitCooldown > 0}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-emerald-700 text-white transition-all shadow-lg hover:shadow-emerald-500/40 disabled:from-slate-400 disabled:to-slate-500 disabled:shadow-none"
-                    aria-label="Send message"
-                  >
-                    <FaArrowUp className="text-sm" />
-                  </motion.button>
-                </div>
-
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 font-medium flex items-center gap-2"
-                  >
-                    <FaTimesCircle className="text-sm" /> {error}
-                  </motion.div>
-                )}
-
-                {rateLimitCooldown > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700 font-medium flex items-center gap-2"
-                  >
-                    <FaClock className="text-sm animate-spin" /> Please wait {rateLimitCooldown}s before sending again
-                  </motion.div>
-                )}
-
-                {messages.length > 0 && !showWelcome && (
-                  <button
-                    type="button"
-                    onClick={handleClearChat}
-                    className="text-xs text-slate-500 hover:text-slate-700 transition font-medium hover:underline"
-                  >
-                    ✕ Clear chat
-                  </button>
-                )}
+                  <FaUndoAlt className="text-[10px]" />
+                  Undo delete
+                </button>
               </div>
-            </form>
+            </div>
+
+            <ChatComposer
+              inputValue={inputValue}
+              setInputValue={setInputValue}
+              onSubmit={handleSubmit}
+              onClearChat={handleClearChat}
+              isLoading={isLoading}
+              rateLimitCooldown={rateLimitCooldown}
+              error={error}
+              textareaRef={textareaRef}
+            />
           </motion.div>
         )}
       </AnimatePresence>
