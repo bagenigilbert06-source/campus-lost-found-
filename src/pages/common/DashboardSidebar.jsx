@@ -10,6 +10,7 @@ import {
   FaComment,
   FaHeadset,
   FaSignOutAlt,
+  FaMagic,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import AuthContext from "../../context/Authcontext/AuthContext";
@@ -56,6 +57,12 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
         path: "/app/activity",
         icon: FaHistory,
         description: "Recent account activity",
+      },
+      {
+        label: "Matches",
+        path: "/app/matches",
+        icon: FaMagic,
+        description: "Potential item matches",
       },
       // {
       //   label: "Contact Support",
@@ -143,6 +150,7 @@ const DashboardSidebar = ({ isOpen, onClose }) => {
                   src="/zetech-logo.png"
                   alt="Zetech Foundit logo"
                   className="h-12 w-12 object-contain"
+                  loading="eager"
                 />
               </div>
 

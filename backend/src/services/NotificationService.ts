@@ -31,7 +31,8 @@ export class NotificationService {
     userId: string,
     itemTitle: string,
     matchedItemId: string,
-    matchedItemTitle: string
+    matchedItemTitle: string,
+    isLostItem: boolean = true
   ): Promise<void> {
     try {
       const user = await User.findById(userId);
@@ -40,12 +41,16 @@ export class NotificationService {
         return;
       }
 
-      const subject = `Found a Potential Match: ${itemTitle}`;
+      const itemType = isLostItem ? 'lost' : 'found';
+      const matchType = isLostItem ? 'found' : 'lost';
+
+      const subject = `Potential Match Found: ${itemTitle}`;
       const htmlContent = `
-        <h2>We found a match for your lost item!</h2>
+        <h2>We found a potential match for your ${itemType} item!</h2>
         <p>Your item: <strong>${itemTitle}</strong></p>
-        <p>Matched with: <strong>${matchedItemTitle}</strong></p>
-        <p>Log in to your account to view more details and contact the person.</p>
+        <p>Possible match: <strong>${matchedItemTitle}</strong></p>
+        <p>Someone may have ${matchType} an item that matches yours. Log in to your account to view more details and contact the person.</p>
+        <p><a href="${process.env.FRONTEND_URL || 'https://campus-lost-found.vercel.app'}/app/matches" style="background-color: #0f766e; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Matches</a></p>
       `;
 
       await this.sendEmail(user.email, subject, htmlContent);
@@ -56,7 +61,7 @@ export class NotificationService {
         'match',
         matchedItemId,
         `Match found for ${itemTitle}`,
-        `Your item may have been found: ${matchedItemTitle}`
+        `Someone may have ${matchType} your item: ${matchedItemTitle}`
       );
     } catch (error) {
       console.error('[NotificationService] Failed to send match notification:', error);

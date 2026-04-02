@@ -44,6 +44,7 @@ import DashboardSearch from "../pages/DashboardSearch/DashboardSearch";
 import DashboardMessages from "../pages/DashboardMessages/DashboardMessages";
 import DashboardActivity from "../pages/DashboardActivity/DashboardActivity";
 import AdminLogin from "../pages/AdminLogin/AdminLogin";
+import MatchesPage from "../pages/Matches/MatchesPage";
 
 // Route Guards
 import PrivateRoute from "./PrivetRoute";
@@ -168,6 +169,10 @@ const router = createBrowserRouter([
       {
         path: 'activity',
         element: <UserRoute><DashboardActivity /></UserRoute>,
+      },
+      {
+        path: 'matches',
+        element: <UserRoute><MatchesPage /></UserRoute>,
       },
       {
         path: 'recovered',

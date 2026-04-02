@@ -306,6 +306,59 @@ router.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
       isAdmin
     );
 
+    // Automatically find matches and send notifications for Lost and Found items
+    if (resolvedType === 'Lost' || resolvedType === 'Found') {
+      try {
+        const matches = await matchingService.findMatches(item._id.toString());
+
+        // Send notifications for matches with score > 0.4 (good matches)
+        const goodMatches = matches.filter(match => match.score > 0.4);
+
+        for (const match of goodMatches) {
+          // Notify the person who posted the current item about potential matches
+          if (resolvedType === 'Lost') {
+            // Lost item poster gets notified about found items that match
+            if (item.userId) {
+              await notificationService.notifyItemMatch(
+                item.userId,
+                item.title,
+                match.foundItem._id.toString(),
+                match.foundItem.title,
+                true // isLostItem = true
+              );
+            }
+          } else {
+            // Found item poster gets notified about lost items that match
+            if (item.userId) {
+              await notificationService.notifyItemMatch(
+                item.userId,
+                item.title,
+                match.lostItem._id.toString(),
+                match.lostItem.title,
+                false // isLostItem = false
+              );
+            }
+          }
+
+          // Also notify the owner of the matching item
+          const matchingItem = resolvedType === 'Lost' ? match.foundItem : match.lostItem;
+          const isMatchingItemLost = resolvedType === 'Lost' ? false : true;
+          if (matchingItem.userId) {
+            await notificationService.notifyItemMatch(
+              matchingItem.userId,
+              matchingItem.title,
+              item._id.toString(),
+              item.title,
+              isMatchingItemLost
+            );
+          }
+        }
+      } catch (matchError) {
+        // Log the error but don't fail the item creation
+        console.error('[Item Creation] Failed to process matches:', matchError);
+      }
+    }
+
     res.status(201).json({ success: true, data: item });
   } catch (error) {
     next(error);

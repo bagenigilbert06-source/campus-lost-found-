@@ -119,6 +119,7 @@ const Navbar = () => {
                   src="/zetech-logo.png"
                   alt="Zetech Foundit logo"
                   className="w-full h-full object-contain rounded"
+                  loading="eager"
                 />
               </div>
 

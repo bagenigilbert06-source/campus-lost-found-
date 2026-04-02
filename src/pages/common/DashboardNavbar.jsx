@@ -158,6 +158,7 @@ const DashboardNavbar = ({ onToggleSidebar }) => {
                   src="/zetech-logo.png"
                   alt="Zetech Foundit logo"
                   className="h-12 w-12 object-contain"
+                  loading="eager"
                 />
               </div>
 

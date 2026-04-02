@@ -32,7 +32,7 @@ export class MatchingService {
         score: this.calculateMatchScore(item, candidateItem),
         reasons: this.getMatchReasons(item, candidateItem),
       }))
-      .filter((match) => match.score > 0.3) // Only keep matches with >30% score
+      .filter((match) => match.score > 0.25) // Only keep matches with >25% score
       .sort((a, b) => b.score - a.score);
 
     return matches;
@@ -43,29 +43,44 @@ export class MatchingService {
    */
   private calculateMatchScore(item1: IItem, item2: IItem): number {
     let score = 0;
-    let factors = 0;
+    let totalWeight = 0;
 
-    // Category match (50% weight)
+    // Category match (40% weight)
     if (item1.category === item2.category) {
-      score += 0.5;
+      score += 0.4;
     }
-    factors += 0.5;
+    totalWeight += 0.4;
 
-    // Location match (30% weight) - simplified
+    // Sub-type match (20% weight) - if both have sub-types
+    if (item1.subType && item2.subType && item1.subType === item2.subType) {
+      score += 0.2;
+    } else if (item1.subType && item2.subType) {
+      // Partial sub-type match
+      const subTypeSimilarity = this.calculateStringSimilarity(item1.subType, item2.subType);
+      score += subTypeSimilarity * 0.15;
+    }
+    totalWeight += 0.2;
+
+    // Title similarity (20% weight)
+    const titleSimilarity = this.calculateStringSimilarity(item1.title, item2.title);
+    score += titleSimilarity * 0.2;
+    totalWeight += 0.2;
+
+    // Location match (10% weight)
     const locationSimilarity = this.calculateStringSimilarity(item1.location, item2.location);
-    score += locationSimilarity * 0.3;
-    factors += 0.3;
+    score += locationSimilarity * 0.1;
+    totalWeight += 0.1;
 
-    // Date proximity (20% weight)
+    // Date proximity (10% weight)
     const daysDiff = Math.abs(
       new Date(item1.dateLost).getTime() - new Date(item2.dateLost).getTime()
     ) / (1000 * 60 * 60 * 24);
 
     const dateScore = Math.max(0, 1 - daysDiff / 30); // Full score if within 30 days
-    score += dateScore * 0.2;
-    factors += 0.2;
+    score += dateScore * 0.1;
+    totalWeight += 0.1;
 
-    return score / factors;
+    return totalWeight > 0 ? score / totalWeight : 0;
   }
 
   /**
